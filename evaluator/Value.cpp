@@ -2,8 +2,16 @@
 #include <sstream>
 #include <cmath>
 
+#include "Environment.h"
 #include "Logger.h"
 #include "common/StringKit.h"
+
+std::shared_ptr<ObjectValue> StringValue::Prototype = std::make_shared<ObjectValue>();
+std::shared_ptr<ObjectValue> NumberValue::Prototype = std::make_shared<ObjectValue>();
+std::shared_ptr<ObjectValue> BoolValue::Prototype = std::make_shared<ObjectValue>();
+std::shared_ptr<ObjectValue> ArrayValue::Prototype = std::make_shared<ObjectValue>();
+std::shared_ptr<ObjectValue> FunctionValue::Prototype = std::make_shared<ObjectValue>();
+std::shared_ptr<ObjectValue> ObjectValue::Prototype = std::make_shared<ObjectValue>();
 
 ValuePtr RuntimeValue::Get(const std::string &key) {
     Logger::Error("类型错误,不能获取属性'" + key + "' 来自: " + this->ToString());
@@ -97,6 +105,7 @@ StringValue::StringValue(char32_t v) : RuntimeValue(ValueType::STRING) {
     Value = StringKit::Char32ToUtf8(v);
 }
 
+
 ValuePtr StringValue::Get(const std::string &key) {
     try {
         const auto index = std::stoul(key);
@@ -175,6 +184,55 @@ ValuePtr StringValue::Get(const std::string &key) {
                     }
                     return std::make_shared<NumberValue>(self->U32Value.find_last_of(arg->U32Value));
                 });
+        }
+        if (key == "substr") {
+            return std::make_shared<NativeFunctionValue>(
+                [self = std::static_pointer_cast<StringValue>(shared_from_this())]
+        (const std::vector<ValuePtr> &args) -> ValuePtr {
+                    if (args.size() != 2) Logger::Error("参数错误: substring(start, end)");
+                    if (args.at(0)->type != ValueType::NUMBER || args.at(1)->type != ValueType::NUMBER) {
+                        Logger::Error("参数类型错误: substring(Number, Number)");
+                    }
+                    const auto arg1 = std::static_pointer_cast<NumberValue>(args.at(0));
+                    const auto arg2 = std::static_pointer_cast<NumberValue>(args.at(1));
+                    auto start = static_cast<size_t>(arg1->Value);
+                    auto end = static_cast<size_t>(arg2->Value);
+                    const size_t len = self->U32Value.size();
+                    if (start > len) start = len;
+                    if (end > len) end = len;
+                    if (start > end) {
+                        Logger::Error("参数错误: start 不能大于 end");
+                    }
+                    size_t count = end - start;
+                    if (count == 0) {
+                        return std::make_shared<StringValue>("");
+                    }
+                    std::u32string subU32 = self->U32Value.substr(start, count);
+                    return std::make_shared<StringValue>(StringKit::U32ToUtf8(subU32));
+                });
+        }
+        if (this->Prototype) {
+            ValuePtr method = Prototype->Get(key);
+            if (method) {
+                if (method->type == ValueType::FUNCTION) {
+                    auto originalFn = std::static_pointer_cast<FunctionValue>(method);
+                    auto thisEnv = std::make_shared<Environment>(originalFn->Closure);
+                    thisEnv->DeclareVar("this", shared_from_this());
+                    return std::make_shared<FunctionValue>(originalFn->Declaration, thisEnv);
+                }
+                if (method->type == ValueType::STRING) {
+                    return std::static_pointer_cast<StringValue>(method);
+                }
+                if (method->type == ValueType::NUMBER) {
+                    return std::static_pointer_cast<NumberValue>(method);
+                }
+                if (method->type == ValueType::BOOL) {
+                    return std::static_pointer_cast<BoolValue>(method);
+                }
+                if (method->type == ValueType::ARRAY) {
+                    return std::static_pointer_cast<ArrayValue>(method);
+                }
+            }
         }
     }
     return RuntimeValue::Get(key);

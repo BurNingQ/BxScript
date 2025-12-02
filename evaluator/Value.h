@@ -11,6 +11,7 @@
 
 #include "common/StringKit.h"
 
+class ObjectValue;
 // 前置声明
 class RuntimeValue;
 class FunctionLiteral;
@@ -74,6 +75,7 @@ public:
 class NumberValue : public RuntimeValue {
 public:
     double Value;
+    static std::shared_ptr<ObjectValue> Prototype;
 
     explicit NumberValue(double v) : RuntimeValue(ValueType::NUMBER), Value(v) {
     }
@@ -92,6 +94,7 @@ class StringValue : public RuntimeValue {
 public:
     std::string Value;
     std::u32string U32Value;
+    static std::shared_ptr<ObjectValue> Prototype;
 
     explicit StringValue(std::string v);
 
@@ -105,6 +108,7 @@ public:
 class BoolValue : public RuntimeValue {
 public:
     bool Value;
+    static std::shared_ptr<ObjectValue> Prototype;
 
     explicit BoolValue(const bool v) : RuntimeValue(ValueType::BOOL), Value(v) {
     }
@@ -115,6 +119,7 @@ public:
 class ArrayValue : public RuntimeValue {
 public:
     std::vector<ValuePtr> Elements;
+    static std::shared_ptr<ObjectValue> Prototype;
 
     explicit ArrayValue(std::vector<ValuePtr> elements)
         : RuntimeValue(ValueType::ARRAY), Elements(std::move(elements)) {
@@ -138,6 +143,7 @@ public:
 class ObjectValue final : public RuntimeValue {
 public:
     std::unordered_map<std::string, ValuePtr> Properties;
+    static std::shared_ptr<ObjectValue> Prototype;
 
     explicit ObjectValue() : RuntimeValue(ValueType::OBJECT) {
     }
@@ -179,6 +185,7 @@ class FunctionValue : public RuntimeValue {
 public:
     FunctionLiteral *Declaration;
     std::shared_ptr<Environment> Closure;
+    static std::shared_ptr<ObjectValue> Prototype;
 
     explicit FunctionValue(FunctionLiteral *decl, std::shared_ptr<Environment> closure)
         : RuntimeValue(ValueType::FUNCTION), Declaration(decl), Closure(std::move(closure)) {

@@ -173,3 +173,7 @@ JSON 解析支持。
 
 ## 📄 开源协议 (License)
 本项目采用 MIT License 开源。
+
+[![Docs](https://img.shields.io/badge/docs-read%20online-blue)](https://burningq.github.io/BxScript/)
+
+> 📚 **详细文档与 API 参考手册已上线：** [https://burningq.github.io/BxScript/](https://burningq.github.io/BxScript/)

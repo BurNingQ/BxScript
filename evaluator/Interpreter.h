@@ -16,7 +16,17 @@ public:
     inline static std::unordered_map<std::string, ValuePtr> ModuleCache; // 模块缓存
     inline static std::unordered_map<std::string, std::shared_ptr<Program> > ASTCache; // 模块结构持有
 
+    static void SetupEnvironment(std::shared_ptr<Environment> env) {
+        env->DeclareVar("String", StringValue::Prototype);
+        env->DeclareVar("Number", NumberValue::Prototype);
+        env->DeclareVar("Boolean", BoolValue::Prototype);
+        env->DeclareVar("Array", ArrayValue::Prototype);
+        env->DeclareVar("Function", FunctionValue::Prototype);
+        env->DeclareVar("Object", ObjectValue::Prototype);
+    }
+
     static ValuePtr EvaluateProgram(const Program &program, std::shared_ptr<Environment> env) {
+        SetupEnvironment(env);
         // 模块缓存
         for (const auto &importStmt: program.Imports) {
             LoadModule(importStmt.get(), env);
@@ -291,7 +301,7 @@ private:
             throw std::runtime_error("Unknown Unary Operator: " + op);
         }
 
-        // 赋值操作 (Assignment) ---
+        // 赋值操作 (Assignment)
         if (const auto *assign = dynamic_cast<AssignExpression *>(expr)) {
             // 计算右值
             ValuePtr rhs = Evaluate(assign->Right.get(), env);

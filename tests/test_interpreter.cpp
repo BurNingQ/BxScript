@@ -168,8 +168,8 @@ TEST_F(InterpreterTest, ContinueStatement) {
 TEST_F(InterpreterTest, ObjectLiteral) {
     std::string code = R"(
         let obj = { x: 10, y: 20 };
-        obj.x = obj.x + obj.y;
-        obj.x;
+        obj.z = obj.x + obj.y;
+        obj.z;
     )";
     ASSERT_IS_NUMBER(Eval(code), 30.0);
 }
@@ -344,6 +344,17 @@ TEST_F(InterpreterTest, StringFunc) {
 
     res = Eval(R"("HELLO".lastIndexOf("L"))");
     ASSERT_IS_NUMBER(res, 3);
+}
+
+TEST_F(InterpreterTest, ProtoTest) {
+    auto res = Eval(R"(
+           let globalVar = "我是全局变量";
+            String.test = function() {
+                return globalVar + "X";
+            };
+            "abc".test();
+    )");
+    ASSERT_IS_STRING(res, "我是全局变量X");
 }
 
 int main(int argc, char **argv) {
