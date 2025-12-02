@@ -143,5 +143,33 @@ JSON 解析支持。
 
 ## 🤝 贡献 (Contributing)
 欢迎提交 Issue 或 Pull Request！如果你对解释器原理、C++ 架构设计或 GUI 绑定感兴趣，请随时参与讨论。
+
+## 👥 成员名单 (Team & Acknowledgements)
+本项目由AI助手协作完成。
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/BurNingLi">
+        <img src="https://github.com/BurNingLi.png?size=100" width="100px;" alt="BurNingLi"/>
+        <br />
+        <sub><b>BurNingLi</b></sub>
+      </a>
+      <br />
+      🚀 <b>Creator & Lead Developer</b><br/>
+      (架构设计 / 核心实现 / 项目维护)
+    </td>
+    <td align="center">
+      <a href="https://deepmind.google/technologies/gemini/">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/8/8a/Google_Gemini_logo.svg" width="100px;" alt="Gemini"/>
+        <br />
+        <sub><b>Google Gemini 3</b></sub>
+      </a>
+      <br />
+      🤖 <b>AI Copilot & Tech Consultant</b><br/>
+      (协助降低 Executor 实现难度 / C++ 技术指导与最佳实践)
+    </td>
+  </tr>
+</table>
+
 ## 📄 开源协议 (License)
 本项目采用 MIT License 开源。
