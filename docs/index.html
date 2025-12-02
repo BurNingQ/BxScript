@@ -13,22 +13,25 @@
 <script>
     window.$docsify = {
         name: 'BxScript',
-        repo: 'https://github.com/BurNingQ/BxScript', // 你的仓库链接
+        repo: 'https://github.com/BurNingQ/BxScript', // 仓库链接
         loadSidebar: true, // 开启侧边栏
         subMaxLevel: 2,    // 侧边栏显示 h2 标题
         copyCode: {
             buttonText: '复制',
             errorText: '错误',
             successText: '已复制'
+        },
+        search: {
+            placeholder: '🔍 搜索 API...',
+            noData: '😒 找不到结果',
+            depth: 6
         }
     }
 </script>
-<!-- Docsify 核心 -->
 <script src="//cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
-<!-- 代码高亮支持 -->
 <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-c.min.js"></script>
 <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-cpp.min.js"></script>
-<!-- 复制到剪贴板插件 -->
 <script src="//cdn.jsdelivr.net/npm/docsify-copy-code/dist/docsify-copy-code.min.js"></script>
+<script src="//cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
 </body>
 </html>
