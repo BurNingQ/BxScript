@@ -333,12 +333,17 @@ TEST_F(InterpreterTest, CompoundAssignment) {
 }
 
 TEST_F(InterpreterTest, StringFunc) {
-    // ASSERT_IS_STRING(Eval(R"("HELLO"[1])"), "E");
     auto res = Eval(R"("HELLO".indexOf("E"))");
     ASSERT_IS_NUMBER(res, 1);
-    // ASSERT_IS_BOOL(Eval(R"("HELLO".endsWith("O"))"), true);
-    // ASSERT_IS_BOOL(Eval(R"("HELLO".startsWith("H"))"), true);
-    // ASSERT_IS_NUMBER(Eval(R"("HELLO".lastIndexOf("L"))"),3);
+
+    res = Eval(R"("HELLO".endsWith("O"))");
+    ASSERT_IS_BOOL(res, true);
+
+    res = Eval(R"("HELLO".startsWith("H"))");
+    ASSERT_IS_BOOL(res,true);
+
+    res = Eval(R"("HELLO".lastIndexOf("L"))");
+    ASSERT_IS_NUMBER(res, 3);
 }
 
 int main(int argc, char **argv) {

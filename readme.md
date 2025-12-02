@@ -149,8 +149,8 @@ JSON 解析支持。
 <table>
   <tr>
     <td align="center">
-      <a href="https://github.com/BurNingLi">
-        <img src="https://github.com/BurNingLi.png?size=100" width="100px;" alt="BurNingLi"/>
+      <a href="https://github.com/BurNingQ">
+        <img src="https://github.com/BurNingQ.png?size=100" width="100px;" alt="BurNingLi"/>
         <br />
         <sub><b>BurNingLi</b></sub>
       </a>
