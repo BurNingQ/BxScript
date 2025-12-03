@@ -17,12 +17,17 @@ public:
     inline static std::unordered_map<std::string, std::shared_ptr<Program> > ASTCache; // 模块结构持有
 
     static void SetupEnvironment(std::shared_ptr<Environment> env) {
+        StringValue::InitBuiltins();
         env->DeclareVar("String", StringValue::Prototype);
+        NumberValue::InitBuiltins();
         env->DeclareVar("Number", NumberValue::Prototype);
-        env->DeclareVar("Boolean", BoolValue::Prototype);
+        ArrayValue::InitBuiltins();
         env->DeclareVar("Array", ArrayValue::Prototype);
+        FunctionValue::InitBuiltins();
         env->DeclareVar("Function", FunctionValue::Prototype);
+        ObjectValue::InitBuiltins();
         env->DeclareVar("Object", ObjectValue::Prototype);
+        env->DeclareVar("Boolean", BoolValue::Prototype);
     }
 
     static ValuePtr EvaluateProgram(const Program &program, std::shared_ptr<Environment> env) {
@@ -174,8 +179,7 @@ private:
         if (expr == nullptr) {
             return std::make_shared<NullValue>();
         }
-
-        // 序列表达式 (for 循环里的 let a=1, b=2)
+        // 序列表达式
         if (const auto *seq = dynamic_cast<SequenceExpression *>(expr)) {
             ValuePtr result = std::make_shared<NullValue>();
             for (const auto &subExpr: seq->Sequence) {
@@ -203,9 +207,13 @@ private:
         if (auto *str = dynamic_cast<StringLiteral *>(expr)) {
             return std::make_shared<StringValue>(str->Literal);
         }
-        // 标识符 (环境查值)
+        // 标识符
         if (const auto *id = dynamic_cast<Identifier *>(expr)) {
             return env->LookupVar(id->Name);
+        }
+        // this
+        if (const auto *id = dynamic_cast<ThisExpression *>(expr)) {
+            return env->LookupVar("this");
         }
         // 对象 {A: 1, B: 2}
         if (const auto *objLit = dynamic_cast<ObjectLiteral *>(expr)) {

@@ -9,11 +9,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "common/StringKit.h"
-
-class ObjectValue;
-// 前置声明
 class RuntimeValue;
+class ObjectValue;
 class FunctionLiteral;
 class Environment;
 
@@ -77,6 +74,8 @@ public:
     double Value;
     static std::shared_ptr<ObjectValue> Prototype;
 
+    static void InitBuiltins();
+
     explicit NumberValue(double v) : RuntimeValue(ValueType::NUMBER), Value(v) {
     }
 
@@ -99,6 +98,8 @@ public:
     explicit StringValue(std::string v);
 
     explicit StringValue(char32_t v);
+
+    static void InitBuiltins();
 
     ValuePtr Get(const std::string &key) override;
 
@@ -125,6 +126,8 @@ public:
         : RuntimeValue(ValueType::ARRAY), Elements(std::move(elements)) {
     }
 
+    static void InitBuiltins();
+
     [[nodiscard]] std::string ToString() const override {
         std::string str = "[";
         for (size_t i = 0; i < Elements.size(); ++i) {
@@ -147,6 +150,8 @@ public:
 
     explicit ObjectValue() : RuntimeValue(ValueType::OBJECT) {
     }
+
+    static void InitBuiltins();
 
     [[nodiscard]] std::string ToString() const override { return "[object Object]"; }
 
@@ -186,6 +191,8 @@ public:
     FunctionLiteral *Declaration;
     std::shared_ptr<Environment> Closure;
     static std::shared_ptr<ObjectValue> Prototype;
+
+    static void InitBuiltins();
 
     explicit FunctionValue(FunctionLiteral *decl, std::shared_ptr<Environment> closure)
         : RuntimeValue(ValueType::FUNCTION), Declaration(decl), Closure(std::move(closure)) {

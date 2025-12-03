@@ -21,6 +21,11 @@ add_executable(BxScript main.cpp
         evaluator/Logger.h
         common/ModuleHelper.h
         common/StringKit.h
+        evaluator/values/StringValue.cpp
+        evaluator/values/ObjectValue.cpp
+        evaluator/values/ArrayValue.cpp
+        evaluator/values/NumberValue.cpp
+        evaluator/values/FunctionValue.cpp
 )
 
 target_include_directories(BxScript PRIVATE
@@ -52,6 +57,11 @@ add_executable(test_parser
         evaluator/Value.h
         evaluator/Value.cpp
         common/ModuleHelper.h
+        evaluator/values/StringValue.cpp
+        evaluator/values/ObjectValue.cpp
+        evaluator/values/ArrayValue.cpp
+        evaluator/values/NumberValue.cpp
+        evaluator/values/FunctionValue.cpp
 )
 
 target_include_directories(test_parser PRIVATE ${PROJECT_SOURCE_DIR})

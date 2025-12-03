@@ -314,7 +314,7 @@ namespace fs = std::filesystem;
 TEST_F(InterpreterTest, ImportSystem) {
     fs::create_directories("lib");
     std::ofstream out("lib/math.bx");
-    out << "let PI = 3.14; function double(x) { return x * 2; }";
+    out << "let PI = 3.14; function double(x) { return x * 2; };";
     out.close();
     std::string code = R"(
         // 会去读取 ./lib/math.bx
@@ -323,6 +323,21 @@ TEST_F(InterpreterTest, ImportSystem) {
         res;
     )";
     ASSERT_IS_NUMBER(Eval(code), 23.14);
+    fs::remove_all("lib");
+}
+
+// import
+TEST_F(InterpreterTest, ImportSystemO) {
+    fs::create_directories("lib");
+    std::ofstream out("lib/math.bx");
+    out << "String.Go = function(){return this;}";
+    out.close();
+    std::string code = R"(
+        // 会去读取 ./lib/math.bx
+        import std.math as m;
+        "ABc".Go();
+    )";
+    ASSERT_IS_STRING(Eval(code), "ABc");
     fs::remove_all("lib");
 }
 
@@ -350,11 +365,18 @@ TEST_F(InterpreterTest, ProtoTest) {
     auto res = Eval(R"(
            let globalVar = "我是全局变量";
             String.test = function() {
-                return globalVar + "X";
+                return this;
             };
             "abc".test();
     )");
-    ASSERT_IS_STRING(res, "我是全局变量X");
+    ASSERT_IS_STRING(res, "abc");
+}
+
+TEST_F(InterpreterTest, StringFromCharCode) {
+    auto res = Eval(R"(
+           String.fromCharCode(65);
+    )");
+    ASSERT_IS_STRING(res, "A");
 }
 
 int main(int argc, char **argv) {
