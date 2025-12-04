@@ -18,7 +18,9 @@ public:
 
     static void SetupEnvironment(std::shared_ptr<Environment> env) {
         StringValue::InitBuiltins();
-        env->DeclareVar("String", StringValue::Prototype);
+        auto stringObj = std::make_shared<ObjectValue>();
+        stringObj->Set("prototype", StringValue::Prototype);
+        env->DeclareVar("String", stringObj);
         NumberValue::InitBuiltins();
         env->DeclareVar("Number", NumberValue::Prototype);
         ArrayValue::InitBuiltins();

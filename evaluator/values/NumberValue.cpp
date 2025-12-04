@@ -1,6 +1,8 @@
 //
 // Created by BurNingLi on 2025/12/3.
 //
+#include <limits>
+
 #include "../Value.h"
 #include "../Logger.h"
 
@@ -20,9 +22,18 @@ ValuePtr NumberValue::Get(const std::string &key) {
             }
         );
     }
+    if (key == "toString") {
+        return std::make_shared<NativeFunctionValue>(
+            [self = std::static_pointer_cast<NumberValue>(shared_from_this())]
+    (const std::vector<ValuePtr> &args)-> ValuePtr {
+                return std::make_shared<StringValue>(self->ToString());
+            }
+        );
+    }
     return RuntimeValue::Get(key);
 }
 
 void NumberValue::InitBuiltins() {
-
+    Prototype->Set("MAX_VALUE", std::make_shared<NumberValue>(std::numeric_limits<unsigned long long>::max()));
+    Prototype->Set("MIN_VALUE", std::make_shared<NumberValue>(std::numeric_limits<unsigned long long>::min()));
 }
