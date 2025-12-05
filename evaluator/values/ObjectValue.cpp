@@ -14,6 +14,8 @@ void ObjectValue::Set(const std::string &key, ValuePtr value) {
     Properties[key] = value;
 }
 
-void ObjectValue::InitBuiltins() {
-
+ValuePtr ObjectValue::InitBuiltins() {
+    auto objObj = std::make_shared<ObjectValue>();
+    objObj->Set("prototype", Prototype);
+    return objObj;
 }

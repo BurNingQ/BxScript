@@ -17,19 +17,12 @@ public:
     inline static std::unordered_map<std::string, std::shared_ptr<Program> > ASTCache; // 模块结构持有
 
     static void SetupEnvironment(std::shared_ptr<Environment> env) {
-        StringValue::InitBuiltins();
-        auto stringObj = std::make_shared<ObjectValue>();
-        stringObj->Set("prototype", StringValue::Prototype);
-        env->DeclareVar("String", stringObj);
-        NumberValue::InitBuiltins();
-        env->DeclareVar("Number", NumberValue::Prototype);
-        ArrayValue::InitBuiltins();
-        env->DeclareVar("Array", ArrayValue::Prototype);
-        FunctionValue::InitBuiltins();
-        env->DeclareVar("Function", FunctionValue::Prototype);
-        ObjectValue::InitBuiltins();
-        env->DeclareVar("Object", ObjectValue::Prototype);
-        env->DeclareVar("Boolean", BoolValue::Prototype);
+        env->DeclareVar("String", StringValue::InitBuiltins());
+        env->DeclareVar("Number", NumberValue::InitBuiltins());
+        env->DeclareVar("Array", ArrayValue::InitBuiltins());
+        env->DeclareVar("Function", FunctionValue::InitBuiltins());
+        env->DeclareVar("Object", ObjectValue::InitBuiltins());
+        env->DeclareVar("Boolean", BoolValue::InitBuiltins());
     }
 
     static ValuePtr EvaluateProgram(const Program &program, std::shared_ptr<Environment> env) {
@@ -316,7 +309,7 @@ private:
             // 计算右值
             ValuePtr rhs = Evaluate(assign->Right.get(), env);
             std::string op = assign->Operator.TokenValue;
-            auto computeNewValue = [&](const ValuePtr& oldValue) -> ValuePtr {
+            auto computeNewValue = [&](const ValuePtr &oldValue) -> ValuePtr {
                 if (op == "=") return rhs;
                 const std::string binOpStr = op.substr(0, op.length() - 1);
                 const Token binOpToken(TokenType(TokenType::SYMBOL), binOpStr, 0, 0);

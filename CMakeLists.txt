@@ -26,6 +26,7 @@ add_executable(BxScript main.cpp
         evaluator/values/ArrayValue.cpp
         evaluator/values/NumberValue.cpp
         evaluator/values/FunctionValue.cpp
+        evaluator/values/BooleanValue.cpp
 )
 
 target_include_directories(BxScript PRIVATE
@@ -62,6 +63,7 @@ add_executable(test_parser
         evaluator/values/ArrayValue.cpp
         evaluator/values/NumberValue.cpp
         evaluator/values/FunctionValue.cpp
+        evaluator/values/BooleanValue.cpp
 )
 
 target_include_directories(test_parser PRIVATE ${PROJECT_SOURCE_DIR})

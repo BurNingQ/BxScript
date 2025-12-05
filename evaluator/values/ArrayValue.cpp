@@ -198,12 +198,16 @@ void ArrayValue::Set(const std::string &key, const ValuePtr value) {
     }
 }
 
-void ArrayValue::InitBuiltins() {
-    Prototype->Set("isArray", std::make_shared<NativeFunctionValue>(
-                       [](const std::vector<ValuePtr> &args) -> ValuePtr {
-                           if (args.empty()) {
-                               return std::make_shared<BoolValue>(false);
-                           }
-                           return std::make_shared<BoolValue>(args[0]->type == ValueType::ARRAY);
-                       }));
+ValuePtr ArrayValue::InitBuiltins() {
+    auto arrayObj = std::make_shared<ObjectValue>();
+    arrayObj->Set("prototype", Prototype);
+    auto isArrayFn = std::make_shared<NativeFunctionValue>(
+        [](const std::vector<ValuePtr> &args) -> ValuePtr {
+            if (args.empty()) {
+                return std::make_shared<BoolValue>(false);
+            }
+            return std::make_shared<BoolValue>(args[0]->type == ValueType::ARRAY);
+        });
+    arrayObj->Set("isArray", isArrayFn);
+    return arrayObj;
 }

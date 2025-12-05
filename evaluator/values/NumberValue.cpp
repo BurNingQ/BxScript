@@ -33,7 +33,10 @@ ValuePtr NumberValue::Get(const std::string &key) {
     return RuntimeValue::Get(key);
 }
 
-void NumberValue::InitBuiltins() {
-    Prototype->Set("MAX_VALUE", std::make_shared<NumberValue>(std::numeric_limits<unsigned long long>::max()));
-    Prototype->Set("MIN_VALUE", std::make_shared<NumberValue>(std::numeric_limits<unsigned long long>::min()));
+ValuePtr NumberValue::InitBuiltins() {
+    auto numberObj = std::make_shared<ObjectValue>();
+    numberObj->Set("prototype", Prototype);
+    numberObj->Set("MAX_VALUE", std::make_shared<NumberValue>(std::numeric_limits<unsigned long long>::max()));
+    numberObj->Set("MIN_VALUE", std::make_shared<NumberValue>(std::numeric_limits<unsigned long long>::min()));
+    return numberObj;
 }

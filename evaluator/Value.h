@@ -74,7 +74,7 @@ public:
     double Value;
     static std::shared_ptr<ObjectValue> Prototype;
 
-    static void InitBuiltins();
+    static ValuePtr InitBuiltins();
 
     explicit NumberValue(double v) : RuntimeValue(ValueType::NUMBER), Value(v) {
     }
@@ -99,7 +99,7 @@ public:
 
     explicit StringValue(char32_t v);
 
-    static void InitBuiltins();
+    static ValuePtr InitBuiltins();
 
     ValuePtr Get(const std::string &key) override;
 
@@ -114,6 +114,8 @@ public:
     explicit BoolValue(const bool v) : RuntimeValue(ValueType::BOOL), Value(v) {
     }
 
+    static ValuePtr InitBuiltins();
+
     [[nodiscard]] std::string ToString() const override { return Value ? "true" : "false"; }
 };
 
@@ -126,7 +128,7 @@ public:
         : RuntimeValue(ValueType::ARRAY), Elements(std::move(elements)) {
     }
 
-    static void InitBuiltins();
+    static ValuePtr InitBuiltins();
 
     [[nodiscard]] std::string ToString() const override {
         std::string str = "[";
@@ -151,7 +153,7 @@ public:
     explicit ObjectValue() : RuntimeValue(ValueType::OBJECT) {
     }
 
-    static void InitBuiltins();
+    static ValuePtr InitBuiltins();
 
     [[nodiscard]] std::string ToString() const override { return "[object Object]"; }
 
@@ -192,7 +194,7 @@ public:
     std::shared_ptr<Environment> Closure;
     static std::shared_ptr<ObjectValue> Prototype;
 
-    static void InitBuiltins();
+    static ValuePtr InitBuiltins();
 
     explicit FunctionValue(FunctionLiteral *decl, std::shared_ptr<Environment> closure)
         : RuntimeValue(ValueType::FUNCTION), Declaration(decl), Closure(std::move(closure)) {

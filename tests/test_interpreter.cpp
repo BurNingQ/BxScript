@@ -379,6 +379,26 @@ TEST_F(InterpreterTest, StringFromCharCode) {
     ASSERT_IS_STRING(res, "A");
 }
 
+TEST_F(InterpreterTest, StringPrototype) {
+    auto res = Eval(R"(
+           String.prototype.hello = function(){
+                return this + " hello";
+           }
+           "BurNing".hello();
+    )");
+    ASSERT_IS_STRING(res, "BurNing hello");
+}
+
+TEST_F(InterpreterTest, StringStatic) {
+    auto res = Eval(R"(
+           String.hello = function(){
+                return "33"
+           }
+           String.hello();
+    )");
+    ASSERT_IS_STRING(res, "33");
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
