@@ -6,6 +6,21 @@
 #include "../Value.h"
 #include <cmath>
 #include "../Logger.h"
+#include "../Environment.h"
+
+bool ArrayValue::Equal(ValuePtr v) {
+    if (v->type != ValueType::ARRAY) {
+        return false;
+    }
+    const auto otherArray = std::static_pointer_cast<ArrayValue>(v);
+    if (this->Elements.size() != otherArray->Elements.size()) return false;
+    for (size_t i = 0; i < this->Elements.size(); ++i) {
+        if (!this->Elements[i]->Equal(otherArray->Elements[i])) {
+            return false;
+        }
+    }
+    return true;
+}
 
 ValuePtr ArrayValue::Get(const std::string &key) {
     try {
@@ -184,6 +199,80 @@ ValuePtr ArrayValue::Get(const std::string &key) {
             };
             return std::make_shared<NativeFunctionValue>(fn);
         }
+        if (key == "indexOf") {
+            auto fn = [self = std::static_pointer_cast<ArrayValue>(shared_from_this())]
+            (const std::vector<ValuePtr> &args) -> ValuePtr {
+                if (args.empty() || self->Elements.empty()) {
+                    return std::make_shared<NumberValue>(-1);
+                }
+                auto ele = args[0];
+                long long start = 0;
+                if (args.size() > 1) {
+                    if (args[1]->type != ValueType::NUMBER) {
+                        Logger::Error("参数错误: array.indexOf(ele, [start])");
+                    }
+                    start = static_cast<long long>(std::static_pointer_cast<NumberValue>(args[1])->Value);
+                }
+                if (start > self->Elements.size()) {
+                    return std::make_shared<NumberValue>(-1);
+                }
+                if (start < 0) {
+                    start = 0;
+                }
+                for (long long i = start; i < self->Elements.size(); i++) {
+                    auto e = self->Elements.at(i);
+                    if (e->Equal(ele)) {
+                        return std::make_shared<NumberValue>(i);
+                    }
+                }
+                return std::make_shared<NumberValue>(-1);
+            };
+            return std::make_shared<NativeFunctionValue>(fn);
+        }
+
+        if (key == "lastIndexOf") {
+            auto fn = [self = std::static_pointer_cast<ArrayValue>(shared_from_this())]
+            (const std::vector<ValuePtr> &args) -> ValuePtr {
+                if (args.empty() || self->Elements.empty()) {
+                    return std::make_shared<NumberValue>(-1);
+                }
+                auto ele = args[0];
+                long long start = 0;
+                if (args.size() > 1) {
+                    if (args[1]->type != ValueType::NUMBER) {
+                        Logger::Error("参数错误: array.indexOf(ele, [start])");
+                    }
+                    start = static_cast<long long>(std::static_pointer_cast<NumberValue>(args[1])->Value);
+                }
+                if (start > self->Elements.size()) {
+                    return std::make_shared<NumberValue>(-1);
+                }
+                if (start < 0) {
+                    start = 0;
+                }
+                for (long long i = self->Elements.size() - 1; i >= 0; i--) {
+                    auto e = self->Elements.at(i);
+                    if (e->Equal(ele)) {
+                        return std::make_shared<NumberValue>(i);
+                    }
+                }
+                return std::make_shared<NumberValue>(-1);
+            };
+            return std::make_shared<NativeFunctionValue>(fn);
+        }
+
+        if (Prototype) {
+            ValuePtr method = Prototype->Get(key);
+            if (method) {
+                if (method->type == ValueType::FUNCTION) {
+                    auto originalFn = std::static_pointer_cast<FunctionValue>(method);
+                    auto thisEnv = std::make_shared<Environment>(originalFn->Closure);
+                    thisEnv->DeclareVar("this", shared_from_this());
+                    return std::make_shared<FunctionValue>(originalFn->Declaration, thisEnv);
+                }
+                return method;
+            }
+        }
     }
     return RuntimeValue::Get(key);
 }
@@ -201,7 +290,7 @@ void ArrayValue::Set(const std::string &key, const ValuePtr value) {
 ValuePtr ArrayValue::InitBuiltins() {
     auto arrayObj = std::make_shared<ObjectValue>();
     arrayObj->Set("prototype", Prototype);
-    auto isArrayFn = std::make_shared<NativeFunctionValue>(
+    const auto isArrayFn = std::make_shared<NativeFunctionValue>(
         [](const std::vector<ValuePtr> &args) -> ValuePtr {
             if (args.empty()) {
                 return std::make_shared<BoolValue>(false);

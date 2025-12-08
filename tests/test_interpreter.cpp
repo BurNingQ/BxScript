@@ -355,7 +355,7 @@ TEST_F(InterpreterTest, StringFunc) {
     ASSERT_IS_BOOL(res, true);
 
     res = Eval(R"("HELLO".startsWith("H"))");
-    ASSERT_IS_BOOL(res,true);
+    ASSERT_IS_BOOL(res, true);
 
     res = Eval(R"("HELLO".lastIndexOf("L"))");
     ASSERT_IS_NUMBER(res, 3);
@@ -397,6 +397,70 @@ TEST_F(InterpreterTest, StringStatic) {
            String.hello();
     )");
     ASSERT_IS_STRING(res, "33");
+}
+
+TEST_F(InterpreterTest, ArrayIsSame) {
+    auto res = Eval(R"(
+            let a = [1,2,3,4];
+            let b = [1,2,3,4];
+            a == b;
+    )");
+    ASSERT_IS_BOOL(res, true);
+}
+
+TEST_F(InterpreterTest, ArrayIndexOf) {
+    auto res = Eval(R"(
+            let a = [1,2,3,4];
+            a.indexOf(2);
+    )");
+    ASSERT_IS_NUMBER(res, 1);
+}
+
+TEST_F(InterpreterTest, ObjectIsSame) {
+    auto res = Eval(R"(
+            let a = {
+                sex: 1,
+                name: "burning"
+            };
+            let b = {
+                name: "burning",
+                sex: 1
+            };
+            a == b;
+    )");
+    ASSERT_IS_BOOL(res, true);
+    res = Eval(R"(
+            let a = {
+                sex: 1,
+                name: "burning"
+            };
+            let b = {
+                sex: 0,
+                name: "burning"
+            };
+            a == b;
+    )");
+    ASSERT_IS_BOOL(res, false);
+}
+
+TEST_F(InterpreterTest, ArrayForEachScript) {
+    std::string defineForEach = R"(
+        Array.prototype.forEach = function(cb) {
+            for (let i = 0; i < this.length; i++) {
+                cb(this[i], i);
+            }
+        };
+    )";
+    Eval(defineForEach);
+    std::string code = R"(
+        let sum = 0;
+        let arr = [1, 2, 3];
+        arr.forEach(function(e, i) {
+            sum = sum + e;
+        });
+        sum;
+    )";
+    ASSERT_IS_NUMBER(Eval(code), 6.0);
 }
 
 int main(int argc, char **argv) {

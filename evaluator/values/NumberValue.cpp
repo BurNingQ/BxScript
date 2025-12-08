@@ -5,6 +5,15 @@
 
 #include "../Value.h"
 #include "../Logger.h"
+#include "../Environment.h"
+
+bool NumberValue::Equal(ValuePtr v) {
+    if (v->type != ValueType::NUMBER) {
+        return false;
+    }
+    auto other = std::static_pointer_cast<NumberValue>(v);
+    return this->Value == other->Value;
+}
 
 ValuePtr NumberValue::Get(const std::string &key) {
     if (key == "toFixed") {
@@ -29,6 +38,19 @@ ValuePtr NumberValue::Get(const std::string &key) {
                 return std::make_shared<StringValue>(self->ToString());
             }
         );
+    }
+
+    if (Prototype) {
+        ValuePtr method = Prototype->Get(key);
+        if (method) {
+            if (method->type == ValueType::FUNCTION) {
+                auto originalFn = std::static_pointer_cast<FunctionValue>(method);
+                auto thisEnv = std::make_shared<Environment>(originalFn->Closure);
+                thisEnv->DeclareVar("this", shared_from_this());
+                return std::make_shared<FunctionValue>(originalFn->Declaration, thisEnv);
+            }
+            return method;
+        }
     }
     return RuntimeValue::Get(key);
 }

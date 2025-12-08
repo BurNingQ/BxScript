@@ -25,6 +25,42 @@ public:
         env->DeclareVar("Boolean", BoolValue::InitBuiltins());
     }
 
+    static ValuePtr CallFunction(const CallExpression *call, std::shared_ptr<Environment> env) {
+        ValuePtr callee = Evaluate(call->Callee.get(), env);
+        std::vector<ValuePtr> args;
+        for (const auto &argExpr: call->ArgumentList) {
+            args.push_back(Evaluate(argExpr.get(), env));
+        }
+        // 原生函数
+        if (callee->type == ValueType::NATIVE_FUNCTION) {
+            auto nativeFn = std::static_pointer_cast<NativeFunctionValue>(callee);
+            return nativeFn->Function(args);
+        }
+        // 自定义函数
+        if (callee->type == ValueType::FUNCTION) {
+            auto fn = std::static_pointer_cast<FunctionValue>(callee);
+            // 创建函数执行环境
+            // “词法作用域 (Lexical Scoping)”
+            auto scope = std::make_shared<Environment>(fn->Closure);
+            // 参数绑定
+            for (size_t i = 0; i < fn->Declaration->Parameters->Parameters.size(); ++i) {
+                auto paramId = dynamic_cast<Identifier *>(fn->Declaration->Parameters->Parameters[i].get());
+                std::string paramName = paramId->Name;
+                // 获取实参，缺省NULL
+                ValuePtr argVal = (i < args.size()) ? args[i] : std::make_shared<NullValue>();
+                scope->DeclareVar(paramName, argVal);
+            }
+            // 执行函数体
+            ValuePtr result = Execute(fn->Declaration->Body.get(), scope);
+            // 处理返回值
+            if (result->type == ValueType::RETURN) {
+                return std::static_pointer_cast<ReturnValue>(result)->Value;
+            }
+            return result;
+        }
+        throw std::runtime_error("试图调用非函数对象: " + callee->ToString());
+    }
+
     static ValuePtr EvaluateProgram(const Program &program, std::shared_ptr<Environment> env) {
         SetupEnvironment(env);
         // 模块缓存
@@ -366,39 +402,7 @@ private:
 
         // 函数调用
         if (const auto *call = dynamic_cast<CallExpression *>(expr)) {
-            ValuePtr callee = Evaluate(call->Callee.get(), env);
-            std::vector<ValuePtr> args;
-            for (const auto &argExpr: call->ArgumentList) {
-                args.push_back(Evaluate(argExpr.get(), env));
-            }
-            // 原生函数
-            if (callee->type == ValueType::NATIVE_FUNCTION) {
-                auto nativeFn = std::static_pointer_cast<NativeFunctionValue>(callee);
-                return nativeFn->Function(args);
-            }
-            // 自定义函数
-            if (callee->type == ValueType::FUNCTION) {
-                auto fn = std::static_pointer_cast<FunctionValue>(callee);
-                // 创建函数执行环境
-                // “词法作用域 (Lexical Scoping)”
-                auto scope = std::make_shared<Environment>(fn->Closure);
-                // 参数绑定
-                for (size_t i = 0; i < fn->Declaration->Parameters->Parameters.size(); ++i) {
-                    auto paramId = dynamic_cast<Identifier *>(fn->Declaration->Parameters->Parameters[i].get());
-                    std::string paramName = paramId->Name;
-                    // 获取实参，缺省NULL
-                    ValuePtr argVal = (i < args.size()) ? args[i] : std::make_shared<NullValue>();
-                    scope->DeclareVar(paramName, argVal);
-                }
-                // 执行函数体
-                ValuePtr result = Execute(fn->Declaration->Body.get(), scope);
-                // 处理返回值
-                if (result->type == ValueType::RETURN) {
-                    return std::static_pointer_cast<ReturnValue>(result)->Value;
-                }
-                return result;
-            }
-            throw std::runtime_error("试图调用非函数对象: " + callee->ToString());
+            return CallFunction(call, env);
         }
 
         if (auto *funcLit = dynamic_cast<FunctionLiteral *>(expr)) {
@@ -447,8 +451,8 @@ private:
             }
         }
         // 3. 通用相等性检查
-        if (o == "==") return std::make_shared<BoolValue>(left->ToString() == right->ToString());
-        if (o == "!=") return std::make_shared<BoolValue>(left->ToString() != right->ToString());
+        if (o == "==") return std::make_shared<BoolValue>(left->Equal(right));
+        if (o == "!=") return std::make_shared<BoolValue>(!left->Equal(right));
         throw std::runtime_error("不支持的操作: " + left->ToString() + " " + o + " " + right->ToString());
     }
 

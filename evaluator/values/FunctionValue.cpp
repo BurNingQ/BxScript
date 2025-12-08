@@ -3,6 +3,7 @@
 //
 
 #include "evaluator/Value.h"
+
 ValuePtr FunctionValue::InitBuiltins() {
     auto funObj = std::make_shared<ObjectValue>();
     funObj->Set("prototype", Prototype);

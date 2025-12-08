@@ -17,3 +17,7 @@ ValuePtr RuntimeValue::Get(const std::string &key) {
 void RuntimeValue::Set(const std::string &key, ValuePtr value) {
     Logger::Error("类型错误,不能设置属性'" + key + "' 来自: " + this->ToString());
 }
+
+bool RuntimeValue::Equal(ValuePtr v) {
+    return false;
+}

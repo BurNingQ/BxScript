@@ -8,6 +8,14 @@
 
 class NumberValue;
 
+bool StringValue::Equal(ValuePtr v) {
+    if (v->type != ValueType::STRING) {
+        return false;
+    }
+    auto other = std::static_pointer_cast<StringValue>(v);
+    return this->Value == other->Value;
+}
+
 StringValue::StringValue(std::string v) : RuntimeValue(ValueType::STRING) {
     U32Value = StringKit::Utf8ToU32(v);
     Value = std::move(v);

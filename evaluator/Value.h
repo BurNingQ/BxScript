@@ -45,6 +45,8 @@ public:
     virtual ValuePtr Get(const std::string &key);
 
     virtual void Set(const std::string &key, ValuePtr value);
+
+    virtual bool Equal(ValuePtr v);
 };
 
 // 原生函数
@@ -65,6 +67,8 @@ class NullValue : public RuntimeValue {
 public:
     explicit NullValue() : RuntimeValue(ValueType::NULL_TYPE) {
     }
+
+    bool Equal(ValuePtr v) override;
 
     [[nodiscard]] std::string ToString() const override { return "null"; }
 };
@@ -87,6 +91,8 @@ public:
     }
 
     ValuePtr Get(const std::string &key) override;
+
+    bool Equal(ValuePtr v) override;
 };
 
 class StringValue : public RuntimeValue {
@@ -104,6 +110,8 @@ public:
     ValuePtr Get(const std::string &key) override;
 
     [[nodiscard]] std::string ToString() const override { return Value; }
+
+    bool Equal(ValuePtr v) override;
 };
 
 class BoolValue : public RuntimeValue {
@@ -115,6 +123,8 @@ public:
     }
 
     static ValuePtr InitBuiltins();
+
+    bool Equal(ValuePtr v) override;
 
     [[nodiscard]] std::string ToString() const override { return Value ? "true" : "false"; }
 };
@@ -143,6 +153,8 @@ public:
     ValuePtr Get(const std::string &key) override;
 
     void Set(const std::string &key, ValuePtr value) override;
+
+    bool Equal(ValuePtr v) override;
 };
 
 class ObjectValue final : public RuntimeValue {
@@ -160,6 +172,8 @@ public:
     ValuePtr Get(const std::string &key) override;
 
     void Set(const std::string &key, ValuePtr value) override;
+
+    bool Equal(ValuePtr v) override;
 };
 
 class ReturnValue : public RuntimeValue {
@@ -170,6 +184,7 @@ public:
     }
 
     [[nodiscard]] std::string ToString() const override { return Value->ToString(); }
+
 };
 
 class BreakValue : public RuntimeValue {
@@ -178,6 +193,7 @@ public:
     }
 
     [[nodiscard]] std::string ToString() const override { return "break"; }
+
 };
 
 class ContinueValue : public RuntimeValue {

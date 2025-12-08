@@ -122,8 +122,6 @@ let r = m.add(10, 20);
 ```javascript
 // 愿景代码：声明式 UI 构建
 let win = gui.create("MyApp", 800, 600);
-code
-Code
 win.add(gui.button("点击我", 100, 50, function() {
     gui.msgbox("你好！");
 }));
