@@ -28,6 +28,13 @@ ValuePtr ArrayValue::Get(const std::string &key) {
         if (index < Elements.size()) return Elements[index];
         return std::make_shared<NullValue>();
     } catch (...) {
+        if (key == "toString") {
+            auto fn = [self = std::static_pointer_cast<ArrayValue>(shared_from_this())](
+                const std::vector<ValuePtr> &args) -> ValuePtr {
+                return std::make_shared<StringValue>(self->ToString());
+            };
+            return std::make_shared<NativeFunctionValue>(fn);
+        }
         if (key == "length") return std::make_shared<NumberValue>(static_cast<double>(Elements.size()));
         if (key == "push") {
             auto fn = [self = std::static_pointer_cast<ArrayValue>(shared_from_this())](

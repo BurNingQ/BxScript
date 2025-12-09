@@ -38,12 +38,8 @@ protected:
     ValuePtr Eval(const std::string &code) {
         Parser parser(code);
         Program program = parser.ParseProgram();
-        // 全局环境
-        globalEnv = std::make_shared<Environment>();
-        return Interpreter::EvaluateProgram(program, globalEnv);
+        return Interpreter::Run(program);
     }
-
-    std::shared_ptr<Environment> globalEnv;
 };
 
 // ==========================================
@@ -444,15 +440,12 @@ TEST_F(InterpreterTest, ObjectIsSame) {
 }
 
 TEST_F(InterpreterTest, ArrayForEachScript) {
-    std::string defineForEach = R"(
+    std::string code = R"(
         Array.prototype.forEach = function(cb) {
             for (let i = 0; i < this.length; i++) {
                 cb(this[i], i);
             }
         };
-    )";
-    Eval(defineForEach);
-    std::string code = R"(
         let sum = 0;
         let arr = [1, 2, 3];
         arr.forEach(function(e, i) {
@@ -461,6 +454,25 @@ TEST_F(InterpreterTest, ArrayForEachScript) {
         sum;
     )";
     ASSERT_IS_NUMBER(Eval(code), 6.0);
+}
+
+TEST_F(InterpreterTest, DateFormatRobustness) {
+    std::string code = R"(
+        let t = 1698381001000;
+        let garbage = Date.format(t, "我是乱写的AHSDJSKDL");
+        garbage;
+    )";
+    ASSERT_IS_STRING(Eval(code), "我是乱写的AHSDJSKDL");
+    code = R"(
+        let t = 1698381001000;
+        Date.format(t, "HH:mm");
+    )";
+    ASSERT_IS_STRING(Eval(code), "12:30");
+    code = R"(
+        let t = 1698381001000;
+        Date.format(t, "hh:mm");
+    )";
+    ASSERT_IS_STRING(Eval(code), "12:30");
 }
 
 int main(int argc, char **argv) {

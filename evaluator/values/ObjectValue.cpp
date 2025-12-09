@@ -24,7 +24,7 @@ bool ObjectValue::Equal(ValuePtr v) {
 ValuePtr ObjectValue::Get(const std::string &key) {
     if (Properties.find(key) != Properties.end()) return Properties[key];
 
-    if (Prototype) {
+    if (Prototype && this != Prototype.get()) {
         ValuePtr method = Prototype->Get(key);
         if (method) {
             if (method->type == ValueType::FUNCTION) {
