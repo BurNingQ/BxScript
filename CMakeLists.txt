@@ -30,6 +30,7 @@ add_executable(BxScript main.cpp
         evaluator/values/NullValue.cpp
         evaluator/Interpreter.cpp
         stdlib/DateModule.h
+        stdlib/ThreadModule.h
 )
 
 target_include_directories(BxScript PRIVATE
@@ -70,6 +71,7 @@ add_executable(test_parser
         evaluator/values/NullValue.cpp
         evaluator/Interpreter.cpp
         stdlib/DateModule.h
+        stdlib/ThreadModule.h
 )
 
 target_include_directories(test_parser PRIVATE ${PROJECT_SOURCE_DIR})

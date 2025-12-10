@@ -29,16 +29,6 @@ public:
                              return std::make_shared<NumberValue>(GetCurrentMillis());
                          }
                      ));
-        dateObj->Set("sleep", std::make_shared<NativeFunctionValue>(
-                         [](const std::vector<ValuePtr> &args) -> ValuePtr {
-                             if (!args.empty() && args[0]->type == ValueType::NUMBER) {
-                                 const long ms = static_cast<long>(std::static_pointer_cast<NumberValue>(args[0])->
-                                     Value);
-                                 std::this_thread::sleep_for(milliseconds(ms));
-                             }
-                             return std::make_shared<NullValue>();
-                         }
-                     ));
         dateObj->Set("format", std::make_shared<NativeFunctionValue>(
                          [](const std::vector<ValuePtr> &args) -> ValuePtr {
                              if (args.empty()) return std::make_shared<NullValue>();
