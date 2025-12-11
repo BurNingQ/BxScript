@@ -456,23 +456,101 @@ TEST_F(InterpreterTest, ArrayForEachScript) {
     ASSERT_IS_NUMBER(Eval(code), 6.0);
 }
 
-TEST_F(InterpreterTest, DateFormatRobustness) {
+TEST_F(InterpreterTest, ThreadDispatchNonBlocking) {
+    std::string code = R"(
+        // 模拟 UI 状态
+        let ui_state = 0;
+        Thread.onMessage(function(data) {
+            // 收到子线程的数据，更新 UI
+            ui_state = ui_state + data;
+        });
+
+        // 启动子线程
+        Thread.start(function() {
+            // 模拟耗时
+            Thread.sleep(50);
+            // 发送结果 10
+            Thread.postMessage(10);
+
+            // 模拟耗时
+            Thread.sleep(50);
+            // 发送结果 20
+            Thread.postMessage(20);
+        });
+
+        // 模拟 GUI 主循环
+        let frameCount = 0;
+
+        while (ui_state < 30) {
+            let processed = Thread.dispatchMessage();
+            // 模拟渲染界面 (这里只是计数)
+            frameCount++;
+            // 超时保护 (防止测试代码写挂了死循环)
+            if (frameCount > 10000000) {
+                break;
+            }
+        }
+        ui_state;
+    )";
+    ASSERT_IS_NUMBER(Eval(code), 30.0);
+}
+
+TEST_F(InterpreterTest, DateNowStructure) {
+    std::string code = R"(
+        let d = Date.now();
+        if (d.timestamp <= 0) { throw "timestamp error"; }
+        if (d.year < 2024) { throw "year error"; }
+        d.year;
+    )";
+    auto res = Eval(code);
+    ASSERT_EQ(res->type, ValueType::NUMBER);
+}
+
+TEST_F(InterpreterTest, DateFromTimestamp) {
     std::string code = R"(
         let t = 1698381001000;
-        let garbage = Date.format(t, "我是乱写的AHSDJSKDL");
-        garbage;
+        let d = Date.from(t);
+        d.format("yyyy-MM-dd");
     )";
-    ASSERT_IS_STRING(Eval(code), "我是乱写的AHSDJSKDL");
-    code = R"(
-        let t = 1698381001000;
-        Date.format(t, "HH:mm");
+    // 运行不崩，且返回字符串
+    auto res = Eval(code);
+    ASSERT_IS_STRING(res, "2023-10-27");
+}
+
+TEST_F(InterpreterTest, DateFromStringStandard) {
+    std::string code = R"(
+        let d = Date.from("2025-12-09 10:20:30");
+        d.format("HH:mm:ss");
     )";
-    ASSERT_IS_STRING(Eval(code), "12:30");
-    code = R"(
-        let t = 1698381001000;
-        Date.format(t, "hh:mm");
+    ASSERT_IS_STRING(Eval(code), "10:20:30");
+}
+
+TEST_F(InterpreterTest, DateFromStringChinese) {
+    std::string code = R"(
+        let d = Date.from("2025年12月09日 10时20分30秒");
+        d.format("yyyy/MM/dd");
     )";
-    ASSERT_IS_STRING(Eval(code), "12:30");
+    ASSERT_IS_STRING(Eval(code), "2025/12/09");
+}
+
+TEST_F(InterpreterTest, DateChaining) {
+    std::string code = R"(
+        let y = Date.from("2022-01-01 00:00:00").year;
+        y;
+    )";
+    ASSERT_IS_NUMBER(Eval(code), 2022.0);
+}
+
+// 测试 属性修改对 format 的影响 (验证动态性)
+TEST_F(InterpreterTest, DateMutability) {
+    std::string code = R"(
+        let d = Date.from("2020-01-01 00:00:00");
+        d.timestamp = d.timestamp + 31536000000; // 加一年 (粗略)
+        d.timestamp = 0; // 回到 1970
+        d.format("yyyy");
+    )";
+    // mktime(0) 在东八区是 1970，在 UTC 是 1970
+    ASSERT_IS_STRING(Eval(code), "1970");
 }
 
 int main(int argc, char **argv) {

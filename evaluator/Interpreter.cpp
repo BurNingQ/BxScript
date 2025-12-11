@@ -6,6 +6,8 @@
 #include "../stdlib/DateModule.h"
 #include <cmath>
 
+#include "stdlib/ThreadModule.h"
+
 std::unordered_map<std::string, ValuePtr> Interpreter::ModuleCache;
 std::unordered_map<std::string, std::shared_ptr<Program> > Interpreter::ASTCache;
 
@@ -16,7 +18,8 @@ void Interpreter::SetupEnvironment(std::shared_ptr<Environment> env) {
     env->DeclareVar("Function", FunctionValue::InitBuiltins());
     env->DeclareVar("Object", ObjectValue::InitBuiltins());
     env->DeclareVar("Boolean", BoolValue::InitBuiltins());
-    env->DeclareVar("Date", DateModule::CreateDateObject());
+    env->DeclareVar("Date", DateModule::CreateDateModule());
+    env->DeclareVar("Thread", ThreadModule::CreateThreadModule());
 }
 
 ValuePtr Interpreter::CallFunction(const ValuePtr &callee, const std::vector<ValuePtr> &args) {
@@ -413,7 +416,7 @@ bool Interpreter::IsTruthy(const ValuePtr &v) {
 
 ValuePtr Interpreter::ApplyBinary(const Token &op, const ValuePtr &left, const ValuePtr &right) {
     const std::string &o = op.TokenValue;
-    // 1. 数值运算
+    // 运算
     if (left->type == ValueType::NUMBER && right->type == ValueType::NUMBER) {
         const double l = std::static_pointer_cast<NumberValue>(left)->Value;
         const double r = std::static_pointer_cast<NumberValue>(right)->Value;
@@ -425,7 +428,7 @@ ValuePtr Interpreter::ApplyBinary(const Token &op, const ValuePtr &left, const V
             return std::make_shared<NumberValue>(l / r);
         }
         if (o == "%") return std::make_shared<NumberValue>(fmod(l, r));
-        // 比较运算
+        // 比较
         if (o == "<") return std::make_shared<BoolValue>(l < r);
         if (o == ">") return std::make_shared<BoolValue>(l > r);
         if (o == "<=") return std::make_shared<BoolValue>(l <= r);
@@ -433,13 +436,13 @@ ValuePtr Interpreter::ApplyBinary(const Token &op, const ValuePtr &left, const V
         if (o == "==") return std::make_shared<BoolValue>(l == r);
         if (o == "!=") return std::make_shared<BoolValue>(l != r);
     }
-    // 2. 字符串拼接
+    // 字符串拼接
     if (o == "+") {
         if (left->type == ValueType::STRING || right->type == ValueType::STRING) {
             return std::make_shared<StringValue>(left->ToString() + right->ToString());
         }
     }
-    // 3. 通用相等性检查
+    // 通用相等性检查
     if (o == "==") return std::make_shared<BoolValue>(left->Equal(right));
     if (o == "!=") return std::make_shared<BoolValue>(!left->Equal(right));
     throw std::runtime_error("不支持的操作: " + left->ToString() + " " + o + " " + right->ToString());
