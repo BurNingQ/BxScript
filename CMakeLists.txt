@@ -31,6 +31,11 @@ add_executable(BxScript main.cpp
         evaluator/Interpreter.cpp
         stdlib/DateModule.h
         stdlib/ThreadModule.h
+        stdlib/MathModule.h
+        stdlib/JsonModule.h
+        stdlib/IOModule.h
+        stdlib/CryptModule.h
+        stdlib/NetModule.h
 )
 
 target_include_directories(BxScript PRIVATE
@@ -72,6 +77,11 @@ add_executable(test_parser
         evaluator/Interpreter.cpp
         stdlib/DateModule.h
         stdlib/ThreadModule.h
+        stdlib/MathModule.h
+        stdlib/JsonModule.h
+        stdlib/IOModule.h
+        stdlib/CryptModule.h
+        stdlib/NetModule.h
 )
 
 target_include_directories(test_parser PRIVATE ${PROJECT_SOURCE_DIR})

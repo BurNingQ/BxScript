@@ -359,11 +359,10 @@ TEST_F(InterpreterTest, StringFunc) {
 
 TEST_F(InterpreterTest, ProtoTest) {
     auto res = Eval(R"(
-           let globalVar = "我是全局变量";
-            String.test = function() {
-                return this;
-            };
-            "abc".test();
+           String.prototype.test = function() {
+               return this;
+           };
+           "abc".test();
     )");
     ASSERT_IS_STRING(res, "abc");
 }
@@ -541,7 +540,6 @@ TEST_F(InterpreterTest, DateChaining) {
     ASSERT_IS_NUMBER(Eval(code), 2022.0);
 }
 
-// 测试 属性修改对 format 的影响 (验证动态性)
 TEST_F(InterpreterTest, DateMutability) {
     std::string code = R"(
         let d = Date.from("2020-01-01 00:00:00");
@@ -549,8 +547,48 @@ TEST_F(InterpreterTest, DateMutability) {
         d.timestamp = 0; // 回到 1970
         d.format("yyyy");
     )";
-    // mktime(0) 在东八区是 1970，在 UTC 是 1970
     ASSERT_IS_STRING(Eval(code), "1970");
+}
+
+TEST_F(InterpreterTest, ObjectKeys) {
+    std::string code = R"(
+        let obj = {
+            a: 1,
+            b: 2,
+            name: "test"
+        };
+        let keys = Object.keys(obj);
+        if (!Array.isArray(keys)) {
+            throw "keys return error";
+        }
+        keys.length;
+    )";
+    ASSERT_IS_NUMBER(Eval(code), 3.0);
+}
+
+TEST_F(InterpreterTest, ObjectRemove) {
+    std::string code = R"(
+        let obj = {
+            a: 1,
+            b: 2,
+            c: 3
+        };
+        Object.remove(obj, "a");
+        if (obj.a != null) {
+            throw "remove a failed"
+        }
+        Object.remove(obj, "b", "c");
+        Object.keys(obj).length;
+    )";
+    ASSERT_IS_NUMBER(Eval(code), 0.0);
+}
+
+TEST_F(InterpreterTest, ObjectKeysEmpty) {
+    std::string code = R"(
+        let obj = {};
+        Object.keys(obj).length;
+    )";
+    ASSERT_IS_NUMBER(Eval(code), 0.0);
 }
 
 int main(int argc, char **argv) {
