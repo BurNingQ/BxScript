@@ -591,6 +591,145 @@ TEST_F(InterpreterTest, ObjectKeysEmpty) {
     ASSERT_IS_NUMBER(Eval(code), 0.0);
 }
 
+TEST_F(InterpreterTest, CryptBase64) {
+    std::string code = R"(
+        let a = "你好ABC123";
+        let c = Crypt.encode(a);
+        Crypt.decode(c)
+    )";
+    ASSERT_IS_STRING(Eval(code), "你好ABC123");
+}
+
+TEST_F(InterpreterTest, JsonParseBasic) {
+    std::string code = R"(
+        let jsonStr = "{\"name\": \"BxScript\", \"version\": 1.0, \"features\": [\"io\", \"json\"]}";
+        let obj = JSON.parse(jsonStr);
+        if (obj.name != "BxScript") {
+            throw "name error"
+        }
+        if (obj.version != 1.0) {
+            throw "version error"
+        }
+        if (obj.features[1] != "json") {
+            throw "array error"
+        }
+        obj.name;
+    )";
+    ASSERT_IS_STRING(Eval(code), "BxScript");
+}
+
+TEST_F(InterpreterTest, JsonStringifyBasic) {
+    std::string code = R"(
+        let obj = {
+            id: 100,
+            active: true
+        };
+        let s = JSON.stringify(obj);
+        s;
+    )";
+    auto res = Eval(code);
+    ASSERT_EQ(res->type, ValueType::STRING);
+    std::string s = std::static_pointer_cast<StringValue>(res)->Value;
+    EXPECT_TRUE(s.find("\"id\":100") != std::string::npos);
+    EXPECT_TRUE(s.find("\"active\":true") != std::string::npos);
+}
+
+TEST_F(InterpreterTest, JsonRoundTrip) {
+    std::string code = R"(
+        let original = {
+            num: 123.456,
+            str: "Hello World",
+            boolVal: false,
+            nullVal: null,
+            arr: [1, 2, { nested: "deep" }],
+            subObj: {
+                x: 10,
+                y: 20
+            }
+        };
+        let jsonStr = JSON.stringify(original);
+        let restored = JSON.parse(jsonStr);
+        original == restored;
+    )";
+    ASSERT_IS_BOOL(Eval(code), true);
+}
+
+TEST_F(InterpreterTest, JsonArrayOfObjects) {
+    std::string code = R"(
+        let list = [
+            { id: 1 },
+            { id: 2 }
+        ];
+        let s = JSON.stringify(list);
+        let list2 = JSON.parse(s);
+        list2[1].id;
+    )";
+    ASSERT_IS_NUMBER(Eval(code), 2.0);
+}
+
+TEST_F(InterpreterTest, JsonParseError) {
+    std::string code = R"(
+        let badJson = "{ \"a\": 1 ";
+        JSON.parse(badJson);
+    )";
+    EXPECT_THROW({
+        Eval(code);
+    }, std::runtime_error);
+}
+
+TEST_F(InterpreterTest, JsonIgnoreFunction) {
+    std::string code = R"(
+        let obj = {
+            data: 1,
+            func: function() { return 1; }
+        };
+        let s = JSON.stringify(obj);
+        let obj2 = JSON.parse(s);
+        Object.keys(obj2).length;
+    )";
+    ASSERT_IS_NUMBER(Eval(code), 1.0);
+}
+
+TEST_F(InterpreterTest, MD5) {
+    std::string code = R"(
+        let c = "你好123kld87384&*^%";
+        let a = Crypt.md5(c);
+        IO.println(a);
+        a;
+    )";
+    auto res = Eval(code);
+    ASSERT_IS_STRING(res, "c443f994e8c667e0a2f7896965e3c570");
+}
+
+TEST_F(InterpreterTest, SHA256) {
+    std::string code = R"(
+        let c = "hello";
+        let a = Crypt.sha256(c);
+        a;
+    )";
+    auto res = Eval(code);
+    ASSERT_IS_STRING(res, "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+}
+
+TEST_F(InterpreterTest, CryptHMAC) {
+    std::string code = R"(
+        let msg = "The quick brown fox jumps over the lazy dog";
+        let key = "key";
+        let sign = Crypt.hmac("sha256", key, msg);
+        sign;
+    )";
+    ASSERT_IS_STRING(Eval(code), "f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8");
+}
+
+TEST_F(InterpreterTest, CryptCRC32) {
+    std::string code = R"(
+        let msg = "The quick brown fox jumps over the lazy dog";
+        let sign = Crypt.crc32(msg);
+        sign;
+    )";
+    ASSERT_IS_STRING(Eval(code), "414fa339");
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

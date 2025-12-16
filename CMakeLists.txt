@@ -4,6 +4,7 @@ project(BxScript)
 set(CMAKE_CXX_STANDARD 17)
 
 add_executable(BxScript main.cpp
+        libs/json.hpp
         lexer/Token.h
         common/TokenType.h
         lexer/Lexer.cpp
@@ -36,6 +37,11 @@ add_executable(BxScript main.cpp
         stdlib/IOModule.h
         stdlib/CryptModule.h
         stdlib/NetModule.h
+        libs/md5/md5.cpp
+        libs/md5/md5.h
+        libs/sha256/sha256.cpp
+        libs/sha256/sha256.h
+        libs/hmac.h
 )
 
 target_include_directories(BxScript PRIVATE
@@ -58,6 +64,7 @@ FetchContent_MakeAvailable(googletest)
 # 测试
 #-----------------------------------------
 add_executable(test_parser
+        libs/json.hpp
         tests/test_parser.cpp
         parser/Parser.cpp
         lexer/Lexer.cpp
@@ -82,6 +89,11 @@ add_executable(test_parser
         stdlib/IOModule.h
         stdlib/CryptModule.h
         stdlib/NetModule.h
+        libs/md5/md5.cpp
+        libs/md5/md5.h
+        libs/sha256/sha256.cpp
+        libs/sha256/sha256.h
+        libs/hmac.h
 )
 
 target_include_directories(test_parser PRIVATE ${PROJECT_SOURCE_DIR})

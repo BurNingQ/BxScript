@@ -87,6 +87,13 @@ std::unique_ptr<Statement> Parser::ParseImportStatements() {
 
 std::unique_ptr<Statement> Parser::ParseStatement() {
     const auto tk = this->NextToken();
+    // 此处不BACK,因为没有消耗
+    if (tk.TokenValue == ";") {
+        return make_unique<EmptyStatement>();
+    }
+    if (tk._TokenType.GetEnum() == TokenType::FILE_END) {
+        return make_unique<ExpressionStatement>(make_unique<BadExpression>());
+    }
     this->BackToken(tk);
     if (tk.TokenValue == "{") {
         return this->ParseBlockStatement();

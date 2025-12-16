@@ -13,9 +13,34 @@
 
 #ifndef BXSCRIPT_FILEMODULE_H
 #define BXSCRIPT_FILEMODULE_H
+#include <iostream>
+
+#include "evaluator/Value.h"
 
 
 class IOModule {
+    static void InitPrintln(std::shared_ptr<ObjectValue> &o) {
+        auto const fn = std::make_shared<NativeFunctionValue>(
+            [](const std::vector<ValuePtr> &args)-> ValuePtr {
+                std::string output;
+                for (const auto& v: args) {
+                    if (!output.empty()) {
+                        output += ", ";
+                    }
+                    output += v->ToString();
+                }
+                std::cout << output << std::endl;
+                return std::make_shared<NullValue>();
+            });
+        o->Set("println", fn);
+    }
+
+public:
+    static ValuePtr CreateIOModule() {
+        auto module = std::make_shared<ObjectValue>();
+        InitPrintln(module);
+        return module;
+    }
 };
 
 

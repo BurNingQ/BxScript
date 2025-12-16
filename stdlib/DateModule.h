@@ -125,6 +125,9 @@ class DateModule {
                 if (timestamp->type == ValueType::NULL_TYPE) {
                     return std::make_shared<NullValue>();
                 }
+                if (timestamp->type != ValueType::NUMBER) {
+                    Logger::Error("参数错误: 内部timestamp类型错误");
+                }
                 const double ms = std::static_pointer_cast<NumberValue>(timestamp)->Value;
                 const auto tt = static_cast<time_t>(ms / 1000.0);
                 fmt = StringKit::ReplaceAll(fmt, "yyyy", "%Y");

@@ -100,7 +100,7 @@ Token Lexer::NextToken() {
                         token.TokenValue += R"(\)" + chaz;
                     }
                     isEscape = false;
-                } else if (chaz == R"("\")") {
+                } else if (chaz == "\\") {
                     isEscape = true;
                 } else if (chaz == R"(")") {
                     break;

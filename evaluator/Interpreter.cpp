@@ -15,20 +15,28 @@
 #include "../stdlib/DateModule.h"
 #include <cmath>
 
+#include "stdlib/CryptModule.h"
+#include "stdlib/IOModule.h"
+#include "stdlib/JsonModule.h"
 #include "stdlib/ThreadModule.h"
 
 std::unordered_map<std::string, ValuePtr> Interpreter::ModuleCache;
 std::unordered_map<std::string, std::shared_ptr<Program> > Interpreter::ASTCache;
 
 void Interpreter::SetupEnvironment(std::shared_ptr<Environment> env) {
+    // 原型链, 静态函数挂载
     env->DeclareVar("String", StringValue::InitBuiltins());
     env->DeclareVar("Number", NumberValue::InitBuiltins());
     env->DeclareVar("Array", ArrayValue::InitBuiltins());
     env->DeclareVar("Function", FunctionValue::InitBuiltins());
     env->DeclareVar("Object", ObjectValue::InitBuiltins());
     env->DeclareVar("Boolean", BoolValue::InitBuiltins());
+    // C++标准库
     env->DeclareVar("Date", DateModule::CreateDateModule());
     env->DeclareVar("Thread", ThreadModule::CreateThreadModule());
+    env->DeclareVar("Crypt", CryptModule::CreateCryptModule());
+    env->DeclareVar("JSON", JsonModule::CreateJsonModule());
+    env->DeclareVar("IO", IOModule::CreateIOModule());
 }
 
 ValuePtr Interpreter::CallFunction(const ValuePtr &callee, const std::vector<ValuePtr> &args) {
@@ -80,6 +88,10 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, std::shared_ptr<En
 }
 
 ValuePtr Interpreter::Execute(Statement *stmt, std::shared_ptr<Environment> env) {
+    // 空语句
+    if (dynamic_cast<EmptyStatement*>(stmt)) {
+        return std::make_shared<NullValue>();
+    }
     // 变量处理
     if (const auto *varStmt = dynamic_cast<VariableStatement *>(stmt)) {
         for (const auto &decl: varStmt->List) {
@@ -218,6 +230,14 @@ ValuePtr Interpreter::Evaluate(Expression *expr, std::shared_ptr<Environment> en
         }
         env->DeclareVar(varExpr->Name, value);
         return value;
+    }
+    // 空值
+    if (dynamic_cast<NullLiteral *>(expr)) {
+        return std::make_shared<NullValue>();
+    }
+    // 布尔字面量
+    if (const auto *_bool = dynamic_cast<BooleanLiteral *>(expr)) {
+        return std::make_shared<BoolValue>(_bool->Value);
     }
     // 数字字面量
     if (const auto *num = dynamic_cast<NumberLiteral *>(expr)) {

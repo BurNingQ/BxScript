@@ -250,7 +250,6 @@ public:
         : StatementList(std::move(_list)) {
     }
 
-    int LeftBrace = 0, RightBrace = 0;
     std::vector<std::unique_ptr<Statement> > StatementList;
 };
 
