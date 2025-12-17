@@ -126,7 +126,7 @@ ValuePtr ArrayValue::Get(const std::string &key) {
             auto fn = [self = std::static_pointer_cast<ArrayValue>(shared_from_this())]
             (const std::vector<ValuePtr> &args) -> ValuePtr {
                 if (args.empty()) {
-                    Logger::Error("参数错误: removeAt(index, [count])");
+                    Logger::Error("参数错误: remove(index, [count])");
                 }
                 if (args[0]->type != ValueType::NUMBER) {
                     Logger::Error("参数错误: 索引必须是数字");

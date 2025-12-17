@@ -29,7 +29,7 @@ class Environment;
 using ValuePtr = std::shared_ptr<RuntimeValue>;
 
 enum class ValueType {
-    NULL_TYPE, NUMBER, STRING, BOOL, OBJECT, FUNCTION, NATIVE_FUNCTION, ARRAY, RETURN, BREAK, CONTINUE
+    NULL_TYPE, NUMBER, STRING, BOOL, OBJECT, FUNCTION, NATIVE_FUNCTION, ARRAY, RETURN, BREAK, CONTINUE, BUFFER
 };
 
 class BxScriptException : public std::exception {
@@ -59,6 +59,26 @@ public:
     virtual void Set(const std::string &key, ValuePtr value);
 
     virtual bool Equal(ValuePtr v);
+};
+
+class BufferValue : public RuntimeValue {
+public:
+    std::vector<unsigned char> Buffer;
+    static std::shared_ptr<ObjectValue> Prototype;
+
+    explicit BufferValue(const size_t size) : RuntimeValue(ValueType::BUFFER), Buffer(size, 0) {
+    }
+
+    explicit BufferValue(std::vector<unsigned char> data) : RuntimeValue(ValueType::BUFFER), Buffer(std::move(data)) {
+    }
+
+    [[nodiscard]] std::string ToString() const override {
+        return "<Buffer size=" + std::to_string(Buffer.size()) + ">";
+    }
+
+    ValuePtr Get(const std::string &key) override;
+
+    void Set(const std::string &key, ValuePtr value) override;
 };
 
 // 原生函数
@@ -196,7 +216,6 @@ public:
     }
 
     [[nodiscard]] std::string ToString() const override { return Value->ToString(); }
-
 };
 
 class BreakValue : public RuntimeValue {
@@ -205,7 +224,6 @@ public:
     }
 
     [[nodiscard]] std::string ToString() const override { return "break"; }
-
 };
 
 class ContinueValue : public RuntimeValue {

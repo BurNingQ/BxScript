@@ -730,6 +730,207 @@ TEST_F(InterpreterTest, CryptCRC32) {
     ASSERT_IS_STRING(Eval(code), "414fa339");
 }
 
+class IOTest : public InterpreterTest {
+protected:
+    std::string sandboxDir = "io_sandbox";
+
+    void SetUp() override {
+        InterpreterTest::SetUp();
+        if (fs::exists(sandboxDir)) fs::remove_all(sandboxDir);
+        fs::create_directories(sandboxDir);
+        std::ofstream f(sandboxDir + "/dummy.txt");
+        f << "Hello IO";
+        f.close();
+    }
+
+    void TearDown() override {
+        if (fs::exists(sandboxDir)) fs::remove_all(sandboxDir);
+    }
+};
+
+TEST_F(IOTest, ExistAndTypeCheck) {
+    std::string code = R"(
+        let dir = "io_sandbox";
+        let file = "io_sandbox/dummy.txt";
+        if (!IO.exist(dir)) {
+            throw "dir should exist"
+        };
+        if (!IO.exist(file)) {
+            throw "file should exist"
+        };
+        if (!IO.isDir(dir)) {
+            throw "dir type error"
+        };
+        if (IO.isFile(dir)) {
+            throw "dir is not file"
+        };
+        if (!IO.isFile(file)) {
+            throw "file type error"
+        };
+        if (IO.isDir(file)) {
+            throw "file is not dir"
+        };
+        true;
+    )";
+    ASSERT_IS_BOOL(Eval(code), true);
+}
+
+TEST_F(IOTest, CopyAndRename) {
+    std::string code = R"(
+        let src = "io_sandbox/dummy.txt";
+        let dst = "io_sandbox/copy.txt";
+        let moved = "io_sandbox/moved.txt";
+        if (!IO.copy(src, dst)) {
+            throw "copy failed";
+        };
+        if (!IO.exist(dst)) {
+            throw "dst not created";
+        }
+        if (!IO.rename(dst, moved)) {
+            throw "rename failed";
+        }
+        if (IO.exist(dst)) {
+            throw "dst should be gone";
+        }
+        if (!IO.exist(moved)) throw "moved should exist";
+        true;
+    )";
+    ASSERT_IS_BOOL(Eval(code), true);
+}
+
+TEST_F(IOTest, MkdirAndRemove) {
+    std::string code = R"(
+        let deepDir = "io_sandbox/a/b/c";
+        if (!IO.mkdir(deepDir)) {
+            throw "mkdir failed";
+        }
+        if (!IO.isDir(deepDir)) {
+            throw "check deep dir failed";
+        }
+        if (!IO.remove("io_sandbox/a")) {
+            throw "remove failed";
+        }
+        IO.exist("io_sandbox/a");
+    )";
+    ASSERT_IS_BOOL(Eval(code), false);
+}
+
+TEST_F(IOTest, ListDirectory) {
+    std::ofstream(sandboxDir + "/a.txt") << "a";
+    std::ofstream(sandboxDir + "/b.txt") << "b";
+    fs::create_directory(sandboxDir + "/sub");
+
+    std::string code = R"(
+        let list = IO.list("io_sandbox");
+        if (list.length != 4) {
+            throw "list length error: " + list.length;
+        }
+        let item = list[0];
+        if (item.type != "file" && item.type != "dir") {
+            throw "item type error";
+        }
+        if (item.size < 0) {
+            throw "item size error";
+        }
+        true;
+    )";
+    ASSERT_IS_BOOL(Eval(code), true);
+}
+
+TEST_F(IOTest, FileAttributes) {
+    std::string code = R"(
+        let path = "io_sandbox/dummy.txt";
+        let info = IO.attr(path);
+        if (info.name != "dummy.txt") {
+            throw "attr name error";
+        }
+        if (info.size != 8) {
+            throw "attr size error";
+        }
+        let empty = IO.attr("io_sandbox/ghost.txt");
+        if (empty.size != null) {
+            throw "ghost file should be empty";
+        }
+        true;
+    )";
+    ASSERT_IS_BOOL(Eval(code), true);
+}
+
+TEST_F(IOTest, AbsolutePath) {
+    std::string code = R"(
+        let path = "io_sandbox/dummy.txt";
+        let abs = IO.abs(path);
+        if (abs.length <= path.length) {
+            throw "abs path too short";
+        }
+        IO.println(abs);
+        true;
+    )";
+    ASSERT_IS_BOOL(Eval(code), true);
+}
+
+TEST_F(IOTest, ReadWriteText) {
+    std::string code = R"(
+        let path = "io_sandbox/text.txt";
+        let content = "Hello BxScript IO";
+        if (!IO.write(path, content)) {
+            throw "write text failed";
+        }
+        let readBack = IO.read(path, "utf8");
+        if (readBack != content) {
+            throw "content mismatch. expected: " + content + ", got: " + readBack;
+        }
+        readBack;
+    )";
+    ASSERT_IS_STRING(Eval(code), "Hello BxScript IO");
+}
+
+TEST_F(IOTest, ReadBuffer) {
+    std::string code = R"(
+        let path = "io_sandbox/binary.bin";
+        IO.write(path, "ABC");
+        let buf = IO.read(path);
+        let len = buf.size;
+        if (len != 3) {
+            throw "buffer size error: " + len;
+        }
+
+        if (buf[0] != 65) {throw "byte 0 error";}
+        if (buf[1] != 66) {throw "byte 1 error";}
+        if (buf[2] != 67) {throw "byte 2 error";}
+
+        len;
+    )";
+    ASSERT_IS_NUMBER(Eval(code), 3.0);
+}
+
+TEST_F(IOTest, WriteBuffer) {
+    std::string code = R"(
+        let path = "io_sandbox/buffer_out.bin";
+        // 1. 读取一个现有的文件拿到 Buffer (复用 dummy.txt "Hello IO")
+        let rawBuf = IO.read("io_sandbox/dummy.txt");
+        // 2. 把这个 Buffer 写入新文件
+        if (!IO.write(path, rawBuf)) {throw "write buffer failed";}
+        // 3. 读取新文件验证内容
+        let str = IO.read(path, "utf8");
+        if (str != "Hello IO") {throw "buffer content lost";}
+        true;
+    )";
+    ASSERT_IS_BOOL(Eval(code), true);
+}
+
+TEST_F(IOTest, Overwrite) {
+    std::string code = R"(
+        let path = "io_sandbox/overwrite.txt";
+        IO.write(path, "First");
+        IO.write(path, "Second");
+        let res = IO.read(path, "utf8");
+        if (res != "Second") {throw "overwrite failed, got: " + res;}
+        true;
+    )";
+    ASSERT_IS_BOOL(Eval(code), true);
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

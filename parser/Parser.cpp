@@ -166,31 +166,29 @@ std::unique_ptr<Statement> Parser::ParseIfStatement() {
     if (tk.TokenValue != ")") {
         Error(tk, "if语句错误: if后应该为)");
     }
-    tk = this->NextToken();
-    if (tk.TokenValue == "{") {
-        this->BackToken(tk);
-        ok = this->ParseBlockStatement();
-    } else {
-        Error(tk, "if语句错误: if至少应该包含一个分支");
-    }
+    // tk = this->NextToken();
+    // if (tk.TokenValue == "{") {
+    //     this->BackToken(tk);
+    //     ok = this->ParseBlockStatement();
+    // } else {
+    //     Error(tk, "if语句错误: if至少应该包含一个分支");
+    // }
+    ok = this->ParseStatement(); // 支持没有花括号
     const auto tk1 = this->NextToken();
     if (tk1.TokenValue == "else") {
         const auto tk2 = this->NextToken();
         if (tk2.TokenValue == "if") {
-            tk = this->NextToken();
-            if (tk.TokenValue == "(") {
-                this->BackToken(tk);
-                _elseif = this->ParseIfStatement();
-            } else {
-                Error(tk, "if语句错误: else if后应该为(");
-            }
+            this->BackToken(tk2);
+            _elseif = this->ParseIfStatement();
         } else {
-            if (tk2.TokenValue == "{") {
-                this->BackToken(tk2);
-                _else = this->ParseBlockStatement();
-            } else {
-                Error(tk2, "if语句错误: else后应该为{ 或者 if");
-            }
+            // if (tk2.TokenValue == "{") {
+            //     this->BackToken(tk2);
+            //     _else = this->ParseBlockStatement();
+            // } else {
+            //     Error(tk2, "if语句错误: else后应该为{ 或者 if");
+            // }
+            this->BackToken(tk2);
+            _else = this->ParseStatement();
         }
     } else {
         this->BackToken(tk1);
@@ -838,7 +836,7 @@ std::unique_ptr<Expression> Parser::ParseLogicalAndExpression() {
     auto tk = this->NextToken();
     if (tk.TokenValue == "&&") {
         while (true) {
-            left = make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseRelationalExpression()),
+            left = make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseEqualityExpression()),
                                                  false);
             tk = this->NextToken();
             if (tk.TokenValue != "&&") {

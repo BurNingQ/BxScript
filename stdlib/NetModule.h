@@ -13,9 +13,16 @@
 
 #ifndef BXSCRIPT_NETMODULE_H
 #define BXSCRIPT_NETMODULE_H
-
+#include "evaluator/Value.h"
 
 class NetModule {
+
+public:
+    static ValuePtr CreateNetModule() {
+        auto module = std::make_shared<ObjectValue>();
+
+        return module;
+    }
 };
 
 

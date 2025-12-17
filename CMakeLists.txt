@@ -29,6 +29,7 @@ add_executable(BxScript main.cpp
         evaluator/values/FunctionValue.cpp
         evaluator/values/BooleanValue.cpp
         evaluator/values/NullValue.cpp
+        evaluator/values/BufferValue.cpp
         evaluator/Interpreter.cpp
         stdlib/DateModule.h
         stdlib/ThreadModule.h
@@ -42,6 +43,8 @@ add_executable(BxScript main.cpp
         libs/sha256/sha256.cpp
         libs/sha256/sha256.h
         libs/hmac.h
+        evaluator/values/BufferValue.cpp
+        common/TimeKit.h
 )
 
 target_include_directories(BxScript PRIVATE
@@ -81,6 +84,7 @@ add_executable(test_parser
         evaluator/values/FunctionValue.cpp
         evaluator/values/BooleanValue.cpp
         evaluator/values/NullValue.cpp
+        evaluator/values/BufferValue.cpp
         evaluator/Interpreter.cpp
         stdlib/DateModule.h
         stdlib/ThreadModule.h
@@ -94,6 +98,8 @@ add_executable(test_parser
         libs/sha256/sha256.cpp
         libs/sha256/sha256.h
         libs/hmac.h
+        evaluator/values/BufferValue.cpp
+        common/TimeKit.h
 )
 
 target_include_directories(test_parser PRIVATE ${PROJECT_SOURCE_DIR})
