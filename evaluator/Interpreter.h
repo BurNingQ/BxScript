@@ -14,6 +14,8 @@
 #ifndef BXSCRIPT_INTERPRETER_H
 #define BXSCRIPT_INTERPRETER_H
 
+#include <utility>
+
 #include "Value.h"
 #include "parser/Expression.h"
 #include "Environment.h"
@@ -22,8 +24,10 @@
 
 class Interpreter {
 public:
-    static std::unordered_map<std::string, ValuePtr> ModuleCache; // 模块缓存
-    static std::unordered_map<std::string, std::shared_ptr<Program> > ASTCache; // 模块结构持有
+    static std::unordered_map<std::string, ValuePtr> ModuleCache;
+    static std::unordered_map<std::string, std::shared_ptr<Program> > ModuleAST;
+    static std::vector<std::shared_ptr<Program> > ASTRegistry;
+
     // 环境预热
     static void SetupEnvironment(std::shared_ptr<Environment> env);
 
@@ -31,10 +35,16 @@ public:
     static ValuePtr CallFunction(const ValuePtr &callee, const std::vector<ValuePtr> &args);
 
     // 运行代码
-    static ValuePtr Run(const Program &program) {
-        auto globalEnv = std::make_shared<Environment>();
+    static ValuePtr Run(const std::string &sourceCode, std::shared_ptr<Environment> globalEnv = nullptr) {
+        if (!globalEnv) {
+            globalEnv = std::make_shared<Environment>();
+        }
         SetupEnvironment(globalEnv);
-        return EvaluateProgram(program, globalEnv);
+        Parser parser(sourceCode);
+        auto const programPtr = std::make_shared<Program>(parser.ParseProgram());
+        ASTRegistry.push_back(programPtr);
+        auto res = EvaluateProgram(*programPtr, globalEnv);
+        return std::move(res);
     }
 
     // 执行代码 -> 二级

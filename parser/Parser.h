@@ -187,7 +187,7 @@ public:
 
     void Semicolon() {
         const auto tk = this->NextToken();
-        if (tk.TokenValue == ";" || tk._TokenType.GetEnum() == TokenType::FILE_END) {
+        if (tk.TokenValue == ";" || tk._TokenType.GetEnum() == TokenKind::FILE_END) {
         } else {
             this->BackToken(tk);
         }

@@ -30,10 +30,10 @@ void Parser::BackToken(const Token &token) {
 Program Parser::ParserSourceCode(const std::string &code) {
     std::vector<std::unique_ptr<Statement> > body{};
     Token token = this->NextToken();
-    while (token._TokenType.GetEnum() != TokenType::FILE_END) {
+    while (token._TokenType.GetEnum() != TokenKind::FILE_END) {
         body.push_back(this->ParseStatement());
         token = this->NextToken();
-        if (token._TokenType.GetEnum() != TokenType::FILE_END) {
+        if (token._TokenType.GetEnum() != TokenKind::FILE_END) {
             this->BackToken(token);
         }
     }
@@ -49,7 +49,7 @@ Program Parser::ParserSourceCode(const std::string &code) {
 std::unique_ptr<Statement> Parser::ParseImportStatements() {
     auto tk = this->NextToken(); // 此处tk = import
     tk = this->NextToken(); // 此处tk 应该为 identity
-    if (tk._TokenType.GetEnum() != TokenType::IDENTITY) {
+    if (tk._TokenType.GetEnum() != TokenKind::IDENTITY) {
         Error(tk, "import语句错误");
     }
     std::string alias{};
@@ -59,7 +59,7 @@ std::unique_ptr<Statement> Parser::ParseImportStatements() {
         tk = this->NextToken();
         if (tk.TokenValue == ".") {
             tk = this->NextToken();
-            if (tk._TokenType.GetEnum() != TokenType::IDENTITY) {
+            if (tk._TokenType.GetEnum() != TokenKind::IDENTITY) {
                 Error(tk, "import语句错误");
             }
             body.push_back(tk.TokenValue);
@@ -69,7 +69,7 @@ std::unique_ptr<Statement> Parser::ParseImportStatements() {
     }
     if (tk.TokenValue == "as") {
         tk = this->NextToken();
-        if (tk._TokenType.GetEnum() != TokenType::IDENTITY) {
+        if (tk._TokenType.GetEnum() != TokenKind::IDENTITY) {
             Error(tk, "import语句错误: as后应该为别名");
         }
         alias = tk.TokenValue;
@@ -91,7 +91,7 @@ std::unique_ptr<Statement> Parser::ParseStatement() {
     if (tk.TokenValue == ";") {
         return make_unique<EmptyStatement>();
     }
-    if (tk._TokenType.GetEnum() == TokenType::FILE_END) {
+    if (tk._TokenType.GetEnum() == TokenKind::FILE_END) {
         return make_unique<ExpressionStatement>(make_unique<BadExpression>());
     }
     this->BackToken(tk);
@@ -410,7 +410,7 @@ std::unique_ptr<FunctionLiteral> Parser::ParseFunction(const bool isAnonymous) {
     }
     tk = this->NextToken();
     auto name = make_unique<Identifier>("");
-    if (tk._TokenType.GetEnum() == TokenType::IDENTITY) {
+    if (tk._TokenType.GetEnum() == TokenKind::IDENTITY) {
         if (isAnonymous) {
             Error(tk, "声明式函数需要函数名");
         }
@@ -461,7 +461,7 @@ std::unique_ptr<Statement> Parser::ParseTryStatement() {
             Error(tk, "此处期望: (");
         } else {
             tk = this->NextToken();
-            if (tk._TokenType.GetEnum() != TokenType::IDENTITY) {
+            if (tk._TokenType.GetEnum() != TokenKind::IDENTITY) {
                 Error(tk, "此处期望: 标识符");
             } else {
                 this->BackToken(tk);
@@ -511,13 +511,13 @@ std::unique_ptr<Identifier> Parser::ParseIdentifier() {
 
 std::unique_ptr<Expression> Parser::ParsePrimaryExpression() {
     auto tk = this->NextToken();
-    if (tk._TokenType.GetEnum() == TokenType::IDENTITY) {
+    if (tk._TokenType.GetEnum() == TokenKind::IDENTITY) {
         return make_unique<Identifier>(tk.TokenValue);
     }
-    if (tk._TokenType.GetEnum() == TokenType::STRING) {
+    if (tk._TokenType.GetEnum() == TokenKind::STRING) {
         return make_unique<StringLiteral>(tk.TokenValue);
     }
-    if (tk._TokenType.GetEnum() == TokenType::INT || tk._TokenType.GetEnum() == TokenType::FLOAT) {
+    if (tk._TokenType.GetEnum() == TokenKind::INT || tk._TokenType.GetEnum() == TokenKind::FLOAT) {
         return make_unique<NumberLiteral>(tk.TokenValue);
     }
     if (tk.TokenValue == "{") {
@@ -536,7 +536,7 @@ std::unique_ptr<Expression> Parser::ParsePrimaryExpression() {
         }
         return exp;
     }
-    if (tk._TokenType.GetEnum() == TokenType::KEYWORD) {
+    if (tk._TokenType.GetEnum() == TokenKind::KEYWORD) {
         if (tk.TokenValue == "null") {
             return make_unique<NullLiteral>("null");
         }
@@ -556,7 +556,7 @@ std::unique_ptr<Expression> Parser::ParsePrimaryExpression() {
 
 std::unique_ptr<VariableExpression> Parser::ParseVariableDeclaration() {
     auto tk = this->NextToken();
-    if (tk._TokenType.GetEnum() != TokenType::IDENTITY) {
+    if (tk._TokenType.GetEnum() != TokenKind::IDENTITY) {
         Error(tk, "此处期望: 标识符");
     }
     auto literal = tk.TokenValue;
@@ -676,7 +676,7 @@ std::unique_ptr<Expression> Parser::ParseDotMember(std::unique_ptr<Expression> l
         Error(tk, "此处期望: .");
     }
     tk = this->NextToken();
-    if (tk._TokenType.GetEnum() != TokenType::IDENTITY) {
+    if (tk._TokenType.GetEnum() != TokenKind::IDENTITY) {
         Error(tk, "此处期望: 标识符");
     }
     return make_unique<DotExpression>(std::move(left), make_unique<Identifier>(std::move(tk.TokenValue)));
@@ -919,7 +919,7 @@ Program Parser::ParseProgram() {
     std::vector<std::unique_ptr<Statement> > body;
     while (true) {
         auto tk = this->NextToken();
-        if (tk._TokenType.GetEnum() == TokenType::FILE_END) {
+        if (tk._TokenType.GetEnum() == TokenKind::FILE_END) {
             break;
         }
         this->BackToken(tk);

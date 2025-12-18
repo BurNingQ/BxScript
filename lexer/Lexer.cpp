@@ -47,13 +47,13 @@ Token Lexer::NextToken() {
     while (true) {
         std::string chaz = this->NextChar();
         if (this->IsEndOfFile()) {
-            return Token{TokenType(TokenType::FILE_END), "", 0, 0};
+            return Token{TokenKind(TokenKind::FILE_END), "", 0, 0};
         }
         if (chaz.empty()) {
             continue;
         }
         if (std::isalpha(chaz[0]) || chaz[0] == '_' || chaz[0] == '$') {
-            Token token{TokenType(TokenType::IDENTITY), chaz, Lexer::RowNum, RowPos};
+            Token token{TokenKind(TokenKind::IDENTITY), chaz, Lexer::RowNum, RowPos};
             chaz = this->NextChar();
             while (!chaz.empty() && (std::isalnum(chaz[0]) || chaz[0] == '_' || chaz[0] == '$')) {
                 token.TokenValue += chaz;
@@ -61,12 +61,12 @@ Token Lexer::NextToken() {
             }
             this->RollBack();
             if (KeyWord::isKeyword(token.TokenValue)) {
-                token._TokenType = TokenType(TokenType::KEYWORD);
+                token._TokenType = TokenKind(TokenKind::KEYWORD);
             }
             return token;
         }
         if (std::isdigit(chaz[0])) {
-            Token token{TokenType(TokenType::INT), chaz, Lexer::RowNum, RowPos};
+            Token token{TokenKind(TokenKind::INT), chaz, Lexer::RowNum, RowPos};
             chaz = this->NextChar();
             while (true) {
                 if (!chaz.empty() && std::isdigit(chaz[0])) {
@@ -76,7 +76,7 @@ Token Lexer::NextToken() {
                 }
                 if (chaz == ".") {
                     token.TokenValue += ".";
-                    token._TokenType = TokenType(TokenType::FLOAT);
+                    token._TokenType = TokenKind(TokenKind::FLOAT);
                     chaz = this->NextChar();
                     continue;
                 }
@@ -86,7 +86,7 @@ Token Lexer::NextToken() {
             return token;
         }
         if (chaz == R"(")") {
-            Token token{TokenType(TokenType::STRING), "", Lexer::RowNum, RowPos};
+            Token token{TokenKind(TokenKind::STRING), "", Lexer::RowNum, RowPos};
             chaz = this->NextChar();
             bool isEscape = false;
             while (true) {
@@ -112,7 +112,7 @@ Token Lexer::NextToken() {
             return token;
         }
         if (Symbols::isSymbols(chaz)) {
-            Token token{TokenType(TokenType::SYMBOL), chaz, Lexer::RowNum, RowPos};
+            Token token{TokenKind(TokenKind::SYMBOL), chaz, Lexer::RowNum, RowPos};
             if (chaz == "=" || chaz == ">" || chaz == "<" || chaz == "!") {
                 chaz = this->NextChar();
                 if (chaz == "=") {
@@ -183,5 +183,5 @@ Token Lexer::NextToken() {
         throw std::runtime_error(
             "未知字符: '" + chaz + "',行: " + std::to_string(RowNum) + ",列: " + std::to_string(RowPos));
     }
-    return Token{TokenType(TokenType::FILE_END), "", RowNum, RowPos};
+    return Token{TokenKind(TokenKind::FILE_END), "", RowNum, RowPos};
 }

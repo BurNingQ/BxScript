@@ -3,10 +3,14 @@ project(BxScript)
 
 set(CMAKE_CXX_STANDARD 17)
 
+if(MINGW)
+    add_compile_options(-Wa,-mbig-obj)
+endif()
+
 add_executable(BxScript main.cpp
         libs/json.hpp
         lexer/Token.h
-        common/TokenType.h
+        common/TokenKind.h
         lexer/Lexer.cpp
         lexer/Lexer.h
         common/KeyWord.h
@@ -45,10 +49,15 @@ add_executable(BxScript main.cpp
         libs/hmac.h
         evaluator/values/BufferValue.cpp
         common/TimeKit.h
+        evaluator/EventLoop.h
 )
 
 target_include_directories(BxScript PRIVATE
         ${PROJECT_SOURCE_DIR}
+)
+
+target_link_libraries(BxScript
+        PRIVATE
 )
 
 #-----------------------------------------
@@ -100,17 +109,35 @@ add_executable(test_parser
         libs/hmac.h
         evaluator/values/BufferValue.cpp
         common/TimeKit.h
+        evaluator/EventLoop.h
 )
 
 target_include_directories(test_parser PRIVATE ${PROJECT_SOURCE_DIR})
-
-target_link_libraries(test_parser
-        PRIVATE
-        gtest_main
-)
 
 #-----------------------------------------
 # gtest discover
 #-----------------------------------------
 include(GoogleTest)
 gtest_discover_tests(test_parser)
+
+if (WIN32)
+    target_link_libraries(BxScript wininet)
+    target_link_libraries(test_parser
+            PRIVATE
+            gtest_main
+            wininet
+    )
+    message(STATUS "Configuring for Windows: Linked wininet")
+elseif (APPLE)
+    target_link_libraries(test_parser
+            PRIVATE
+            gtest_main
+    )
+    message(STATUS "Configuring for macOS")
+elseif (UNIX)
+    target_link_libraries(test_parser
+            PRIVATE
+            gtest_main
+    )
+    message(STATUS "Configuring for Linux")
+endif()

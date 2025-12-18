@@ -13,30 +13,17 @@
 
 #ifndef BXSCRIPT_THREADMODULE_H
 #define BXSCRIPT_THREADMODULE_H
-#include <atomic>
 
 #include "evaluator/Value.h"
 #include <thread>
 #include <chrono>
-#include <queue>
-#include <mutex>
-#include <condition_variable>
+#include <complex>
 
 #include "evaluator/Interpreter.h"
 #include "evaluator/Logger.h"
 
 using namespace std::chrono;
 
-// 消息模型
-struct Message {
-    ValuePtr data;
-};
-
-inline std::queue<Message> msgQueue{};
-inline std::mutex queueMutex{};
-inline std::condition_variable noticer{};
-inline std::atomic<bool> isRunning{true};
-// 回调
 inline ValuePtr onMessageCallback = nullptr;
 
 class ThreadModule {
@@ -53,23 +40,25 @@ class ThreadModule {
         o->Set("sleep", fn);
     }
 
-    static void initStart(std::shared_ptr<ObjectValue> &o) {
+    static void initInvoke(std::shared_ptr<ObjectValue> &o) {
         const auto fn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &args) -> ValuePtr {
                 if (args.empty() || args[0]->type != ValueType::FUNCTION) {
-                    Logger::Error("参数错误: Thread.start(fn, [args])");
+                    Logger::Error("参数错误: Thread.invoke(fn, [args])");
                 }
                 auto threadFn = args[0];
                 auto threadArgs = std::vector(args.begin() + 1, args.end());
+                EventLoop::AddActiveTask();
                 std::thread t([threadFn,threadArgs] {
                     Interpreter::CallFunction(threadFn, threadArgs);
+                    EventLoop::RemoveActiveTask();
                 });
                 t.detach();
                 std::stringstream ss;
                 ss << t.get_id();
                 return std::make_shared<StringValue>(ss.str());
             });
-        o->Set("start", fn);
+        o->Set("invoke", fn);
     }
 
     static void initOnMessage(std::shared_ptr<ObjectValue> &o) {
@@ -89,93 +78,19 @@ class ThreadModule {
                 if (args.empty()) {
                     return std::make_shared<NullValue>();
                 }
-                {
-                    std::lock_guard lock(queueMutex);
-                    msgQueue.push({args[0]});
-                }
-                noticer.notify_one();
+                EventLoop::Enqueue(onMessageCallback, args);
                 return std::make_shared<NullValue>();
             });
         o->Set("postMessage", fn);
-    }
-
-    static void initWait(std::shared_ptr<ObjectValue> &o) {
-        const auto fn = std::make_shared<NativeFunctionValue>(
-            [](const std::vector<ValuePtr> &args) -> ValuePtr {
-                isRunning = true;
-                while (true) {
-                    Message msg{};
-                    {
-                        std::unique_lock lock(queueMutex);
-                        noticer.wait(lock, [] { return !msgQueue.empty() || !isRunning; });
-                        if (!isRunning && msgQueue.empty()) {
-                            break;
-                        }
-                        if (!msgQueue.empty()) {
-                            msg = msgQueue.front();
-                            msgQueue.pop();
-                        }
-                    }
-                    if (msg.data && onMessageCallback) {
-                        std::vector callbackArgs = {msg.data};
-                        Interpreter::CallFunction(onMessageCallback, callbackArgs);
-                    }
-                }
-                return std::make_shared<NullValue>();
-            });
-        o->Set("wait", fn);
-    }
-
-    static void initDispatchMessage(std::shared_ptr<ObjectValue> &o) {
-        const auto fn = std::make_shared<NativeFunctionValue>(
-            [](const std::vector<ValuePtr> &args) -> ValuePtr {
-                const auto start = steady_clock::now();
-                constexpr long long budgetNs = 5 * 1000 * 1000;
-                while (true) {
-                    auto now = steady_clock::now();
-                    if ((now - start).count() > budgetNs) {
-                        break;
-                    }
-                    Message msg{};
-                    {
-                        std::lock_guard lock(queueMutex);
-                        if (!msgQueue.empty()) {
-                            msg = msgQueue.front();
-                            msgQueue.pop();
-                        } else {
-                            break;
-                        }
-                    }
-                    if (onMessageCallback) {
-                        std::vector callbackArgs = {msg.data};
-                        Interpreter::CallFunction(onMessageCallback, callbackArgs);
-                    }
-                }
-                return std::make_shared<NullValue>();
-            });
-        o->Set("dispatchMessage", fn);
-    }
-
-    static void initExit(std::shared_ptr<ObjectValue> &o) {
-        const auto fn = std::make_shared<NativeFunctionValue>(
-            [](const std::vector<ValuePtr> &args) -> ValuePtr {
-                isRunning = false;
-                noticer.notify_all();
-                return std::make_shared<NullValue>();
-            });
-        o->Set("exit", fn);
     }
 
 public:
     static ValuePtr CreateThreadModule() {
         auto threadObj = std::make_shared<ObjectValue>();
         initSleep(threadObj);
-        initStart(threadObj);
+        initInvoke(threadObj);
         initOnMessage(threadObj);
         initPostMessage(threadObj);
-        initDispatchMessage(threadObj);
-        initWait(threadObj);
-        initExit(threadObj);
         return threadObj;
     }
 };

@@ -3,10 +3,13 @@
 #include <memory>
 
 #include <filesystem>
+#include <thread>
+
 #include "../parser/Parser.h"
 #include "../evaluator/Interpreter.h"
 #include "../evaluator/Value.h"
 #include "../evaluator/Environment.h"
+#include "../evaluator/EventLoop.h"
 
 #define ASSERT_IS_NUMBER(valPtr, expected) \
     do { \
@@ -34,11 +37,43 @@
 
 class InterpreterTest : public ::testing::Test {
 protected:
-    // 辅助函数：执行代码并返回最后一个语句的结果
+    std::shared_ptr<Environment> globalEnv{};
+
+    void RestTest() {
+        EventLoop::Reset();
+        globalEnv = std::make_shared<Environment>();
+        Interpreter::ModuleCache.clear();
+        Interpreter::ModuleAST.clear();
+        Interpreter::ASTRegistry.clear();
+    }
+
     ValuePtr Eval(const std::string &code) {
-        Parser parser(code);
-        Program program = parser.ParseProgram();
-        return Interpreter::Run(program);
+        RestTest();
+        return Interpreter::Run(code, globalEnv);
+    }
+
+    void EvalAsync(const std::string &code, int timeoutMs = 5000) {
+        Eval(code);
+        auto start = std::chrono::steady_clock::now();
+        while (EventLoop::ShouldKeepAlive()) {
+            EventLoop::Dispatch(0);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+            if (elapsed > timeoutMs) {
+                std::cerr << "\033[1;31m[Test Error] Async execution timed out after " << timeoutMs << "ms!\033[0m" <<
+                        std::endl;
+                break;
+            }
+        }
+    }
+
+    ValuePtr GetGlobalVar(const std::string &name) {
+        try {
+            return globalEnv->LookupVar(name);
+        } catch (...) {
+            return std::make_shared<NullValue>();
+        }
     }
 };
 
@@ -52,7 +87,6 @@ TEST_F(InterpreterTest, BasicArithmetic) {
     ASSERT_IS_NUMBER(Eval("10 - 4;"), 6.0);
     ASSERT_IS_NUMBER(Eval("3 * 4;"), 12.0);
     ASSERT_IS_NUMBER(Eval("10 / 2;"), 5.0);
-
     // 优先级
     ASSERT_IS_NUMBER(Eval("1 + 2 * 3;"), 7.0);
     ASSERT_IS_NUMBER(Eval("(1 + 2) * 3;"), 9.0);
@@ -673,8 +707,8 @@ TEST_F(InterpreterTest, JsonParseError) {
         JSON.parse(badJson);
     )";
     EXPECT_THROW({
-        Eval(code);
-    }, std::runtime_error);
+                 Eval(code);
+                 }, std::runtime_error);
 }
 
 TEST_F(InterpreterTest, JsonIgnoreFunction) {
@@ -929,6 +963,63 @@ TEST_F(IOTest, Overwrite) {
         true;
     )";
     ASSERT_IS_BOOL(Eval(code), true);
+}
+
+TEST_F(InterpreterTest, NetGetHttpsBasic) {
+    std::string code = R"(
+        let global_status = 0;
+        let global_body = "";
+        Net.get("https://www.baidu.com", function(res) {
+            global_status = res.status;
+            global_body = res.body;
+            IO.println("Callback finished!");
+        });
+    )";
+    EvalAsync(code);
+    auto statusVal = GetGlobalVar("global_status");
+    ASSERT_IS_NUMBER(statusVal, 200.0);
+    auto bodyVal = GetGlobalVar("global_body");
+    ASSERT_EQ(bodyVal->type, ValueType::STRING);
+    EXPECT_FALSE(std::static_pointer_cast<StringValue>(bodyVal)->Value.empty());
+}
+
+TEST_F(InterpreterTest, NetGetJsonApi) {
+    std::string code = R"(
+        let resultId = -1;
+        Net.get("https://jsonplaceholder.typicode.com/todos/1", function(res) {
+            if (res.status == 200) {
+                let data = JSON.parse(res.body);
+                resultId = data.id;
+            }
+        });
+    )";
+    EvalAsync(code);
+    auto statusVal = GetGlobalVar("resultId");
+    ASSERT_IS_NUMBER(statusVal, 1);
+}
+
+TEST_F(InterpreterTest, NetInvalidUrl) {
+    std::string code = R"(
+        let errStatus = 0;
+        Net.get("https://this-domain-does-not-exist-123456.com", function(res) {
+            errStatus = res.status;
+        });
+    )";
+    EvalAsync(code);
+    auto statusVal = GetGlobalVar("errStatus");
+    ASSERT_IS_NUMBER(statusVal, -1);
+}
+
+TEST_F(InterpreterTest, Net404) {
+    std::string code = R"(
+        let status = 0;
+        Net.get("https://www.baidu.com/this_page_is_404", function(res) {
+            status = res.status;
+        });
+    )";
+    EvalAsync(code);
+    auto statusVal = GetGlobalVar("status");
+    ASSERT_IS_NUMBER(statusVal, 404);
 }
 
 int main(int argc, char **argv) {

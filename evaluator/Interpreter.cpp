@@ -18,10 +18,12 @@
 #include "stdlib/CryptModule.h"
 #include "stdlib/IOModule.h"
 #include "stdlib/JsonModule.h"
+#include "stdlib/NetModule.h"
 #include "stdlib/ThreadModule.h"
 
 std::unordered_map<std::string, ValuePtr> Interpreter::ModuleCache;
-std::unordered_map<std::string, std::shared_ptr<Program> > Interpreter::ASTCache;
+std::unordered_map<std::string, std::shared_ptr<Program> > Interpreter::ModuleAST;
+std::vector<std::shared_ptr<Program>> Interpreter::ASTRegistry{};
 
 void Interpreter::SetupEnvironment(std::shared_ptr<Environment> env) {
     // 原型链, 静态函数挂载
@@ -37,28 +39,24 @@ void Interpreter::SetupEnvironment(std::shared_ptr<Environment> env) {
     env->DeclareVar("Crypt", CryptModule::CreateCryptModule());
     env->DeclareVar("JSON", JsonModule::CreateJsonModule());
     env->DeclareVar("IO", IOModule::CreateIOModule());
+    env->DeclareVar("Net",NetModule::CreateNetModule());
 }
 
 ValuePtr Interpreter::CallFunction(const ValuePtr &callee, const std::vector<ValuePtr> &args) {
     if (callee->type == ValueType::NATIVE_FUNCTION) {
-        auto nativeFn = std::static_pointer_cast<NativeFunctionValue>(callee);
+        const auto nativeFn = std::static_pointer_cast<NativeFunctionValue>(callee);
         return nativeFn->Function(args);
     }
     if (callee->type == ValueType::FUNCTION) {
-        auto fn = std::static_pointer_cast<FunctionValue>(callee);
-        // 创建函数执行环境
-        auto scope = std::make_shared<Environment>(fn->Closure);
-        // 参数绑定
+        const auto fn = std::static_pointer_cast<FunctionValue>(callee);
+        const auto scope = std::make_shared<Environment>(fn->Closure);
         for (size_t i = 0; i < fn->Declaration->Parameters->Parameters.size(); ++i) {
-            auto paramId = dynamic_cast<Identifier *>(fn->Declaration->Parameters->Parameters[i].get());
+            const auto paramId = dynamic_cast<Identifier *>(fn->Declaration->Parameters->Parameters[i].get());
             std::string paramName = paramId->Name;
-            // 获取实参，缺省NULL
-            ValuePtr argVal = (i < args.size()) ? args[i] : std::make_shared<NullValue>();
+            const ValuePtr argVal = (i < args.size()) ? args[i] : std::make_shared<NullValue>();
             scope->DeclareVar(paramName, argVal);
         }
-        // 执行函数体
         ValuePtr result = Execute(fn->Declaration->Body.get(), scope);
-        // 处理返回值
         if (result->type == ValueType::RETURN) {
             return std::static_pointer_cast<ReturnValue>(result)->Value;
         }
@@ -356,7 +354,7 @@ ValuePtr Interpreter::Evaluate(Expression *expr, std::shared_ptr<Environment> en
         auto computeNewValue = [&](const ValuePtr &oldValue) -> ValuePtr {
             if (op == "=") return rhs;
             const std::string binOpStr = op.substr(0, op.length() - 1);
-            const Token binOpToken(TokenType(TokenType::SYMBOL), binOpStr, 0, 0);
+            const Token binOpToken(TokenKind(TokenKind::SYMBOL), binOpStr, 0, 0);
             return ApplyBinary(binOpToken, oldValue, rhs);
         };
         // 简单变量赋值 (a = 1, a += 1)
@@ -486,7 +484,7 @@ void Interpreter::LoadModule(const ImportStatement *stmt, std::shared_ptr<Enviro
     const std::string code = ModuleHelper::ReadFile(filePath);
     Parser parser(code);
     const auto programPtr = std::make_shared<Program>(parser.ParseProgram());
-    ASTCache[filePath] = programPtr;
+    ModuleAST[filePath] = programPtr;
     const auto moduleEnv = std::make_shared<Environment>(env);
     EvaluateProgram(*programPtr, moduleEnv);
     const auto moduleObj = std::make_shared<ObjectValue>();

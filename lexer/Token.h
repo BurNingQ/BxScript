@@ -16,12 +16,12 @@
 
 #include <utility>
 
-#include "common/TokenType.h"
+#include "common/TokenKind.h"
 #include "string"
 
 class Token {
 public:
-    explicit Token(const TokenType type, std::string value, const int lineNumber, const int mColsNum)
+    explicit Token(const TokenKind type, std::string value, const int lineNumber, const int mColsNum)
         : _TokenType(type), TokenValue(std::move(value)), LineNum(lineNumber), ColsNum(mColsNum) {
     }
 
@@ -34,7 +34,7 @@ public:
                ", \"类型\": " + this->_TokenType.ToString() + "}";
     }
 
-    TokenType _TokenType = TokenType(TokenType::NONE);
+    TokenKind _TokenType = TokenKind(TokenKind::NONE);
     std::string TokenValue;
     int LineNum = 0;
     int ColsNum = 0;

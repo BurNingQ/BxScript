@@ -19,23 +19,23 @@ TEST(LexerTest, BasicTokenize) {
 
     Token t1 = lexer.NextToken();
     EXPECT_EQ(t1.TokenValue, "let");
-    EXPECT_EQ(t1._TokenType.GetEnum(), TokenType::KEYWORD);
+    EXPECT_EQ(t1._TokenType.GetEnum(), TokenKind::KEYWORD);
 
     Token t2 = lexer.NextToken();
     EXPECT_EQ(t2.TokenValue, "a");
-    EXPECT_EQ(t2._TokenType.GetEnum(), TokenType::IDENTITY);
+    EXPECT_EQ(t2._TokenType.GetEnum(), TokenKind::IDENTITY);
 
     Token t3 = lexer.NextToken();
     EXPECT_EQ(t3.TokenValue, "=");
 
     Token t4 = lexer.NextToken();
     EXPECT_EQ(t4.TokenValue, "10");
-    EXPECT_EQ(t4._TokenType.GetEnum(), TokenType::INT);
+    EXPECT_EQ(t4._TokenType.GetEnum(), TokenKind::INT);
 
     Token t5 = lexer.NextToken(); // ;
 
     Token t6 = lexer.NextToken(); // EOF
-    EXPECT_EQ(t6._TokenType.GetEnum(), TokenType::FILE_END);
+    EXPECT_EQ(t6._TokenType.GetEnum(), TokenKind::FILE_END);
 }
 
 TEST(LexerTest, StringHandling) {
@@ -48,7 +48,7 @@ TEST(LexerTest, StringHandling) {
 
     Token strToken = lexer.NextToken();
     EXPECT_EQ(strToken.TokenValue, "hello world");
-    EXPECT_EQ(strToken._TokenType.GetEnum(), TokenType::STRING);
+    EXPECT_EQ(strToken._TokenType.GetEnum(), TokenKind::STRING);
 }
 
 // ==========================================

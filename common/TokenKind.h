@@ -16,7 +16,7 @@
 
 #include <string>
 
-class TokenType {
+class TokenKind {
 public:
     enum Value {
         IDENTITY,
@@ -30,7 +30,7 @@ public:
         NONE,
     };
 
-    constexpr explicit TokenType(const Value v) : _value(v) {
+    constexpr explicit TokenKind(const Value v) : _value(v) {
     }
 
     std::string ToString() const {
