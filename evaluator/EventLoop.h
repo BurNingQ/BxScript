@@ -20,6 +20,7 @@
 #include "Value.h"
 #include "Interpreter.h"
 #include "Logger.h"
+#include <thread>
 
 using namespace std::chrono;
 

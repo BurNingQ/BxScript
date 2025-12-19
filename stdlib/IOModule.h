@@ -219,7 +219,7 @@ class IOModule {
         auto const fn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &args)-> ValuePtr {
                 if (args.empty()) return std::make_shared<NullValue>();
-                std::string path = args[0]->ToString();
+                const std::string path = args[0]->ToString();
                 std::ifstream file(path, std::ios::binary | std::ios::ate);
                 if (!file.is_open()) return std::make_shared<NullValue>();
                 const std::streamsize size = file.tellg();
@@ -241,15 +241,15 @@ class IOModule {
         auto const fn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &args)-> ValuePtr {
                 if (args.size() < 2) return std::make_shared<BoolValue>(false);
-                std::string path = args[0]->ToString();
-                auto data = args[1];
+                const std::string path = args[0]->ToString();
+                const auto& data = args[1];
                 std::ofstream file(path, std::ios::binary);
                 if (!file.is_open()) return std::make_shared<BoolValue>(false);
                 if (data->type == ValueType::STRING) {
-                    std::string str = std::static_pointer_cast<StringValue>(data)->Value;
+                    const std::string str = std::static_pointer_cast<StringValue>(data)->Value;
                     file.write(str.c_str(), str.size());
                 } else if (data->type == ValueType::BUFFER) {
-                    auto buf = std::static_pointer_cast<BufferValue>(data);
+                    const auto buf = std::static_pointer_cast<BufferValue>(data);
                     file.write((char *) buf->Buffer.data(), buf->Buffer.size());
                 }
                 return std::make_shared<BoolValue>(true);

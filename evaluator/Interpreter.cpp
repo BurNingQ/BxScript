@@ -19,11 +19,14 @@
 #include "stdlib/IOModule.h"
 #include "stdlib/JsonModule.h"
 #include "stdlib/NetModule.h"
+#include "stdlib/OsModule.h"
+#include "stdlib/RegexModule.h"
 #include "stdlib/ThreadModule.h"
 
 std::unordered_map<std::string, ValuePtr> Interpreter::ModuleCache;
 std::unordered_map<std::string, std::shared_ptr<Program> > Interpreter::ModuleAST;
-std::vector<std::shared_ptr<Program>> Interpreter::ASTRegistry{};
+std::vector<std::shared_ptr<Program> > Interpreter::ASTRegistry{};
+std::unordered_map<std::string, ValuePtr> Interpreter::CppStdCache{};
 
 void Interpreter::SetupEnvironment(std::shared_ptr<Environment> env) {
     // 原型链, 静态函数挂载
@@ -33,13 +36,6 @@ void Interpreter::SetupEnvironment(std::shared_ptr<Environment> env) {
     env->DeclareVar("Function", FunctionValue::InitBuiltins());
     env->DeclareVar("Object", ObjectValue::InitBuiltins());
     env->DeclareVar("Boolean", BoolValue::InitBuiltins());
-    // C++标准库
-    env->DeclareVar("Date", DateModule::CreateDateModule());
-    env->DeclareVar("Thread", ThreadModule::CreateThreadModule());
-    env->DeclareVar("Crypt", CryptModule::CreateCryptModule());
-    env->DeclareVar("JSON", JsonModule::CreateJsonModule());
-    env->DeclareVar("IO", IOModule::CreateIOModule());
-    env->DeclareVar("Net",NetModule::CreateNetModule());
 }
 
 ValuePtr Interpreter::CallFunction(const ValuePtr &callee, const std::vector<ValuePtr> &args) {
@@ -65,8 +61,29 @@ ValuePtr Interpreter::CallFunction(const ValuePtr &callee, const std::vector<Val
     throw std::runtime_error("试图调用非函数对象: " + callee->ToString());
 }
 
-ValuePtr Interpreter::EvaluateProgram(const Program &program, std::shared_ptr<Environment> env) {
+ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_ptr<Environment> &env) {
     for (const auto &importStmt: program.Imports) {
+        if (importStmt->Path.size() >= 2 && importStmt->Path[0] == "std") {
+            const std::string moduleName = importStmt->Path[1];
+            if (CppStdCache.find(moduleName) != CppStdCache.end()) {
+                env->DeclareVar(importStmt->AliasName, CppStdCache[moduleName]);
+                continue;
+            }
+            ValuePtr module = nullptr;
+            if (moduleName == "IO") module = IOModule::CreateIOModule();
+            else if (moduleName == "Net") module = NetModule::CreateNetModule();
+            else if (moduleName == "JSON") module = JsonModule::CreateJsonModule();
+            else if (moduleName == "Crypt") module = CryptModule::CreateCryptModule();
+            else if (moduleName == "Date") module = DateModule::CreateDateModule();
+            else if (moduleName == "Thread") module = ThreadModule::CreateThreadModule();
+            else if (moduleName == "Regex") module = RegexModule::CreateRegexModule();
+            else if (moduleName == "OS") module = OsModule::CreateOSModule();
+            if (module) {
+                CppStdCache[moduleName] = module;
+                env->DeclareVar(importStmt->AliasName, module);
+                continue;
+            }
+        }
         LoadModule(importStmt.get(), env);
     }
     // 函数提升
@@ -87,7 +104,7 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, std::shared_ptr<En
 
 ValuePtr Interpreter::Execute(Statement *stmt, std::shared_ptr<Environment> env) {
     // 空语句
-    if (dynamic_cast<EmptyStatement*>(stmt)) {
+    if (dynamic_cast<EmptyStatement *>(stmt)) {
         return std::make_shared<NullValue>();
     }
     // 变量处理

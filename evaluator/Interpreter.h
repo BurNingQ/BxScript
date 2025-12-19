@@ -27,6 +27,7 @@ public:
     static std::unordered_map<std::string, ValuePtr> ModuleCache;
     static std::unordered_map<std::string, std::shared_ptr<Program> > ModuleAST;
     static std::vector<std::shared_ptr<Program> > ASTRegistry;
+    static std::unordered_map<std::string, ValuePtr> CppStdCache;
 
     // 环境预热
     static void SetupEnvironment(std::shared_ptr<Environment> env);
@@ -48,7 +49,7 @@ public:
     }
 
     // 执行代码 -> 二级
-    static ValuePtr EvaluateProgram(const Program &program, std::shared_ptr<Environment> env);
+    static ValuePtr EvaluateProgram(const Program &program, const std::shared_ptr<Environment>& env);
 
 private:
     // Statement 执行层 (Execute): 负责逻辑控制、变量声明、代码块
