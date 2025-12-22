@@ -30,7 +30,7 @@ public:
     static std::unordered_map<std::string, ValuePtr> CppStdCache;
 
     // 环境预热
-    static void SetupEnvironment(std::shared_ptr<Environment> env);
+    static void SetupEnvironment(const std::shared_ptr<Environment>& env);
 
     // 公用函数执行
     static ValuePtr CallFunction(const ValuePtr &callee, const std::vector<ValuePtr> &args);

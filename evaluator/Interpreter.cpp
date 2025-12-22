@@ -16,6 +16,7 @@
 #include <cmath>
 
 #include "stdlib/CryptModule.h"
+#include "stdlib/GuiModule.h"
 #include "stdlib/IOModule.h"
 #include "stdlib/JsonModule.h"
 #include "stdlib/NetModule.h"
@@ -28,8 +29,7 @@ std::unordered_map<std::string, std::shared_ptr<Program> > Interpreter::ModuleAS
 std::vector<std::shared_ptr<Program> > Interpreter::ASTRegistry{};
 std::unordered_map<std::string, ValuePtr> Interpreter::CppStdCache{};
 
-void Interpreter::SetupEnvironment(std::shared_ptr<Environment> env) {
-    // 原型链, 静态函数挂载
+void Interpreter::SetupEnvironment(const std::shared_ptr<Environment> &env) {
     env->DeclareVar("String", StringValue::InitBuiltins());
     env->DeclareVar("Number", NumberValue::InitBuiltins());
     env->DeclareVar("Array", ArrayValue::InitBuiltins());
@@ -78,6 +78,7 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_
             else if (moduleName == "Thread") module = ThreadModule::CreateThreadModule();
             else if (moduleName == "Regex") module = RegexModule::CreateRegexModule();
             else if (moduleName == "OS") module = OsModule::CreateOSModule();
+            else if (moduleName == "Win") module = GuiModule::CreateGuiModule();
             if (module) {
                 CppStdCache[moduleName] = module;
                 env->DeclareVar(importStmt->AliasName, module);

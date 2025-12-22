@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(FONT_FILE "${CMAKE_SOURCE_DIR}/font.ttf")
 set(EMBED_FILE "${CMAKE_BINARY_DIR}/embedded_font.S")
 
-# 检查字体文件是否存在，防止编译报错一脸懵
+# 检查字体文件是否存在，防止编译报错
 if(NOT EXISTS "${FONT_FILE}")
     message(WARNING "Font file not found at: ${FONT_FILE}. Embedding will fail.")
 endif()
@@ -20,7 +20,7 @@ if(APPLE)
     set(SYM_PREFIX "_")
 elseif(WIN32)
     set(ASM_SECTION ".section .rdata,\"dr\"")
-    set(SYM_PREFIX "_")
+    set(SYM_PREFIX "")
 else()
     set(ASM_SECTION ".section .rodata")
     set(SYM_PREFIX "")
@@ -44,10 +44,13 @@ enable_language(ASM)
 # ==========================================
 # 2. 编译器选项优化
 # ==========================================
-if (MINGW)
-    add_compile_options(-Wa,-mbig-obj)
-    add_compile_options(-Os -ffunction-sections -fdata-sections)
-    add_link_options(-Wl,--gc-sections -s)
+if (MINGW OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(-finput-charset=UTF-8 -fexec-charset=UTF-8)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        add_compile_options(-Wa,-mbig-obj)
+        add_compile_options(-Os -ffunction-sections -fdata-sections)
+        add_link_options(-Wl,--gc-sections -s)
+    endif ()
 endif ()
 
 # ==========================================
@@ -61,7 +64,7 @@ option(GLFW_BUILD_DOCS "Build docs" OFF)
 option(GLFW_INSTALL "Install" OFF)
 
 add_subdirectory("${GLFW_DIR}")
-include_directories("${GLFW_DIR}/deps")
+include_directories("${GLFW_DIR}/header")
 include_directories("${GLFW_DIR}/include")
 
 # ==========================================
@@ -99,7 +102,7 @@ set(SOURCE_FILES
         common/StringKit.h
         common/TimeKit.h
         common/JsonKit.h
-        common/FontKit.h       # 你的字体读取辅助类
+        common/FontKit.h
         stdlib/DateModule.h
         stdlib/ThreadModule.h
         stdlib/MathModule.h
@@ -114,9 +117,11 @@ set(SOURCE_FILES
         libs/sha256/sha256.cpp
         libs/sha256/sha256.h
         libs/hmac.h
-
-        # === 关键修复：把生成的汇编文件加进来 ===
         ${EMBED_FILE}
+        stdlib/GuiModule.h
+        gui/GuiRenderer.h
+        gui/GuiRuntime.cpp
+        gui/GuiRuntime.h
 )
 
 # ==========================================
@@ -147,7 +152,7 @@ list(REMOVE_ITEM SOURCE_FILES main.cpp)
 add_executable(test_parser
         tests/test_parser.cpp
         tests/test_interpreter.cpp
-        ${SOURCE_FILES} # 这里包含了 embedded_font.S
+        ${SOURCE_FILES}
 )
 
 target_include_directories(test_parser PRIVATE ${PROJECT_SOURCE_DIR})

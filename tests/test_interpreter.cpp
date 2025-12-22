@@ -10,6 +10,8 @@
 #include "../evaluator/Value.h"
 #include "../evaluator/Environment.h"
 #include "../evaluator/EventLoop.h"
+#include "../stdlib/GuiModule.h"
+#include "gui/GuiRuntime.h"
 
 #define ASSERT_IS_NUMBER(valPtr, expected) \
     do { \
@@ -49,7 +51,13 @@ protected:
 
     ValuePtr Eval(const std::string &code) {
         RestTest();
-        return Interpreter::Run(code, globalEnv);
+        auto res = Interpreter::Run(code, globalEnv);
+        if (!GuiModule::GlobalForms.empty()) {
+            GuiRuntime::Run();
+        } else {
+            EventLoop::RunLoop();
+        }
+        return res;
     }
 
     void EvalAsync(const std::string &code, int timeoutMs = 5000) {
@@ -1020,6 +1028,28 @@ TEST_F(InterpreterTest, Net404) {
     EvalAsync(code);
     auto statusVal = GetGlobalVar("status");
     ASSERT_IS_NUMBER(statusVal, 404);
+}
+
+TEST_F(InterpreterTest, GuiBuildStructure) {
+    std::string code = R"(
+        import std.Win as win;
+        let f = win.form("mainForm", "Test Window", 800, 600);
+        let btn = win.button("btn1", "Click", 100, 50, 10, 10);
+        btn.x = 999;
+        f.add(btn);
+    )";
+    Eval(code);
+    ASSERT_EQ(GuiModule::GlobalForms.size(), 1);
+    auto formObj = std::static_pointer_cast<ObjectValue>(GuiModule::GlobalForms[0]);
+    auto title = formObj->Get("text");
+    ASSERT_EQ(title->ToString(), "Test Window");
+    auto childrenVal = formObj->Get("children");
+    ASSERT_EQ(childrenVal->type, ValueType::ARRAY);
+    auto childrenArr = std::static_pointer_cast<ArrayValue>(childrenVal);
+    ASSERT_EQ(childrenArr->Elements.size(), 1);
+    auto btnObj = std::static_pointer_cast<ObjectValue>(childrenArr->Elements[0]);
+    auto xVal = btnObj->Get("x");
+    ASSERT_EQ(std::static_pointer_cast<NumberValue>(xVal)->Value, 999.0);
 }
 
 int main(int argc, char **argv) {

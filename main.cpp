@@ -8,6 +8,8 @@
 #include "evaluator/Environment.h"
 #include "evaluator/Value.h"
 #include "evaluator/EventLoop.h"
+#include "gui/GuiRuntime.h"
+#include "stdlib/GuiModule.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -72,11 +74,6 @@ void RunRepl() {
     std::string line;
     while (true) {
         PrintPrompt();
-
-        // 2. 阻塞读取用户输入
-        // 注意：这里会阻塞主线程，导致 EventLoop 暂时暂停，
-        // 直到用户按下回车，后台任务才会继续跑一下。
-        // 这是简单 REPL 的通病，但在控制台工具中可以接受。
         if (!std::getline(std::cin, line)) {
             break;
         }
@@ -146,6 +143,12 @@ int main(int argc, char *argv[]) {
         RunFile(argv[1]);
     } else {
         RunRepl();
+        return 0;
+    }
+    if (!GuiModule::GlobalForms.empty()) {
+        GuiRuntime::Run();
+    } else {
+        EventLoop::RunLoop();
     }
     return 0;
 }
