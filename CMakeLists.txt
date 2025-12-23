@@ -122,6 +122,7 @@ set(SOURCE_FILES
         gui/GuiRenderer.h
         gui/GuiRuntime.cpp
         gui/GuiRuntime.h
+        common/ColorKit.h
 )
 
 # ==========================================

@@ -52,7 +52,7 @@ void GuiRuntime::Run() {
     GLFWwindow *win = glfwCreateWindow(1000, 600, "BxScript WinForm", nullptr, nullptr);
     glfwMakeContextCurrent(win);
     nk_context *ctx = nk_glfw3_init(win, NK_GLFW3_INSTALL_CALLBACKS);
-
+    // 字体配置
     nk_font_atlas *atlas;
     nk_glfw3_font_stash_begin(&atlas);
     struct nk_font_config cfg = {0};
@@ -71,7 +71,7 @@ void GuiRuntime::Run() {
     );
     nk_glfw3_font_stash_end();
     if (font) nk_style_set_font(ctx, &font->handle);
-
+    // 主渲染循环
     while (!glfwWindowShouldClose(win)) {
         glfwPollEvents();
         nk_glfw3_new_frame();
@@ -92,7 +92,7 @@ void GuiRuntime::Run() {
             struct nk_rect totalSpace = nk_window_get_content_region(ctx);
             totalSpace.h = titleHeight;
             nk_fill_rect(canvas, totalSpace, 0, nk_rgb(45, 45, 48));
-            nk_label(ctx, "我的 Nuklear 脚本引擎 - 自定义标题栏", NK_TEXT_LEFT);
+            nk_label(ctx, GetMainForm()->Get("text")->ToString().c_str(), NK_TEXT_LEFT);
             struct nk_rect titleRect = totalSpace;
             titleRect.w -= 90;
             if (nk_input_is_mouse_hovering_rect(&ctx->input, titleRect)) {

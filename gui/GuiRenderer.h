@@ -32,7 +32,7 @@ class GuiRenderer {
     }
 
 public:
-    static void RenderWidget(struct nk_context *ctx, const ValuePtr& widget) {
+    static void RenderWidget(nk_context *ctx, const ValuePtr& widget) {
         if (widget->type != ValueType::OBJECT) return;
         const auto obj = std::static_pointer_cast<ObjectValue>(widget);
         const std::string type = GetString(obj, "_type");
