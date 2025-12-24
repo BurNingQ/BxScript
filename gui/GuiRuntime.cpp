@@ -129,7 +129,7 @@ void GuiRuntime::Run() {
         }
         nk_layout_row_dynamic(ctx, 200, 1);
         if (nk_group_begin(ctx, "BxScriptContent", NK_WINDOW_BORDER)) {
-            GuiRenderer::RenderAll(ctx);
+            GuiRenderer::RenderContent(ctx);
             nk_group_end(ctx);
         }
         nk_end(ctx);

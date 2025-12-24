@@ -23,7 +23,7 @@ class GuiModule {
         widget->Set("_type", std::make_shared<StringValue>(type));
         const std::string id = args[0]->ToString();
         widget->Set("id", args[0]);
-        winObj->Set(id, widget);
+        winObj->Get("refs")->Set(id, widget);
         InjectLayoutMethods(widget);
         if (type == "form" || type == "group") {
             InjectContainerMethods(widget);
@@ -368,6 +368,7 @@ class GuiModule {
 public:
     static ValuePtr CreateGuiModule() {
         auto win = std::make_shared<ObjectValue>();
+        win -> Set("refs", std::make_shared<ObjectValue>());
         InitForm(win);
         InitControls(win);
         return win;
