@@ -65,7 +65,7 @@ public:
     }
 
     static bool Dispatch(int maxDurationMs = 0) {
-        auto start = steady_clock::now();
+        const auto start = steady_clock::now();
         std::vector<Task> localQueue{};
         {
             std::lock_guard lock(queueMutex);

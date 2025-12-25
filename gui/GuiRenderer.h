@@ -15,8 +15,20 @@
 
 #include <cstring>
 #include "../stdlib/GuiModule.h"
+#include "common/TextureKit.h"
 
 class GuiRenderer {
+    static int initButtonDisabled(nk_context *ctx, int colorPushed) {
+        const nk_color gray = nk_rgb(100, 100, 100);
+        nk_style_push_color(ctx, &ctx->style.text.color, gray);
+        nk_style_push_color(ctx, &ctx->style.button.normal.data.color, nk_rgb(40, 40, 40));
+        nk_style_push_color(ctx, &ctx->style.button.hover.data.color, nk_rgb(40, 40, 40));
+        nk_style_push_color(ctx, &ctx->style.button.active.data.color, nk_rgb(40, 40, 40));
+        colorPushed += 4;
+        return colorPushed;
+    }
+
+public:
     static float GetFloat(const ValuePtr &obj, const std::string &key, const float def = 0) {
         if (const auto v = obj->Get(key); v->type == ValueType::NUMBER) {
             return static_cast<float>(std::static_pointer_cast<NumberValue>(v)->Value);
@@ -64,10 +76,19 @@ class GuiRenderer {
         }
     }
 
-public:
-    static void RenderWidget(struct nk_context *ctx, ValuePtr widgetVal) {
+    static void RenderWidget(nk_context *ctx, const ValuePtr &widgetVal, const std::map<int, nk_font *> &fontCache) {
         if (!widgetVal || widgetVal->type != ValueType::OBJECT) return;
         const auto obj = std::static_pointer_cast<ObjectValue>(widgetVal);
+        int const fSize = static_cast<int>(GetFloat(obj, "fontSize", 14));
+        bool fontPushed = false;
+        if (fontCache.find(fSize) != fontCache.end()) {
+            nk_style_push_font(ctx, &fontCache.at(fSize)->handle);
+            fontPushed = true;
+        }
+        if (fontPushed) {
+            nk_style_pop_font(ctx);
+        }
+        // 通用属性
         if (!GetBool(obj, "visible", true)) return;
         const bool disabled = GetBool(obj, "disable", false);
         const float x = GetFloat(obj, "x", 0);
@@ -79,12 +100,7 @@ public:
         const std::string text = GetString(obj, "text");
         int colorPushed = 0;
         if (disabled) {
-            const nk_color gray = nk_rgb(100, 100, 100);
-            nk_style_push_color(ctx, &ctx->style.text.color, gray);
-            nk_style_push_color(ctx, &ctx->style.button.normal.data.color, nk_rgb(40, 40, 40));
-            nk_style_push_color(ctx, &ctx->style.button.hover.data.color, nk_rgb(40, 40, 40));
-            nk_style_push_color(ctx, &ctx->style.button.active.data.color, nk_rgb(40, 40, 40));
-            colorPushed += 4;
+            colorPushed = initButtonDisabled(ctx, colorPushed);
         } else {
             auto fontColorVal = obj->Get("fontColor");
             if (fontColorVal && fontColorVal->type == ValueType::OBJECT) {
@@ -105,7 +121,7 @@ public:
         }
         if (type == "button") {
             if (nk_button_label(ctx, text.c_str())) {
-                if (!disabled) TriggerEvent(obj, "click");
+                if (!disabled) TriggerEvent(obj, "onClick");
             }
         } else if (type == "label") {
             nk_label(ctx, text.c_str(), GetAlign(obj));
@@ -121,7 +137,7 @@ public:
             if (!disabled) {
                 if (newVal != valStr) {
                     obj->Set("value", std::make_shared<StringValue>(newVal));
-                    TriggerEvent(obj, "change", {std::make_shared<StringValue>(newVal)});
+                    TriggerEvent(obj, "onChange", {std::make_shared<StringValue>(newVal)});
                 }
             }
         } else if (type == "group") {
@@ -131,43 +147,38 @@ public:
                 if (children && children->type == ValueType::ARRAY) {
                     const auto arr = std::static_pointer_cast<ArrayValue>(children);
                     for (const auto &child: arr->Elements) {
-                        RenderWidget(ctx, child);
+                        RenderWidget(ctx, child, fontCache);
                     }
                 }
                 nk_layout_space_end(ctx);
                 nk_group_end(ctx);
             }
+        } else if (type == "image") {
+            const std::string &path = text;
+            GLuint tex = TextureKit::Load(path);
+            if (tex != 0) {
+                const struct nk_image img = nk_image_id(static_cast<int>(tex));
+                nk_image(ctx, img);
+            } else {
+                nk_label(ctx, "[图片加载失败]", NK_TEXT_CENTERED);
+            }
         }
-
+        // 退出样式栈
         while (colorPushed > 0) {
             nk_style_pop_color(ctx);
             colorPushed--;
         }
     }
 
-
-    static void RenderContentOnly(nk_context *ctx) {
-        if (GuiModule::GlobalForms.empty()) return;
-        const auto form = std::static_pointer_cast<ObjectValue>(GuiModule::GlobalForms[0]);
-        auto children = form->Get("children");
-        if (children->type == ValueType::ARRAY) {
-            const auto arr = std::static_pointer_cast<ArrayValue>(children);
-            for (auto &child: arr->Elements) {
-                RenderWidget(ctx, child);
-            }
-        }
-    }
-
-    static void RenderContent(nk_context *ctx) {
+    static void RenderContent(nk_context *ctx, const float height, const std::map<int, nk_font *> &fontCache) {
         if (GuiModule::GlobalForms.empty()) return;
         const auto mainForm = std::static_pointer_cast<ObjectValue>(GuiModule::GlobalForms[0]);
-        const float contentHeight = GetFloat(mainForm, "height", 600);
-        nk_layout_space_begin(ctx, NK_STATIC, contentHeight, INT_MAX);
+        nk_layout_space_begin(ctx, NK_STATIC, height, INT_MAX);
         auto children = mainForm->Get("children");
         if (children && children->type == ValueType::ARRAY) {
             const auto arr = std::static_pointer_cast<ArrayValue>(children);
-            for (const auto& child : arr->Elements) {
-                RenderWidget(ctx, child);
+            for (const auto &child: arr->Elements) {
+                RenderWidget(ctx, child, fontCache);
             }
         }
         nk_layout_space_end(ctx);

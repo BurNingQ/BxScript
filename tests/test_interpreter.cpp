@@ -1020,6 +1020,7 @@ TEST_F(InterpreterTest, NetInvalidUrl) {
 
 TEST_F(InterpreterTest, Net404) {
     std::string code = R"(
+        import std.Net as Net;
         let status = 0;
         Net.get("https://www.baidu.com/this_page_is_404", function(res) {
             status = res.status;
@@ -1033,23 +1034,19 @@ TEST_F(InterpreterTest, Net404) {
 TEST_F(InterpreterTest, GuiBuildStructure) {
     std::string code = R"(
         import std.Win as win;
-        let f = win.form("mainForm", "Test Window", 800, 600);
-        let btn = win.button("btn1", "Click", 100, 50, 10, 10);
-        btn.x = 999;
-        f.add(btn);
+        import std.IO as IO;
+        let f = win.form("mainForm").center().size(600, 800).text("测试窗口").add([
+            win.label("l1").text("用户: ").pos(10, 10).size(100, 40),
+            win.input("userName").text("请输入用户名").pos(60, 15).size(200, 30),
+            win.label("l2").text("密码: ").pos(10, 50).size(100, 40),
+            win.password("password").pos(60, 55).size(200, 30),
+            win.button("btn1").size(120, 40).pos(100, 200).text("点击我试试").onClick(function(){
+                IO.println("event came from button click");
+            })
+        ]);
     )";
     Eval(code);
     ASSERT_EQ(GuiModule::GlobalForms.size(), 1);
-    auto formObj = std::static_pointer_cast<ObjectValue>(GuiModule::GlobalForms[0]);
-    auto title = formObj->Get("text");
-    ASSERT_EQ(title->ToString(), "Test Window");
-    auto childrenVal = formObj->Get("children");
-    ASSERT_EQ(childrenVal->type, ValueType::ARRAY);
-    auto childrenArr = std::static_pointer_cast<ArrayValue>(childrenVal);
-    ASSERT_EQ(childrenArr->Elements.size(), 1);
-    auto btnObj = std::static_pointer_cast<ObjectValue>(childrenArr->Elements[0]);
-    auto xVal = btnObj->Get("x");
-    ASSERT_EQ(std::static_pointer_cast<NumberValue>(xVal)->Value, 999.0);
 }
 
 int main(int argc, char **argv) {

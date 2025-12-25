@@ -53,7 +53,7 @@ public:
 
 private:
     // Statement 执行层 (Execute): 负责逻辑控制、变量声明、代码块
-    static ValuePtr Execute(Statement *stmt, std::shared_ptr<Environment> env);
+    static ValuePtr Execute(Statement *stmt, const std::shared_ptr<Environment>& env);
 
     // Expression 求值层 (Evaluate): 负责数据计算、赋值、成员访问
     static ValuePtr Evaluate(Expression *expr, std::shared_ptr<Environment> env);

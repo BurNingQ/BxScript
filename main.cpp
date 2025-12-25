@@ -137,7 +137,7 @@ void RunFile(const std::string &path) {
 // ==========================================
 // 入口 Main
 // ==========================================
-int main(int argc, char *argv[]) {
+int main(const int argc, char *argv[]) {
     SetupConsole();
     if (argc > 1) {
         RunFile(argv[1]);

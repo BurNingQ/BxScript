@@ -103,7 +103,7 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_
     return lastEvaluated;
 }
 
-ValuePtr Interpreter::Execute(Statement *stmt, std::shared_ptr<Environment> env) {
+ValuePtr Interpreter::Execute(Statement *stmt, const std::shared_ptr<Environment>& env) {
     // 空语句
     if (dynamic_cast<EmptyStatement *>(stmt)) {
         return std::make_shared<NullValue>();

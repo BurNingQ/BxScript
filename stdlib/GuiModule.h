@@ -23,11 +23,11 @@ class GuiModule {
         widget->Set("_type", std::make_shared<StringValue>(type));
         const std::string id = args[0]->ToString();
         widget->Set("id", args[0]);
-        winObj->Get("refs")->Set(id, widget);
         InjectLayoutMethods(widget);
         if (type == "form" || type == "group") {
             InjectContainerMethods(widget);
         }
+        winObj->Get("refs")->Set(id, widget);
         return widget;
     }
 
@@ -67,7 +67,8 @@ class GuiModule {
         auto const centerFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &) -> ValuePtr {
                 auto self = weak_w.lock();
-                if (self) self->Set("center", std::make_shared<BoolValue>(true));
+                if (!self) return std::make_shared<NullValue>();
+                self->Set("center", std::make_shared<BoolValue>(true));
                 return self;
             }
         );
@@ -80,7 +81,7 @@ class GuiModule {
                 if (!self) return std::make_shared<NullValue>();
                 const auto childrenVal = self->Get("children");
                 std::shared_ptr<ArrayValue> children;
-                if (!childrenVal) {
+                if (!childrenVal || childrenVal->type == ValueType::NULL_TYPE) {
                     children = std::make_shared<ArrayValue>(std::vector<ValuePtr>{});
                     self->Set("children", children);
                 } else {
@@ -113,7 +114,8 @@ class GuiModule {
         const auto posFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
-                if (!self || args.empty()) return self;
+                if (!self) return std::make_shared<NullValue>();
+                if (args.empty()) return self;
                 if (args[0]->type == ValueType::OBJECT) {
                     auto const x = args[0]->Get("x");
                     if (x && x->type == ValueType::NUMBER) {
@@ -136,18 +138,17 @@ class GuiModule {
         auto const sizeFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
-                if (self) {
-                    if (args[0]->type == ValueType::OBJECT) {
-                        if (args[0]->Get("width") && args[0]->Get("width")->type == ValueType::NUMBER) {
-                            self->Set("width", args[0]->Get("width"));
-                        }
-                        if (args[0]->Get("height") && args[0]->Get("height")->type == ValueType::NUMBER) {
-                            self->Set("height", args[0]->Get("height"));
-                        }
-                    } else if (self && args.size() >= 2 && args[0]->type == ValueType::NUMBER && args[1]->type == ValueType::NUMBER) {
-                        self->Set("width", args[0]);
-                        self->Set("height", args[1]);
+                if (!self) return std::make_shared<NullValue>();
+                if (args[0]->type == ValueType::OBJECT) {
+                    if (args[0]->Get("width") && args[0]->Get("width")->type == ValueType::NUMBER) {
+                        self->Set("width", args[0]->Get("width"));
                     }
+                    if (args[0]->Get("height") && args[0]->Get("height")->type == ValueType::NUMBER) {
+                        self->Set("height", args[0]->Get("height"));
+                    }
+                } else if (args.size() >= 2 && args[0]->type == ValueType::NUMBER && args[1]->type == ValueType::NUMBER) {
+                    self->Set("width", args[0]);
+                    self->Set("height", args[1]);
                 }
                 return self;
             });
@@ -157,8 +158,9 @@ class GuiModule {
         auto const fontSizeFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
+                if (!self) return std::make_shared<NullValue>();
                 if (!args.empty() && args[0]->type == ValueType::NUMBER) {
-                    if (self) self->Set("fontSize", std::move(std::static_pointer_cast<NumberValue>(args[0])));
+                    self->Set("fontSize", std::move(std::static_pointer_cast<NumberValue>(args[0])));
                 }
                 return self;
             });
@@ -168,8 +170,9 @@ class GuiModule {
         auto const fontColorFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
+                if (!self) return std::make_shared<NullValue>();
                 // ArgsColorToObject 有缺省托底
-                if (self) self->Set("fontColor", ArgsColorToObject(args));
+                self->Set("fontColor", ArgsColorToObject(args));
                 return self;
             });
         widget->Set("fontColor", fontColorFn);
@@ -178,6 +181,7 @@ class GuiModule {
         auto const textFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
+                if (!self) return std::make_shared<NullValue>();
                 std::string str{};
                 if (!args.empty()) {
                     str = args[0]->ToString();
@@ -191,8 +195,9 @@ class GuiModule {
         auto const clickFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
+                if (!self) return std::make_shared<NullValue>();
                 if (!args.empty() && args[0]->type == ValueType::FUNCTION) {
-                    if (self) self->Set("click", args[0]);
+                    self->Set("onClick", args[0]);
                 }
                 // 事件不托底
                 return self;
@@ -203,7 +208,8 @@ class GuiModule {
         auto const bgColorFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
-                if (self) self->Set("backgroundColor", ArgsColorToObject(args));
+                if (!self) return std::make_shared<NullValue>();
+                self->Set("backgroundColor", ArgsColorToObject(args));
                 return self;
             });
         widget->Set("backgroundColor", bgColorFn);
@@ -212,6 +218,7 @@ class GuiModule {
         auto const borderFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
+                if (!self) return std::make_shared<NullValue>();
                 if (!args.empty()) {
                     if (args[0]->type == ValueType::NUMBER) {
                         self->Set("borderWidth", args[0]);
@@ -236,7 +243,8 @@ class GuiModule {
         auto const hideFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &) -> ValuePtr {
                 auto const self = weak_w.lock();
-                if (self) self->Set("visible", std::make_shared<BoolValue>(false));
+                if (!self) return std::make_shared<NullValue>();
+                self->Set("visible", std::make_shared<BoolValue>(false));
                 return self;
             });
         widget->Set("hide", hideFn);
@@ -245,7 +253,8 @@ class GuiModule {
         auto const showFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &) -> ValuePtr {
                 auto const self = weak_w.lock();
-                if (self) self->Set("visible", std::make_shared<BoolValue>(true));
+                if (!self) return std::make_shared<NullValue>();
+                self->Set("visible", std::make_shared<BoolValue>(true));
                 return self;
             });
         widget->Set("show", showFn);
@@ -254,11 +263,12 @@ class GuiModule {
         auto const disableFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
+                if (!self) return std::make_shared<NullValue>();
                 auto const disable = std::make_shared<BoolValue>(true);
                 if (!args.empty() && args[0]->type == ValueType::BOOL) {
                     disable->Value = std::static_pointer_cast<BoolValue>(args[0])->Value;
                 }
-                if (self) self->Set("disable", disable);
+                self->Set("disable", disable);
                 return self;
             });
         widget->Set("disable", disableFn);
@@ -267,10 +277,11 @@ class GuiModule {
         auto const alignFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
+                if (!self) return std::make_shared<NullValue>();
                 if (!args.empty() && args[0]->type == ValueType::STRING) {
                     auto const alignStr = args[0]->ToString();
                     if (alignStr == "left" || alignStr == "right" || alignStr == "center") {
-                        if (self) self->Set("align", args[0]);
+                        self->Set("align", args[0]);
                     }
                 }
                 return self;
@@ -281,8 +292,9 @@ class GuiModule {
         auto const changeFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
+                if (!self) return std::make_shared<NullValue>();
                 if (!args.empty() && args[0]->type == ValueType::FUNCTION) {
-                    if (self) self->Set("change", args[0]);
+                    self->Set("change", args[0]);
                 }
                 return self;
             });
@@ -292,8 +304,9 @@ class GuiModule {
         auto const hoverFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
+                if (!self) return std::make_shared<NullValue>();
                 if (!args.empty() && args[0]->type == ValueType::FUNCTION) {
-                    if (self) self->Set("hover", args[0]);
+                    self->Set("hover", args[0]);
                 }
                 return self;
             });
@@ -303,6 +316,7 @@ class GuiModule {
         auto const paddingFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
+                if (!self) return std::make_shared<NullValue>();
                 if (!args.empty()) {
                     if (args.size() == 2) {
                         self->Set("padding-top", args[0]);
@@ -346,7 +360,7 @@ class GuiModule {
 
     static void InitControls(std::shared_ptr<ObjectValue> &o) {
         auto makeFactory = [o](const std::string &type) {
-            std::weak_ptr weak_o(o);
+            std::weak_ptr<ObjectValue> weak_o = o;
             return std::make_shared<NativeFunctionValue>(
                 [weak_o, type](const std::vector<ValuePtr> &args) -> ValuePtr {
                     const auto self = weak_o.lock();
@@ -368,7 +382,7 @@ class GuiModule {
 public:
     static ValuePtr CreateGuiModule() {
         auto win = std::make_shared<ObjectValue>();
-        win -> Set("refs", std::make_shared<ObjectValue>());
+        win->Set("refs", std::make_shared<ObjectValue>());
         InitForm(win);
         InitControls(win);
         return win;

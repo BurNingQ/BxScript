@@ -123,6 +123,8 @@ set(SOURCE_FILES
         gui/GuiRuntime.cpp
         gui/GuiRuntime.h
         common/ColorKit.h
+        libs/stb_image.h
+        common/TextureKit.h
 )
 
 # ==========================================
