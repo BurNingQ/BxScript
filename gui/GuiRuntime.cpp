@@ -49,7 +49,11 @@ constexpr float ANIMATION_DURATION = 0.2f;
 constexpr float FADE_SPEED = 1.0f / ANIMATION_DURATION;
 // 字体缓存
 std::map<int, nk_font *> FontCache;
-
+// 是否显示alert
+bool showAlert = false;
+// 是否显示confirm
+bool showConfirm = false;
+// 主窗体
 std::shared_ptr<ObjectValue> mainForm = nullptr;
 
 void BeginFrame() {
@@ -226,6 +230,42 @@ void EndFrame(GLFWwindow *win, int const &width, int const &height) {
     glfwSwapBuffers(win);
 }
 
+void initAlertBox(std::string const &title, std::string const &content, nk_context *ctx) {
+    struct nk_rect s = {20, 100, 200, 150};
+    if (nk_popup_begin(ctx, NK_POPUP_STATIC, title.empty() ? "BxScript" : title.c_str(), NK_WINDOW_NO_SCROLLBAR, s)) {
+        nk_layout_row_dynamic(ctx, 30, 1);
+        nk_label(ctx, content.c_str(), NK_TEXT_CENTERED);
+        nk_layout_row_dynamic(ctx, 30, 1);
+        if (nk_button_label(ctx, "确 定")) {
+            showAlert = false;
+            nk_popup_close(ctx);
+        }
+        nk_popup_end(ctx);
+    } else {
+        showAlert = false;
+    }
+}
+
+void initConfirmBox(std::string const &title, std::string const &content, nk_context *ctx) {
+    struct nk_rect s = {50, 50, 250, 150};
+    if (nk_popup_begin(ctx, NK_POPUP_STATIC, title.empty() ? "BxScript" : title.c_str(), 0, s)) {
+        nk_layout_row_dynamic(ctx, 30, 1);
+        nk_label(ctx, content.c_str(), NK_TEXT_CENTERED);
+        nk_layout_row_dynamic(ctx, 30, 2);
+        if (nk_button_label(ctx, "确定")) {
+            showConfirm = false;
+            nk_popup_close(ctx);
+        }
+        if (nk_button_label(ctx, "取消")) {
+            showConfirm = false;
+            nk_popup_close(ctx);
+        }
+        nk_popup_end(ctx);
+    } else {
+        showConfirm = false;
+    }
+}
+
 void GuiRuntime::Run() {
     glfwInitHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
     if (!glfwInit()) {
@@ -267,6 +307,21 @@ void GuiRuntime::Run() {
             initTitleBar(win, ctx, w);
             initSection(ctx, h);
         }
+
+        // 额外的处理
+        if (showAlert) {
+            const auto alertTitle = GuiRenderer::GetString(mainForm, "alert-title", "BxScript");
+            const auto alertContext = GuiRenderer::GetString(mainForm, "alert-context", "");
+            initAlertBox(alertTitle, alertContext, ctx);
+        }
+        // if (showConfirm) {
+        //     const auto confirmTitle = GuiRenderer::GetString(mainForm, "confirm-title", "BxScript");
+        //     const auto confirmContext = GuiRenderer::GetString(mainForm, "confirm-context", "");
+        //     const auto confirmCallBack = GuiRenderer::GetFunction(mainForm, "confirm-success-fn");
+        //     const auto cancelCallBack = GuiRenderer::GetFunction(mainForm, "confirm-cancel-fn");
+        //     initConfirmBox(confirmTitle, confirmContext, ctx, confirmCallBack, cancelCallBack);
+        // }
+
         nk_end(ctx);
         EndFrame(win, w, h);
         initDataBind(win);

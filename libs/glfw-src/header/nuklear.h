@@ -3426,7 +3426,8 @@ enum nk_edit_flags {
     NK_EDIT_NO_HORIZONTAL_SCROLL    = NK_FLAG(8),
     NK_EDIT_ALWAYS_INSERT_MODE      = NK_FLAG(9),
     NK_EDIT_MULTILINE               = NK_FLAG(10),
-    NK_EDIT_GOTO_END_ON_ACTIVATE    = NK_FLAG(11)
+    NK_EDIT_GOTO_END_ON_ACTIVATE    = NK_FLAG(11),
+    NK_EDIT_PASSWORD = NK_FLAG(21)
 };
 enum nk_edit_types {
     NK_EDIT_SIMPLE  = NK_EDIT_ALWAYS_INSERT_MODE,
@@ -5969,7 +5970,7 @@ NK_LIB int nk_do_selectable(nk_flags *state, struct nk_command_buffer *out, stru
 NK_LIB int nk_do_selectable_image(nk_flags *state, struct nk_command_buffer *out, struct nk_rect bounds, const char *str, int len, nk_flags align, int *value, const struct nk_image *img, const struct nk_style_selectable *style, const struct nk_input *in, const struct nk_user_font *font);
 
 /* edit */
-NK_LIB void nk_edit_draw_text(struct nk_command_buffer *out, const struct nk_style_edit *style, float pos_x, float pos_y, float x_offset, const char *text, int byte_len, float row_height, const struct nk_user_font *font, struct nk_color background, struct nk_color foreground, int is_selected);
+NK_LIB void nk_edit_draw_text(struct nk_command_buffer *out, const struct nk_style_edit *style, float pos_x, float pos_y, float x_offset, const char *text, int byte_len, float row_height, const struct nk_user_font *font, struct nk_color background, struct nk_color foreground, int is_selected, nk_flags flags);
 NK_LIB nk_flags nk_do_edit(nk_flags *state, struct nk_command_buffer *out, struct nk_rect bounds, nk_flags flags, nk_plugin_filter filter, struct nk_text_edit *edit, const struct nk_style_edit *style, struct nk_input *in, const struct nk_user_font *font);
 
 /* color-picker */
@@ -22792,8 +22793,12 @@ nk_edit_draw_text(struct nk_command_buffer *out,
     const struct nk_style_edit *style, float pos_x, float pos_y,
     float x_offset, const char *text, int byte_len, float row_height,
     const struct nk_user_font *font, struct nk_color background,
-    struct nk_color foreground, int is_selected)
+    struct nk_color foreground, int is_selected, nk_flags flags)
 {
+    char star_mask[256];
+    if (flags & NK_EDIT_PASSWORD) {
+      for (int i = 0; i < 256; ++i) star_mask[i] = '*';
+    }
     NK_ASSERT(out);
     NK_ASSERT(font);
     NK_ASSERT(style);
@@ -22829,8 +22834,18 @@ nk_edit_draw_text(struct nk_command_buffer *out,
 
             if (is_selected) /* selection needs to draw different background color */
                 nk_fill_rect(out, label, 0, background);
-            nk_widget_text(out, label, line, (int)((text + text_len) - line),
-                &txt, NK_TEXT_CENTERED, font);
+
+            if (flags & NK_EDIT_PASSWORD) {
+              int draw_len = (int)((text + text_len) - line);
+              if (draw_len > 255) draw_len = 255; // 防止溢出
+              nk_widget_text(out, label, star_mask, draw_len, &txt, NK_TEXT_CENTERED, font);
+            } else {
+              nk_widget_text(out, label, line, (int)((text + text_len) - line),
+                  &txt, NK_TEXT_CENTERED, font);
+            }
+
+            // nk_widget_text(out, label, line, (int)((text + text_len) - line),
+            //     &txt, NK_TEXT_CENTERED, font);
 
             text_len++;
             line_count++;
@@ -22845,7 +22860,12 @@ nk_edit_draw_text(struct nk_command_buffer *out,
             glyph_len = nk_utf_decode(text + text_len, &unicode, byte_len-text_len);
             continue;
         }
-        glyph_width = font->width(font->userdata, font->height, text+text_len, glyph_len);
+        if (flags & NK_EDIT_PASSWORD) {
+          glyph_width = font->width(font->userdata, font->height, "*", 1);
+        } else {
+          glyph_width = font->width(font->userdata, font->height, text+text_len, glyph_len);
+        }
+        // glyph_width = font->width(font->userdata, font->height, text+text_len, glyph_len);
         line_width += (float)glyph_width;
         text_len += glyph_len;
         glyph_len = nk_utf_decode(text + text_len, &unicode, byte_len-text_len);
@@ -22863,8 +22883,16 @@ nk_edit_draw_text(struct nk_command_buffer *out,
 
         if (is_selected)
             nk_fill_rect(out, label, 0, background);
-        nk_widget_text(out, label, line, (int)((text + text_len) - line),
-            &txt, NK_TEXT_LEFT, font);
+        // nk_widget_text(out, label, line, (int)((text + text_len) - line),
+        //     &txt, NK_TEXT_LEFT, font);
+        if (flags & NK_EDIT_PASSWORD) {
+          int draw_len = (int)((text + text_len) - line);
+          if (draw_len > 255) draw_len = 255;
+          nk_widget_text(out, label, star_mask, draw_len, &txt, NK_TEXT_LEFT, font);
+        } else {
+          nk_widget_text(out, label, line, (int)((text + text_len) - line),
+              &txt, NK_TEXT_LEFT, font);
+        }
     }}
 }
 NK_LIB nk_flags
@@ -23082,64 +23110,85 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
             int row_begin = 0;
 
             glyph_len = nk_utf_decode(text, &unicode, len);
-            glyph_width = font->width(font->userdata, font->height, text, glyph_len);
+            // glyph_width = font->width(font->userdata, font->height, text, glyph_len);
+            if (flags & NK_EDIT_PASSWORD) {
+              glyph_width = font->width(font->userdata, font->height, "*", 1);
+            } else {
+              glyph_width = font->width(font->userdata, font->height, text, glyph_len);
+            }
             line_width = 0;
 
             /* iterate all lines */
             while ((text_len < len) && glyph_len)
             {
                 /* set cursor 2D position and line */
-                if (!cursor_ptr && glyphs == edit->cursor)
-                {
-                    int glyph_offset;
-                    struct nk_vec2 out_offset;
-                    struct nk_vec2 row_size;
-                    const char *remaining;
+              if (!cursor_ptr && glyphs == edit->cursor)
+              {
+                int glyph_offset;
+                struct nk_vec2 out_offset;
+                struct nk_vec2 row_size;
+                const char *remaining;
 
-                    /* calculate 2d position */
-                    cursor_pos.y = (float)(total_lines-1) * row_height;
-                    row_size = nk_text_calculate_text_bounds(font, text+row_begin,
-                                text_len-row_begin, row_height, &remaining,
-                                &out_offset, &glyph_offset, NK_STOP_ON_NEW_LINE);
-                    cursor_pos.x = row_size.x;
-                    cursor_ptr = text + text_len;
+                cursor_pos.y = (float)(total_lines-1) * row_height;
+                if (flags & NK_EDIT_PASSWORD) {
+                  cursor_pos.x = line_width;
                 }
+                else {
+                  row_size = nk_text_calculate_text_bounds(font, text+row_begin,
+                              text_len-row_begin, row_height, &remaining,
+                              &out_offset, &glyph_offset, NK_STOP_ON_NEW_LINE);
+                  cursor_pos.x = row_size.x;
+                }
+
+                cursor_ptr = text + text_len;
+              }
 
                 /* set start selection 2D position and line */
-                if (!select_begin_ptr && edit->select_start != edit->select_end &&
-                    glyphs == selection_begin)
-                {
-                    int glyph_offset;
-                    struct nk_vec2 out_offset;
-                    struct nk_vec2 row_size;
-                    const char *remaining;
+              if (!select_begin_ptr && edit->select_start != edit->select_end &&
+                  glyphs == selection_begin)
+              {
+                int glyph_offset;
+                struct nk_vec2 out_offset;
+                struct nk_vec2 row_size;
+                const char *remaining;
 
-                    /* calculate 2d position */
-                    selection_offset_start.y = (float)(NK_MAX(total_lines-1,0)) * row_height;
-                    row_size = nk_text_calculate_text_bounds(font, text+row_begin,
-                                text_len-row_begin, row_height, &remaining,
-                                &out_offset, &glyph_offset, NK_STOP_ON_NEW_LINE);
-                    selection_offset_start.x = row_size.x;
-                    select_begin_ptr = text + text_len;
+                /* calculate 2d position */
+                selection_offset_start.y = (float)(NK_MAX(total_lines-1,0)) * row_height;
+                if (flags & NK_EDIT_PASSWORD) {
+                  selection_offset_start.x = line_width;
+                } else {
+                  row_size = nk_text_calculate_text_bounds(font, text+row_begin,
+                              text_len-row_begin, row_height, &remaining,
+                              &out_offset, &glyph_offset, NK_STOP_ON_NEW_LINE);
+                  selection_offset_start.x = row_size.x;
                 }
+
+                select_begin_ptr = text + text_len;
+              }
 
                 /* set end selection 2D position and line */
-                if (!select_end_ptr && edit->select_start != edit->select_end &&
-                    glyphs == selection_end)
-                {
-                    int glyph_offset;
-                    struct nk_vec2 out_offset;
-                    struct nk_vec2 row_size;
-                    const char *remaining;
+              if (!select_end_ptr && edit->select_start != edit->select_end &&
+                  glyphs == selection_end)
+              {
+                int glyph_offset;
+                struct nk_vec2 out_offset;
+                struct nk_vec2 row_size;
+                const char *remaining;
 
-                    /* calculate 2d position */
-                    selection_offset_end.y = (float)(total_lines-1) * row_height;
-                    row_size = nk_text_calculate_text_bounds(font, text+row_begin,
-                                text_len-row_begin, row_height, &remaining,
-                                &out_offset, &glyph_offset, NK_STOP_ON_NEW_LINE);
-                    selection_offset_end.x = row_size.x;
-                    select_end_ptr = text + text_len;
+                /* calculate 2d position */
+                selection_offset_end.y = (float)(total_lines-1) * row_height;
+
+                if (flags & NK_EDIT_PASSWORD) {
+                  selection_offset_end.x = line_width;
+                } else {
+                  row_size = nk_text_calculate_text_bounds(font, text+row_begin,
+                              text_len-row_begin, row_height, &remaining,
+                              &out_offset, &glyph_offset, NK_STOP_ON_NEW_LINE);
+                  selection_offset_end.x = row_size.x;
                 }
+
+                select_end_ptr = text + text_len;
+              }
                 if (unicode == '\n') {
                     text_size.x = NK_MAX(text_size.x, line_width);
                     total_lines++;
@@ -23148,7 +23197,12 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                     glyphs++;
                     row_begin = text_len;
                     glyph_len = nk_utf_decode(text + text_len, &unicode, len-text_len);
-                    glyph_width = font->width(font->userdata, font->height, text+text_len, glyph_len);
+                    // glyph_width = font->width(font->userdata, font->height, text+text_len, glyph_len);
+                    if (flags & NK_EDIT_PASSWORD) {
+                      glyph_width = font->width(font->userdata, font->height, "*", 1);
+                    } else {
+                      glyph_width = font->width(font->userdata, font->height, text+text_len, glyph_len);
+                    }
                     continue;
                 }
 
@@ -23157,8 +23211,12 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                 line_width += (float)glyph_width;
 
                 glyph_len = nk_utf_decode(text + text_len, &unicode, len-text_len);
+              if (flags & NK_EDIT_PASSWORD) {
+                glyph_width = font->width(font->userdata, font->height, "*", 1);
+              } else {
                 glyph_width = font->width(font->userdata, font->height,
                     text+text_len, glyph_len);
+              }
                 continue;
             }
             text_size.y = (float)total_lines * row_height;
@@ -23260,7 +23318,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
             int l = nk_str_len_char(&edit->string);
             nk_edit_draw_text(out, style, area.x - edit->scrollbar.x,
                 area.y - edit->scrollbar.y, 0, begin, l, row_height, font,
-                background_color, text_color, nk_false);
+                background_color, text_color, nk_false, flags);
         } else {
             /* edit has selection so draw 1-3 text chunks */
             if (edit->select_start != edit->select_end && selection_begin > 0){
@@ -23269,7 +23327,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                 NK_ASSERT(select_begin_ptr);
                 nk_edit_draw_text(out, style, area.x - edit->scrollbar.x,
                     area.y - edit->scrollbar.y, 0, begin, (int)(select_begin_ptr - begin),
-                    row_height, font, background_color, text_color, nk_false);
+                    row_height, font, background_color, text_color, nk_false, flags);
             }
             if (edit->select_start != edit->select_end) {
                 /* draw selected text */
@@ -23283,7 +23341,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                     area.y + selection_offset_start.y - edit->scrollbar.y,
                     selection_offset_start.x,
                     select_begin_ptr, (int)(select_end_ptr - select_begin_ptr),
-                    row_height, font, sel_background_color, sel_text_color, nk_true);
+                    row_height, font, sel_background_color, sel_text_color, nk_true, flags);
             }
             if ((edit->select_start != edit->select_end &&
                 selection_end < edit->string.len))
@@ -23298,7 +23356,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                     area.y + selection_offset_end.y - edit->scrollbar.y,
                     selection_offset_end.x,
                     begin, (int)(end - begin), row_height, font,
-                    background_color, text_color, nk_true);
+                    background_color, text_color, nk_true, flags);
             }
         }
 
@@ -23325,16 +23383,24 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                 NK_ASSERT(cursor_ptr);
                 glyph_len = nk_utf_decode(cursor_ptr, &unicode, 4);
 
+                const char *draw_ptr = cursor_ptr;
+                int draw_len = glyph_len;
+
+                if (flags & NK_EDIT_PASSWORD) {
+                  draw_ptr = "*";
+                  draw_len = 1;
+                }
+
                 label.x = area.x + cursor_pos.x - edit->scrollbar.x;
                 label.y = area.y + cursor_pos.y - edit->scrollbar.y;
-                label.w = font->width(font->userdata, font->height, cursor_ptr, glyph_len);
+                label.w = font->width(font->userdata, font->height, draw_ptr, draw_len);
                 label.h = row_height;
 
                 txt.padding = nk_vec2(0,0);
                 txt.background = cursor_color;;
                 txt.text = cursor_text_color;
                 nk_fill_rect(out, label, 0, cursor_color);
-                nk_widget_text(out, label, cursor_ptr, glyph_len, &txt, NK_TEXT_LEFT, font);
+                nk_widget_text(out, label, draw_ptr, draw_len, &txt, NK_TEXT_LEFT, font);
             }
         }}
     } else {
@@ -23361,7 +23427,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
         else background_color = background->data.color;
         nk_edit_draw_text(out, style, area.x - edit->scrollbar.x,
             area.y - edit->scrollbar.y, 0, begin, l, row_height, font,
-            background_color, text_color, nk_false);
+            background_color, text_color, nk_false, flags);
     }
     nk_push_scissor(out, old_clip);}
     return ret;

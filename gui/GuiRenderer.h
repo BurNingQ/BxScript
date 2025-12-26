@@ -14,18 +14,87 @@
 #define BXSCRIPT_GUIRENDERER_H
 
 #include <cstring>
+
 #include "../stdlib/GuiModule.h"
+#include "cmake-build-debug/_deps/googletest-src/googlemock/include/gmock/gmock-matchers.h"
 #include "common/TextureKit.h"
 
 class GuiRenderer {
-    static int initButtonDisabled(nk_context *ctx, int colorPushed) {
-        const nk_color gray = nk_rgb(100, 100, 100);
-        nk_style_push_color(ctx, &ctx->style.text.color, gray);
-        nk_style_push_color(ctx, &ctx->style.button.normal.data.color, nk_rgb(40, 40, 40));
-        nk_style_push_color(ctx, &ctx->style.button.hover.data.color, nk_rgb(40, 40, 40));
-        nk_style_push_color(ctx, &ctx->style.button.active.data.color, nk_rgb(40, 40, 40));
-        colorPushed += 4;
+    static std::map<std::shared_ptr<ObjectValue>, std::string> PASSWORD_MAPPING;
+
+    static int initButtonRender(nk_context *ctx, const std::shared_ptr<ObjectValue> &obj, const std::string &text, const bool isDisabled,
+                                int colorPushed) {
+        if (isDisabled) {
+            const nk_color gray = nk_rgb(100, 100, 100);
+            nk_style_push_color(ctx, &ctx->style.text.color, gray);
+            nk_style_push_color(ctx, &ctx->style.button.normal.data.color, nk_rgb(40, 40, 40));
+            nk_style_push_color(ctx, &ctx->style.button.hover.data.color, nk_rgb(40, 40, 40));
+            nk_style_push_color(ctx, &ctx->style.button.active.data.color, nk_rgb(40, 40, 40));
+            colorPushed += 4;
+        }
+        ctx->style.button.text_normal = GetColor(obj, "fontColor", nk_rgb(255, 255, 255));
+        auto bgVal = obj->Get("backgroundColor");
+        if (bgVal && bgVal->type == ValueType::OBJECT) {
+            const nk_color bg = GetColor(obj, "backgroundColor", nk_rgb(50, 50, 50));
+            nk_style_push_color(ctx, &ctx->style.button.normal.data.color, bg);
+            nk_style_push_color(ctx, &ctx->style.button.hover.data.color, nk_rgb(bg.r + 20, bg.g + 20, bg.b + 20));
+            nk_style_push_color(ctx, &ctx->style.button.active.data.color, nk_rgb(bg.r - 20, bg.g - 20, bg.b - 20));
+            colorPushed += 3;
+        }
+        if (nk_button_label(ctx, text.c_str())) {
+            TriggerEvent(obj, "onClick");
+        }
         return colorPushed;
+    }
+
+    static void initLabelRender(nk_context *ctx, const std::shared_ptr<ObjectValue> &obj, const std::string &text) {
+        nk_label(ctx, text.c_str(), GetAlign(obj));
+    }
+
+    static void initInputRender(nk_context *ctx, const std::shared_ptr<ObjectValue> &obj, const bool isDisable, const bool isPassword) {
+        const std::string valStr = GetString(obj, "text");
+        char buffer[256];
+        strncpy(buffer, valStr.c_str(), 255);
+        int len = valStr.length();
+        if (isPassword) {
+            nk_edit_string(ctx, NK_EDIT_SIMPLE | NK_EDIT_PASSWORD, buffer, &len, 255, nk_filter_default);
+        } else {
+            nk_edit_string(ctx, NK_EDIT_SIMPLE, buffer, &len, 255, nk_filter_default);
+        }
+        std::string newVal(buffer, len);
+        if (!isDisable) {
+            if (newVal != valStr) {
+                obj->Set("text", std::make_shared<StringValue>(newVal));
+                TriggerEvent(obj, "onChange", {std::make_shared<StringValue>(newVal)});
+            }
+        }
+    }
+
+    static void initGroupRender(nk_context *ctx, const std::shared_ptr<ObjectValue> &obj, std::string const &text, float const h,
+                                const std::map<int, nk_font *> &
+                                fontCache) {
+        if (nk_group_begin(ctx, text.c_str(), NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR)) {
+            nk_layout_space_begin(ctx, NK_STATIC, h, INT_MAX);
+            auto children = obj->Get("children");
+            if (children && children->type == ValueType::ARRAY) {
+                const auto arr = std::static_pointer_cast<ArrayValue>(children);
+                for (const auto &child: arr->Elements) {
+                    RenderWidget(ctx, child, fontCache);
+                }
+            }
+            nk_layout_space_end(ctx);
+            nk_group_end(ctx);
+        }
+    }
+
+    static void initImage(nk_context *ctx, const std::shared_ptr<ObjectValue> &obj, const std::string &path) {
+        GLuint tex = TextureKit::Load(path);
+        if (tex != 0) {
+            const struct nk_image img = nk_image_id(static_cast<int>(tex));
+            nk_image(ctx, img);
+        } else {
+            nk_label(ctx, "[图片加载失败]", NK_TEXT_CENTERED);
+        }
     }
 
 public:
@@ -41,6 +110,13 @@ public:
             return std::static_pointer_cast<StringValue>(v)->Value;
         }
         return def;
+    }
+
+    static ValuePtr GetFunction(const ValuePtr &obj, const std::string &key) {
+        if (const auto v = obj->Get(key); v->type == ValueType::FUNCTION) {
+            return v;
+        }
+        return std::make_shared<NullValue>();
     }
 
     static bool GetBool(const std::shared_ptr<ObjectValue> &obj, const std::string &key, bool def = false) {
@@ -99,69 +175,17 @@ public:
         const std::string type = GetString(obj, "_type");
         const std::string text = GetString(obj, "text");
         int colorPushed = 0;
-        if (disabled) {
-            colorPushed = initButtonDisabled(ctx, colorPushed);
-        } else {
-            auto fontColorVal = obj->Get("fontColor");
-            if (fontColorVal && fontColorVal->type == ValueType::OBJECT) {
-                nk_style_push_color(ctx, &ctx->style.text.color, GetColor(obj, "fontColor", nk_rgb(255, 255, 255)));
-                colorPushed++;
-            }
-            if (type == "button") {
-                ctx->style.button.text_normal = GetColor(obj, "fontColor", nk_rgb(255, 255, 255));
-                auto bgVal = obj->Get("backgroundColor");
-                if (bgVal && bgVal->type == ValueType::OBJECT) {
-                    const nk_color bg = GetColor(obj, "backgroundColor", nk_rgb(50, 50, 50));
-                    nk_style_push_color(ctx, &ctx->style.button.normal.data.color, bg);
-                    nk_style_push_color(ctx, &ctx->style.button.hover.data.color, nk_rgb(bg.r + 20, bg.g + 20, bg.b + 20));
-                    nk_style_push_color(ctx, &ctx->style.button.active.data.color, nk_rgb(bg.r - 20, bg.g - 20, bg.b - 20));
-                    colorPushed += 3;
-                }
-            }
-        }
+
         if (type == "button") {
-            if (nk_button_label(ctx, text.c_str())) {
-                if (!disabled) TriggerEvent(obj, "onClick");
-            }
+            colorPushed = initButtonRender(ctx, obj, text, disabled, fontPushed);
         } else if (type == "label") {
-            nk_label(ctx, text.c_str(), GetAlign(obj));
+            initLabelRender(ctx, obj, text);
         } else if (type == "input" || type == "password") {
-            const std::string valStr = GetString(obj, "value");
-            char buffer[256];
-            strncpy(buffer, valStr.c_str(), 255);
-            int len = valStr.length();
-            nk_flags flags = NK_EDIT_FIELD;
-            if (type == "password") flags |= NK_EDIT_SIG_ENTER;
-            nk_edit_string(ctx, flags, buffer, &len, 255, nk_filter_default);
-            std::string newVal(buffer, len);
-            if (!disabled) {
-                if (newVal != valStr) {
-                    obj->Set("value", std::make_shared<StringValue>(newVal));
-                    TriggerEvent(obj, "onChange", {std::make_shared<StringValue>(newVal)});
-                }
-            }
+            initInputRender(ctx, obj, disabled, type == "password");
         } else if (type == "group") {
-            if (nk_group_begin(ctx, text.c_str(), NK_WINDOW_BORDER | NK_WINDOW_NO_SCROLLBAR)) {
-                nk_layout_space_begin(ctx, NK_STATIC, h, INT_MAX);
-                auto children = obj->Get("children");
-                if (children && children->type == ValueType::ARRAY) {
-                    const auto arr = std::static_pointer_cast<ArrayValue>(children);
-                    for (const auto &child: arr->Elements) {
-                        RenderWidget(ctx, child, fontCache);
-                    }
-                }
-                nk_layout_space_end(ctx);
-                nk_group_end(ctx);
-            }
+            initGroupRender(ctx, obj, text, h, fontCache);
         } else if (type == "image") {
-            const std::string &path = text;
-            GLuint tex = TextureKit::Load(path);
-            if (tex != 0) {
-                const struct nk_image img = nk_image_id(static_cast<int>(tex));
-                nk_image(ctx, img);
-            } else {
-                nk_label(ctx, "[图片加载失败]", NK_TEXT_CENTERED);
-            }
+            initImage(ctx, obj, text);
         }
         // 退出样式栈
         while (colorPushed > 0) {
@@ -185,5 +209,6 @@ public:
     }
 };
 
+std::map<std::shared_ptr<ObjectValue>, std::string> GuiRenderer::PASSWORD_MAPPING = {};
 
 #endif //BXSCRIPT_GUIRENDERER_H

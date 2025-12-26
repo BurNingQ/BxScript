@@ -27,6 +27,9 @@ class GuiModule {
         if (type == "form" || type == "group") {
             InjectContainerMethods(widget);
         }
+        if (type == "image") {
+            InjectImageMethods(widget);
+        }
         winObj->Get("refs")->Set(id, widget);
         return widget;
     }
@@ -59,6 +62,19 @@ class GuiModule {
             }
         }
         return std::move(fc);
+    }
+
+    static void InjectImageMethods(const std::shared_ptr<ObjectValue> &widget) {
+        std::weak_ptr weak_w = widget;
+        auto const srcFn = std::make_shared<NativeFunctionValue>(
+            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
+                auto self = weak_w.lock();
+                if (!self || args.empty()) return std::make_shared<NullValue>();
+                self->Set("src", std::make_shared<StringValue>(args[0]->ToString()));
+                return self;
+            }
+        );
+        widget->Set("src", srcFn);
     }
 
     static void InjectContainerMethods(const std::shared_ptr<ObjectValue> &widget) {
@@ -199,7 +215,6 @@ class GuiModule {
                 if (!args.empty() && args[0]->type == ValueType::FUNCTION) {
                     self->Set("onClick", args[0]);
                 }
-                // 事件不托底
                 return self;
             });
         widget->Set("onClick", clickFn);
