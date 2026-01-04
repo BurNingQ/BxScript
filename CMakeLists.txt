@@ -4,49 +4,11 @@ project(BxScript)
 set(CMAKE_CXX_STANDARD 17)
 
 # ==========================================
-# 1. 跨平台资源嵌入 (自动生成汇编)
-# ==========================================
-set(FONT_FILE "${CMAKE_SOURCE_DIR}/font.ttf")
-set(EMBED_FILE "${CMAKE_BINARY_DIR}/embedded_font.S")
-
-# 检查字体文件是否存在，防止编译报错
-if(NOT EXISTS "${FONT_FILE}")
-    message(WARNING "Font file not found at: ${FONT_FILE}. Embedding will fail.")
-endif()
-
-# 根据平台确定符号前缀
-if(APPLE)
-    set(ASM_SECTION ".section __TEXT,__const")
-    set(SYM_PREFIX "_")
-elseif(WIN32)
-    set(ASM_SECTION ".section .rdata,\"dr\"")
-    set(SYM_PREFIX "")
-else()
-    set(ASM_SECTION ".section .rodata")
-    set(SYM_PREFIX "")
-endif()
-
-# 生成汇编文件
-file(WRITE ${EMBED_FILE} "
-${ASM_SECTION}
-.global ${SYM_PREFIX}bx_font_start
-.global ${SYM_PREFIX}bx_font_end
-.balign 16
-${SYM_PREFIX}bx_font_start:
-    .incbin \"${FONT_FILE}\"
-${SYM_PREFIX}bx_font_end:
-    .byte 0
-")
-
-# 开启 ASM 支持
-enable_language(ASM)
-
-# ==========================================
-# 2. 编译器选项优化
+# 1. 编译器选项优化
 # ==========================================
 if (MINGW OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-finput-charset=UTF-8 -fexec-charset=UTF-8)
-    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    if (CMAKE_BUILD_TYPE STREQUAL "Release")
         add_compile_options(-Wa,-mbig-obj)
         add_compile_options(-Os -ffunction-sections -fdata-sections)
         add_link_options(-Wl,--gc-sections -s)
@@ -54,21 +16,79 @@ if (MINGW OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif ()
 
 # ==========================================
-# 3. 引入 GLFW
+# 2. 平台特定配置
 # ==========================================
-set(GLFW_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libs/glfw-src")
-# 防止 GLFW 构建不必要的 Demo 和文档，加快编译
-option(GLFW_BUILD_EXAMPLES "Build examples" OFF)
-option(GLFW_BUILD_TESTS "Build tests" OFF)
-option(GLFW_BUILD_DOCS "Build docs" OFF)
-option(GLFW_INSTALL "Install" OFF)
+set(PLATFORM_SOURCES "")
+set(PLATFORM_LIBS "")
 
-add_subdirectory("${GLFW_DIR}")
-include_directories("${GLFW_DIR}/header")
-include_directories("${GLFW_DIR}/include")
+if (WIN32)
+    message(STATUS "Configuring for Windows...")
+    set(MANIFEST_CONTENT "<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+    <assembly xmlns='urn:schemas-microsoft-com:asm.v1' manifestVersion='1.0'>
+      <dependency>
+        <dependentAssembly>
+          <assemblyIdentity type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'/>
+        </dependentAssembly>
+      </dependency>
+      <trustInfo xmlns='urn:schemas-microsoft-com:asm.v3'>
+        <security>
+          <requestedPrivileges>
+            <requestedExecutionLevel level='asInvoker' uiAccess='false'/>
+          </requestedPrivileges>
+        </security>
+      </trustInfo>
+      <application xmlns='urn:schemas-microsoft-com:asm.v3'>
+        <windowsSettings>
+          <dpiAware xmlns='http://schemas.microsoft.com/SMI/2005/WindowsSettings'>true</dpiAware>
+        </windowsSettings>
+      </application>
+    </assembly>")
+
+    file(WRITE "${CMAKE_BINARY_DIR}/app.manifest" "${MANIFEST_CONTENT}")
+    file(WRITE "${CMAKE_BINARY_DIR}/app.rc" "1 24 \"app.manifest\"")
+
+    list(APPEND PLATFORM_SOURCES "${CMAKE_BINARY_DIR}/app.rc")
+
+    list(APPEND PLATFORM_SOURCES
+            gui/windows/internal/ComCtl32.h
+            gui/windows/internal/ComDlg32.h
+            gui/windows/internal/DwmApi.h
+            gui/windows/internal/Win32Enum.h
+            gui/windows/internal/Gdi32.h
+            gui/windows/internal/GdiPlus.h
+            gui/windows/internal/Kernel32.h
+            gui/windows/internal/Ole32.h
+            gui/windows/internal/OleAut32.h
+            gui/windows/internal/ShCore.h
+            gui/windows/internal/Shell32.h
+            gui/windows/internal/Shlwapi.h
+            gui/windows/internal/User32.h
+            gui/windows/internal/UxTheme.h
+            gui/windows/internal/WinMM.h
+            gui/windows/App.h
+            gui/windows/WindowRegistry.h
+            gui/windows/ControlBase.h
+            gui/windows/Bitmap.h
+            gui/windows/Brush.h
+            gui/windows/Button.h
+    )
+    # Windows 基础库
+    list(APPEND PLATFORM_LIBS
+            wininet opengl32 comctl32 comdlg32
+            gdi32 gdiplus user32 kernel32
+            ole32 oleaut32 shell32 shlwapi
+            uxtheme winmm)
+
+elseif (APPLE)
+    message(STATUS "Configuring for macOS...")
+    # list(APPEND PLATFORM_LIBS "-framework Cocoa")
+elseif (UNIX)
+    message(STATUS "Configuring for Linux...")
+    # list(APPEND PLATFORM_LIBS m X11)
+endif ()
 
 # ==========================================
-# 4. 源文件列表
+# 3. 源文件列表
 # ==========================================
 set(SOURCE_FILES
         main.cpp
@@ -117,7 +137,6 @@ set(SOURCE_FILES
         libs/sha256/sha256.cpp
         libs/sha256/sha256.h
         libs/hmac.h
-        ${EMBED_FILE}
         stdlib/GuiModule.h
         gui/GuiRenderer.h
         gui/GuiRuntime.cpp
@@ -128,14 +147,20 @@ set(SOURCE_FILES
 )
 
 # ==========================================
-# 5. 主程序 BxScript
+# 主程序 BxScript
 # ==========================================
-add_executable(BxScript ${SOURCE_FILES})
+# 在这里就把 PLATFORM_SOURCES (app.rc) 加进去
+add_executable(BxScript ${SOURCE_FILES} ${PLATFORM_SOURCES})
 
 target_include_directories(BxScript PRIVATE ${PROJECT_SOURCE_DIR})
 
+# 链接库 (使用上面根据平台计算好的 PLATFORM_LIBS)
+if (PLATFORM_LIBS)
+    target_link_libraries(BxScript PRIVATE ${PLATFORM_LIBS})
+endif ()
+
 # ==========================================
-# 6. GoogleTest 引入
+# 5. GoogleTest 引入
 # ==========================================
 enable_testing()
 include(FetchContent)
@@ -147,31 +172,24 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 # ==========================================
-# 7. 测试程序 test_parser
+# 6. 测试程序 test_parser
 # ==========================================
 # 从列表移除 main.cpp
 list(REMOVE_ITEM SOURCE_FILES main.cpp)
 
+# 测试程序也最好加上资源文件(PLATFORM_SOURCES)，防止测试时涉及到UI崩溃或样式不对
 add_executable(test_parser
         tests/test_parser.cpp
         tests/test_interpreter.cpp
         ${SOURCE_FILES}
+        ${PLATFORM_SOURCES}
 )
 
 target_include_directories(test_parser PRIVATE ${PROJECT_SOURCE_DIR})
 target_link_libraries(test_parser PRIVATE gtest_main)
 
-# ==========================================
-# 8. 平台链接配置
-# ==========================================
-if (WIN32)
-    # BxScript 需要链接
-    target_link_libraries(BxScript PRIVATE wininet glfw opengl32)
-
-    # 测试程序也需要链接 (因为包含了 NetModule 等)
-    target_link_libraries(test_parser PRIVATE wininet glfw opengl32)
-
-    message(STATUS "Configuring for Windows: Linked wininet, glfw, opengl32")
+if (PLATFORM_LIBS)
+    target_link_libraries(test_parser PRIVATE ${PLATFORM_LIBS})
 endif ()
 
 include(GoogleTest)
