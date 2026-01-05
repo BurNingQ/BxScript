@@ -81,15 +81,15 @@ class NetModule {
                                     const std::vector<std::pair<std::string, std::string> > &headers) {
 #if defined(_WIN32)
         auto result = std::make_shared<ObjectValue>();
-        const HINTERNET hInt = InternetOpenA("BxScript/1.0",INTERNET_OPEN_TYPE_DIRECT, nullptr, nullptr, 0);
+        const HINTERNET hInt = InternetOpenW(L"BxScript/1.0",INTERNET_OPEN_TYPE_DIRECT, nullptr, nullptr, 0);
         if (!hInt) {
-            result->Set(
-                "error", std::make_shared<StringValue>("网络打开错误: " + std::to_string(GetLastError())));
+            result->Set("error", std::make_shared<StringValue>("网络打开错误: " + std::to_string(GetLastError())));
             result->Set("status", std::make_shared<NumberValue>(-1));
             return std::move(result);
         }
         const INTERNET_PORT port = isHttps ? INTERNET_DEFAULT_HTTPS_PORT : INTERNET_DEFAULT_HTTP_PORT;
-        const HINTERNET hc = InternetConnectA(hInt, host.c_str(), port, nullptr, nullptr,INTERNET_SERVICE_HTTP, 0, 0);
+        const auto u16Host = StringKit::U8ToU16(host);
+        const HINTERNET hc = InternetConnectW(hInt, u16Host.c_str(), port, nullptr, nullptr,INTERNET_SERVICE_HTTP, 0, 0);
         if (!hc) {
             InternetCloseHandle(hInt);
             result->Set("error", std::make_shared<StringValue>("网络连接错误: " + std::to_string(GetLastError())));
@@ -101,7 +101,9 @@ class NetModule {
             dwFlags |= INTERNET_FLAG_SECURE | INTERNET_FLAG_IGNORE_CERT_CN_INVALID |
                     INTERNET_FLAG_IGNORE_CERT_DATE_INVALID;
         }
-        HINTERNET hr = HttpOpenRequestA(hc, method.c_str(), path.c_str(), nullptr, nullptr, nullptr, dwFlags, 0);
+        const auto u16Method = StringKit::U8ToU16(method);
+        const auto u16Path = StringKit::U8ToU16(path);
+        HINTERNET hr = HttpOpenRequestW(hc, u16Method.c_str(), u16Path.c_str(), nullptr, nullptr, nullptr, dwFlags, 0);
         if (!hr) {
             InternetCloseHandle(hc);
             InternetCloseHandle(hInt);
@@ -114,7 +116,8 @@ class NetModule {
                 headerStr.append(k).append(": ").append(v).append("\r\n");
             }
         }
-        const BOOL bs = HttpSendRequestA(hr, headerStr.empty() ? nullptr : headerStr.c_str(),
+        const auto u16HeaderStr = StringKit::U8ToU16(headerStr);
+        const BOOL bs = HttpSendRequestW(hr, u16HeaderStr.empty() ? nullptr : u16HeaderStr.c_str(),
                                          headers.empty() ? 0 : static_cast<DWORD>(headerStr.length()),
                                          (LPVOID) (postData.empty() ? nullptr : postData.c_str()),
                                          (DWORD) postData.length()
@@ -126,13 +129,13 @@ class NetModule {
         }
         DWORD statusCode = 0;
         DWORD length = sizeof(DWORD);
-        HttpQueryInfoA(hr, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &statusCode, &length, nullptr);
+        HttpQueryInfoW(hr, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &statusCode, &length, nullptr);
         result->Set("status", std::make_shared<NumberValue>(statusCode));
         // 返回类型
         char contentTypeBuf[256];
         DWORD ctLen = sizeof(contentTypeBuf);
         std::string contentType{};
-        if (HttpQueryInfoA(hr, HTTP_QUERY_CONTENT_TYPE, contentTypeBuf, &ctLen, nullptr)) {
+        if (HttpQueryInfoW(hr, HTTP_QUERY_CONTENT_TYPE, contentTypeBuf, &ctLen, nullptr)) {
             contentType = std::string(contentTypeBuf, ctLen);
         }
         std::vector<unsigned char> bodyBytes;

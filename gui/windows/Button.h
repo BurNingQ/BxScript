@@ -14,9 +14,9 @@
 #define BXSCRIPT_BUTTON_H
 
 #include "ControlBase.h"
+#include "Icon.h"
 
 // 前置声明 Icon 类
-class Icon;
 
 // ============================================================================
 // 1. Button 基类
@@ -24,7 +24,7 @@ class Icon;
 class Button : public ControlBase {
 public:
     // 事件回调
-    EventCallback OnClick;
+    EventCallback OnClick{};
 
     Button() = default;
 
@@ -100,10 +100,8 @@ public:
 #include "internal/User32.h"
 #include "internal/Gdi32.h" // 也许需要用到字体
 
-// 假设 Icon 类有一个 GetHandle() 方法返回 HICON
-// 如果 Icon.h 还没实现，这里我们可以临时 mock 或者依赖外部定义
 // #include "Icon.h"
-// 为了编译通过，如果 Icon 还没定义，可以先假设它有 GetHandle
+
 #ifndef ICON_CLASS_DEFINED
 class Icon {
 public:
@@ -159,7 +157,7 @@ void Button::SetChecked(bool checked) {
 
 void Button::SetIcon(Icon *icon) {
     if (icon) {
-        User32::W32_SendMessage(HWND_CAST(m_hwnd), BM_SETIMAGE, IMAGE_ICON, (LPARAM) icon->GetHandle());
+        User32::W32_SendMessage((HWND) m_hwnd, BM_SETIMAGE, IMAGE_ICON, (LPARAM) icon->Handle());
     }
 }
 
@@ -173,13 +171,10 @@ PushButton *PushButton::Create(ControlBase *parent, const std::wstring &text, in
     DWORD style = BS_PUSHBUTTON | WS_TABSTOP | WS_VISIBLE | WS_CHILD;
     pb->InitControl(L"BUTTON", parent, 0, style);
 
+    pb->SetFont(Font::DefaultFont);
     pb->SetText(text);
     pb->SetPos(x, y);
     pb->SetSize(w, h);
-
-    // 设置个默认漂亮的字体 (User32 里没有暴露 GetStockObject，这里可以用 Gdi32 的或者封装好的 Font)
-    // HGDIOBJ hFont = Gdi32::W32_GetStockObject(DEFAULT_GUI_FONT);
-    // User32::W32_SendMessage(HWND_CAST(pb->GetHandle()), WM_SETFONT, (WPARAM)hFont, TRUE);
 
     // 应用现代化主题
     pb->SetTheme(L"Explorer");
@@ -206,6 +201,7 @@ void PushButton::SetDefault() {
 CheckBox *CheckBox::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
     CheckBox *cb = new CheckBox();
     DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX;
+    cb->SetFont(Font::DefaultFont);
     cb->InitControl(L"BUTTON", parent, 0, style);
     cb->SetText(text);
     cb->SetPos(x, y);
@@ -221,6 +217,7 @@ CheckBox *CheckBox::Create(ControlBase *parent, const std::wstring &text, int x,
 RadioButton *RadioButton::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
     RadioButton *rb = new RadioButton();
     DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTORADIOBUTTON;
+    rb->SetFont(Font::DefaultFont);
     rb->InitControl(L"BUTTON", parent, 0, style);
     rb->SetText(text);
     rb->SetPos(x, y);
@@ -236,6 +233,7 @@ RadioButton *RadioButton::Create(ControlBase *parent, const std::wstring &text, 
 GroupBox *GroupBox::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
     GroupBox *gb = new GroupBox();
     DWORD style = WS_VISIBLE | WS_CHILD | WS_GROUP | BS_GROUPBOX;
+    gb->SetFont(Font::DefaultFont);
     gb->InitControl(L"BUTTON", parent, 0, style);
     gb->SetText(text);
     gb->SetPos(x, y);
@@ -253,6 +251,7 @@ IconButton *IconButton::Create(ControlBase *parent, Icon *icon, int x, int y, in
     // BS_ICON
     DWORD style = BS_ICON | WS_TABSTOP | WS_VISIBLE | WS_CHILD;
     ib->InitControl(L"BUTTON", parent, 0, style);
+    ib->SetFont(Font::DefaultFont);
     if (icon) {
         ib->SetIcon(icon);
     }

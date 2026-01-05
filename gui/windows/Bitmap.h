@@ -15,14 +15,9 @@
 
 #include <string>
 #include <vector>
-#include <cstdint>
+#include "Color.h"
 
 class Bitmap;
-
-struct BitmapColor {
-    uint8_t R, G, B;
-    static BitmapColor White() { return {255, 255, 255}; }
-};
 
 class Bitmap {
     void* m_hBitmap = nullptr;
@@ -89,11 +84,8 @@ public:
 #include "internal/GdiPlus.h"
 #include "internal/Shlwapi.h"
 
-// 链接 WinINet 库 (如果 CMake 没配)
-#pragma comment(lib, "wininet.lib")
-
 // 辅助：从 GDI+ Bitmap 提取 HBITMAP 并封装
-static Bitmap* AssembleBitmapFromGDIPlus(Gdiplus::GpBitmap* gpBitmap, BitmapColor bg) {
+static Bitmap* AssembleBitmapFromGDIPlus(Gdiplus::GpBitmap* gpBitmap, Color bg) {
     if (!gpBitmap) return nullptr;
 
     HBITMAP hBitmap = nullptr;

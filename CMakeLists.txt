@@ -71,6 +71,34 @@ if (WIN32)
             gui/windows/Bitmap.h
             gui/windows/Brush.h
             gui/windows/Button.h
+            gui/windows/Canvas.h
+            gui/windows/Color.h
+            gui/windows/ComboBox.h
+            gui/windows/CommonDlgs.h
+            gui/windows/Event.h
+            gui/windows/EventData.h
+            gui/windows/EventManager.h
+            gui/windows/Controller.h
+            gui/windows/Font.h
+            gui/windows/Form.h
+            gui/windows/GlobalVars.h
+            gui/windows/Icon.h
+            gui/windows/ImageView.h
+            gui/windows/Input.h
+            gui/windows/Keyboard.h
+            gui/windows/Label.h
+            gui/windows/ListView.h
+            gui/windows/Menu.h
+            gui/windows/MouseControl.h
+            gui/windows/Panel.h
+            gui/windows/Path.h
+            gui/windows/Pen.h
+            gui/windows/ProgressBar.h
+            gui/windows/Slider.h
+            gui/windows/Rect.h
+            gui/windows/Toolbar.h
+            gui/windows/Utils.h
+            gui/windows/Voice.h
     )
     # Windows 基础库
     list(APPEND PLATFORM_LIBS

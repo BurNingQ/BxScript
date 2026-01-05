@@ -13,11 +13,9 @@
 #ifndef BXSCRIPT_BRUSH_H
 #define BXSCRIPT_BRUSH_H
 
-#include <cstdint>
-#include <utility> // for std::exchange
+#include "Color.h"
+#include <utility>
 
-// 简单的颜色定义，对应 COLORREF (0x00BBGGRR)
-using BrushColor = uint32_t;
 
 // 阴影线样式 (对应 HS_HORIZONTAL 等)
 enum class HatchStyle {
@@ -71,7 +69,7 @@ public:
     /**
      * 创建实心颜色画刷。
      */
-    static Brush *NewSolid(BrushColor color);
+    static Brush *NewSolid(Color color);
 
     /**
      * 创建系统颜色画刷 (如按钮面颜色)。
@@ -83,7 +81,7 @@ public:
     /**
      * 创建阴影线画刷 (网格、斜线等)。
      */
-    static Brush *NewHatched(BrushColor color, HatchStyle style);
+    static Brush *NewHatched(Color color, HatchStyle style);
 
     /**
      * 创建空画刷 (透明)。
@@ -150,9 +148,9 @@ void Brush::Dispose() {
     }
 }
 
-Brush *Brush::NewSolid(BrushColor color) {
+Brush *Brush::NewSolid(Color color) {
     // Go代码用的是 CreateBrushIndirect，但 CreateSolidBrush 等价且更简单
-    HBRUSH h = Gdi32::W32_CreateSolidBrush(static_cast<COLORREF>(color));
+    HBRUSH h = Gdi32::W32_CreateSolidBrush(static_cast<COLORREF>(color.Value()));
     if (!h) return nullptr;
 
     Brush *b = new Brush();
@@ -174,10 +172,10 @@ Brush *Brush::NewSystem(SysColorIndex index) {
     return NewSystem(static_cast<int>(index));
 }
 
-Brush *Brush::NewHatched(BrushColor color, HatchStyle style) {
+Brush *Brush::NewHatched(Color color, HatchStyle style) {
     LOGBRUSH lb;
     lb.lbStyle = BS_HATCHED;
-    lb.lbColor = static_cast<COLORREF>(color);
+    lb.lbColor = static_cast<COLORREF>(color.Value());
     lb.lbHatch = static_cast<ULONG_PTR>(style);
 
     HBRUSH h = Gdi32::W32_CreateBrushIndirect(&lb);

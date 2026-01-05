@@ -13,34 +13,21 @@
 #ifndef BXSCRIPT_WINDOW_REGISTRY_H
 #define BXSCRIPT_WINDOW_REGISTRY_H
 
-#include <windows.h>
-#include <unordered_map>
+#include "GlobalVars.h"
 
 class ControlBase;
 
 class WindowRegistry {
-
-    inline static std::unordered_map<void*, ControlBase *> s_registry;
-
 public:
-    static void Register(void* hwnd, ControlBase *ctrl) {
-        if (hwnd) {
-            s_registry[hwnd] = ctrl;
-        }
+    static void Register(void* hwnd, Controller* ctrl) {
+        if (hwnd) gControllerRegistry[hwnd] = ctrl;
     }
-
     static void Unregister(void* hwnd) {
-        if (hwnd) {
-            s_registry.erase(hwnd);
-        }
+        if (hwnd) gControllerRegistry.erase(hwnd);
     }
-
-    static ControlBase *Get(void* hwnd) {
-        auto it = s_registry.find(hwnd);
-        if (it != s_registry.end()) {
-            return it->second;
-        }
-        return nullptr;
+    static ControlBase* Get(const void* hwnd) {
+        auto it = gControllerRegistry.find(hwnd);
+        return (it != gControllerRegistry.end()) ? reinterpret_cast<ControlBase *>(it->second) : nullptr;
     }
 };
 

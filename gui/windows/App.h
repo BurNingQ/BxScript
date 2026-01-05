@@ -22,7 +22,6 @@
 class App {
 private:
     // 使用 void* 和 uintptr_t 代替 Windows 类型
-    inline static void *g_hInstance = nullptr;
     inline static uintptr_t g_gdiplusToken = 0;
 
 public:
@@ -96,7 +95,7 @@ void App::Init() {
         MessageBoxW(NULL, L"Failed to get application instance.", L"Error", MB_ICONERROR);
         exit(1);
     }
-    g_hInstance = hInst; // void* = HINSTANCE
+    gAppInstance = Kernel32::W32_GetModuleHandle(nullptr);
 
     // 2. 初始化 COM
     Ole32::W32_CoInitializeEx(COINIT_APARTMENTTHREADED);
@@ -118,10 +117,14 @@ void App::Init() {
     ULONG_PTR token;
     GdiPlus::W32_GdiplusStartup(&token);
     g_gdiplusToken = token;
+
+    if (DefaultFont == nullptr) {
+        DefaultFont = new Font(L"MS Shell Dlg 2", 8, 0);
+    }
 }
 
 void *App::GetInstance() {
-    return g_hInstance;
+    return gAppInstance;
 }
 
 void App::Shutdown() {
@@ -146,6 +149,8 @@ int App::Run() {
         }
     }
 
+    if (DefaultFont) { delete DefaultFont; DefaultFont = nullptr; }
+
     Shutdown();
     return (int) msg.wParam;
 }
@@ -162,32 +167,38 @@ void App::ProcessPendingMessages() {
 
 bool App::PreTranslateMessage(void *msgVoid) {
     MSG *msg = MSG_CAST(msgVoid);
+    if (!msg->hwnd) return false;
+
+    // 1. 通过 HWND 查找绑定的 C++ 对象
+    ControlBase *ctrl = WindowRegistry::Get(msg->hwnd);
+    if (!ctrl) return false;
+
+    // 2. 处理内部跨线程调用 (Invoke)
+    // 对应 ControlBase 中定义的 WM_BX_INVOKE (WM_USER + 1001)
+    if (msg->message == (WM_USER + 1001)) {
+        ctrl->ProcessInvokeQueue();
+        return true; // 消息已处理，不再下发
+    }
+
     bool processed = false;
 
-    if ((msg->message >= WM_KEYFIRST && msg->message <= WM_KEYLAST) ||
-        (msg->message >= WM_MOUSEFIRST && msg->message <= WM_MOUSELAST)) {
-        if (msg->hwnd != nullptr) {
-            // 通过 HWND 查找 C++ 对象
-            ControlBase *ctrl = WindowRegistry::Get(msg->hwnd);
+    // 3. 过滤键盘和鼠标消息范围
+    if ((msg->message >= WM_KEYFIRST && msg->message <= WM_KEYLAST) || (msg->message >= WM_MOUSEFIRST && msg->message <= WM_MOUSELAST)) {
+        // 4. 特殊处理 WM_KEYDOWN (同步 Go 代码逻辑)
+        if (msg->message == WM_KEYDOWN && ctrl->OnKeyDown) {
+            KeyEventData keyData;
+            keyData.VKey = (int)wParam;            // 虚拟键码 (如 VK_RETURN)
+            keyData.ScanCode = (int)((lParam >> 16) & 0xFF); // 硬件扫描码
+            ctrl->OnKeyDown.Fire(Event(ctrl, keyData));
+        }
 
-            if (ctrl) {
-                // 处理 Invoke 队列 (跨线程回调)
-                // 这是一个好时机，每当有消息时检查一下队列
-                if (msg->message == (WM_USER + 1001)) {
-                    // WM_BX_INVOKE
-                    ctrl->ProcessInvokeQueue();
-                    return true; // 吞掉这个内部消息
-                }
-
-                // 处理 KeyDown 事件
-                if (msg->message == WM_KEYDOWN && ctrl->OnKeyDown) {
-                    ctrl->OnKeyDown((unsigned int) msg->wParam);
-                }
-
-                // 让控件自己决定是否拦截 (例如 Tab 键切换焦点)
-                if (ctrl->PreTranslateMessage(msg)) {
-                    processed = true;
-                }
+        // 5. 消息冒泡预处理 (Parent Chain)
+        // 这一步非常关键，用于处理快捷键、Tab 键切换焦点等。
+        // 如果子控件不处理，就问父窗口，直到最顶层。
+        for (ControlBase *p = ctrl; p != nullptr; p = p->GetParent()) {
+            if (p->PreTranslateMessage(msg)) {
+                processed = true;
+                break;
             }
         }
     }

@@ -975,6 +975,8 @@ TEST_F(IOTest, Overwrite) {
 
 TEST_F(InterpreterTest, NetGetHttpsBasic) {
     std::string code = R"(
+        import std.Net as Net;
+        import std.IO as IO;
         let global_status = 0;
         let global_body = "";
         Net.get("https://www.baidu.com", function(res) {
