@@ -51,7 +51,7 @@ public:
 Icon *Icon::NewIconFromFile(const std::wstring &path) {
     Icon *ico = new Icon();
     // 对照 w32.LoadIcon(0, syscall.StringToUTF16Ptr(path))
-    ico->m_handle = (void *) User32::W32_W32_LoadIcon(nullptr, path.c_str());
+    ico->m_handle = (void *) ::LoadIconW(nullptr, path.c_str());
     if (ico->m_handle == nullptr) {
         delete ico;
         return nullptr;

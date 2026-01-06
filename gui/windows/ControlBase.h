@@ -210,6 +210,7 @@ void ControlBase::InitControl(const std::wstring &className, Controller *parent,
 }
 
 void ControlBase::InitWindow(const std::wstring &className, Controller *parent, unsigned int exstyle, unsigned int style) {
+    RegClassOnlyOnce(className);
     InitControl(className, parent, exstyle, style);
 }
 

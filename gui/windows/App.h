@@ -187,8 +187,8 @@ bool App::PreTranslateMessage(void *msgVoid) {
         // 4. 特殊处理 WM_KEYDOWN (同步 Go 代码逻辑)
         if (msg->message == WM_KEYDOWN && ctrl->OnKeyDown) {
             KeyEventData keyData;
-            keyData.VKey = (int)wParam;            // 虚拟键码 (如 VK_RETURN)
-            keyData.ScanCode = (int)((lParam >> 16) & 0xFF); // 硬件扫描码
+            keyData.VKey = (int)msg->wParam;
+            keyData.ScanCode = (int)((msg->lParam >> 16) & 0xFF);
             ctrl->OnKeyDown.Fire(Event(ctrl, keyData));
         }
 

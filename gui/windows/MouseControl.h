@@ -41,7 +41,7 @@ public:
 #include "GlobalVars.h"
 
 void MouseControl::Init(Controller *parent, const std::wstring &className, unsigned int exStyle, unsigned int style) {
-    RegMouseControlClassOnce(className);
+    RegClassOnlyOnce(className);
 
     m_hwnd = User32::W32_CreateWindowEx(exStyle, className.c_str(), L"", style,
                                         CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,

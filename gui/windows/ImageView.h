@@ -58,7 +58,7 @@ public:
 ImageView *ImageView::New(Controller *parent) {
     ImageView *iv = new ImageView();
 
-    RegImageViewClassOnce();
+    RegClassOnlyOnce(L"BxScriptImageView");
 
     iv->InitWindow(L"BxScriptImageView", parent, WS_EX_CONTROLPARENT, WS_CHILD | WS_VISIBLE);
 

@@ -25,7 +25,7 @@ public:
     static void Unregister(void* hwnd) {
         if (hwnd) gControllerRegistry.erase(hwnd);
     }
-    static ControlBase* Get(const void* hwnd) {
+    static ControlBase* Get(void* hwnd) {
         auto it = gControllerRegistry.find(hwnd);
         return (it != gControllerRegistry.end()) ? reinterpret_cast<ControlBase *>(it->second) : nullptr;
     }

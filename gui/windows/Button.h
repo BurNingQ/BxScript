@@ -171,7 +171,7 @@ PushButton *PushButton::Create(ControlBase *parent, const std::wstring &text, in
     DWORD style = BS_PUSHBUTTON | WS_TABSTOP | WS_VISIBLE | WS_CHILD;
     pb->InitControl(L"BUTTON", parent, 0, style);
 
-    pb->SetFont(Font::DefaultFont);
+    pb->SetFont(DefaultFont);
     pb->SetText(text);
     pb->SetPos(x, y);
     pb->SetSize(w, h);
@@ -201,7 +201,7 @@ void PushButton::SetDefault() {
 CheckBox *CheckBox::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
     CheckBox *cb = new CheckBox();
     DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX;
-    cb->SetFont(Font::DefaultFont);
+    cb->SetFont(DefaultFont);
     cb->InitControl(L"BUTTON", parent, 0, style);
     cb->SetText(text);
     cb->SetPos(x, y);
@@ -217,7 +217,7 @@ CheckBox *CheckBox::Create(ControlBase *parent, const std::wstring &text, int x,
 RadioButton *RadioButton::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
     RadioButton *rb = new RadioButton();
     DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTORADIOBUTTON;
-    rb->SetFont(Font::DefaultFont);
+    rb->SetFont(DefaultFont);
     rb->InitControl(L"BUTTON", parent, 0, style);
     rb->SetText(text);
     rb->SetPos(x, y);
@@ -233,7 +233,7 @@ RadioButton *RadioButton::Create(ControlBase *parent, const std::wstring &text, 
 GroupBox *GroupBox::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
     GroupBox *gb = new GroupBox();
     DWORD style = WS_VISIBLE | WS_CHILD | WS_GROUP | BS_GROUPBOX;
-    gb->SetFont(Font::DefaultFont);
+    gb->SetFont(DefaultFont);
     gb->InitControl(L"BUTTON", parent, 0, style);
     gb->SetText(text);
     gb->SetPos(x, y);
@@ -251,7 +251,7 @@ IconButton *IconButton::Create(ControlBase *parent, Icon *icon, int x, int y, in
     // BS_ICON
     DWORD style = BS_ICON | WS_TABSTOP | WS_VISIBLE | WS_CHILD;
     ib->InitControl(L"BUTTON", parent, 0, style);
-    ib->SetFont(Font::DefaultFont);
+    ib->SetFont(DefaultFont);
     if (icon) {
         ib->SetIcon(icon);
     }

@@ -180,15 +180,6 @@ private:
 #include "GlobalVars.h"
 #include "EventData.h"
 
-namespace {
-    void SetStyle(HWND hwnd, bool b, DWORD styleBit) {
-        DWORD style = GetWindowLongW(hwnd, GWL_STYLE);
-        if (b) style |= styleBit;
-        else style &= ~styleBit;
-        SetWindowLongW(hwnd, GWL_STYLE, style);
-    }
-}
-
 ListView *ListView::NewListBox(Controller *parent) {
     ListView *lv = new ListView();
     unsigned int style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | LVS_REPORT | LVS_EDITLABELS | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER;
