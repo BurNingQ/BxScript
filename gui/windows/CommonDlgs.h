@@ -40,14 +40,10 @@ public:
                                         unsigned int filterIndex = 1,
                                         const std::wstring &initialDir = L"");
 
-    // ======================== 文件夹对话框 ========================
-
     /**
      * 显示文件夹选择对话框。
      */
     static std::wstring ShowBrowseFolderDlg(ControlBase *parent, const std::wstring &title = L"Select Folder");
-
-    // ======================== 消息框 (MessageBox) ========================
 
     /**
      * 标准消息框封装。
@@ -55,7 +51,8 @@ public:
      */
     static int MsgBox(ControlBase *parent, const std::wstring &text, const std::wstring &title, unsigned int flags);
 
-    static bool MsgBoxConfirm(ControlBase *parent, const std::wstring &text, const std::wstring &title = L"Confirm"); // OK/Cancel
+    static bool MsgBoxConfirm(ControlBase *parent, const std::wstring &text, const std::wstring &title = L"Confirm");
+
     static bool MsgBoxYesNo(ControlBase *parent, const std::wstring &text, const std::wstring &title = L"Question");
 
     static void MsgBoxInfo(ControlBase *parent, const std::wstring &text, const std::wstring &title = L"Information");

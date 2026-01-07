@@ -16,47 +16,40 @@
 #include "ControlBase.h"
 #include "Icon.h"
 
-// 前置声明 Icon 类
 
 // ============================================================================
-// 1. Button 基类
+// Button 基类
 // ============================================================================
 class Button : public ControlBase {
 public:
     // 事件回调
-    EventCallback OnClick{};
+    EventManager OnClick{};
 
     Button() = default;
 
-    virtual ~Button() = default;
+    ~Button() override = default;
 
-    // 核心功能
-    bool Checked();
+    bool Checked() const;
 
-    void SetChecked(bool checked);
+    void SetChecked(bool checked) const;
 
-    // 设置图标 (需要 Icon 类)
-    void SetIcon(Icon *icon);
+    void SetIcon(Icon *icon) const;
 
-    // 处理消息 (供消息循环调用)
-    // 返回 true 表示消息已处理
-    virtual bool ProcessMessage(unsigned int msg, uintptr_t wParam, uintptr_t lParam, uintptr_t &result) override;
+    virtual uintptr_t WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) override;
 };
 
 // ============================================================================
-// 2. PushButton (普通按钮)
+// PushButton (普通按钮)
 // ============================================================================
 class PushButton final : public Button {
 public:
-    // 工厂方法：创建并初始化
     static PushButton *Create(ControlBase *parent, const std::wstring &text = L"Button", int x = 0, int y = 0, int w = 100, int h = 25);
 
-    // 设为默认按钮 (回车键触发)
-    void SetDefault();
+    void SetDefault() const;
 };
 
 // ============================================================================
-// 3. CheckBox (复选框)
+// CheckBox (复选框)
 // ============================================================================
 class CheckBox final : public Button {
 public:
@@ -64,7 +57,7 @@ public:
 };
 
 // ============================================================================
-// 4. RadioButton (单选框)
+// RadioButton (单选框)
 // ============================================================================
 class RadioButton final : public Button {
 public:
@@ -72,7 +65,7 @@ public:
 };
 
 // ============================================================================
-// 5. GroupBox (分组框)
+// GroupBox (分组框)
 // ============================================================================
 class GroupBox final : public Button {
 public:
@@ -80,7 +73,7 @@ public:
 };
 
 // ============================================================================
-// 6. IconButton (纯图标按钮)
+// IconButton (纯图标按钮)
 // ============================================================================
 class IconButton final : public Button {
 public:
@@ -98,16 +91,8 @@ public:
 
 #include <windows.h>
 #include "internal/User32.h"
-#include "internal/Gdi32.h" // 也许需要用到字体
-
-// #include "Icon.h"
-
-#ifndef ICON_CLASS_DEFINED
-class Icon {
-public:
-    HICON GetHandle() const { return nullptr; }
-};
-#endif
+#include "internal/Gdi32.h"
+#include "Icon.h"
 
 // 宏定义辅助
 #define HWND_CAST(ptr) static_cast<HWND>(ptr)
@@ -116,48 +101,34 @@ public:
 // Button Implementation
 // ----------------------------------------------------------------------------
 
-bool Button::ProcessMessage(unsigned int msg, uintptr_t wParam, uintptr_t lParam, uintptr_t &result) {
+inline uintptr_t Button::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
     switch (msg) {
+        case WM_COMMAND:
+            OnClick.Fire(Event(this, nullptr));
+            break;
         case WM_LBUTTONDOWN:
             User32::W32_SetCapture(HWND_CAST(m_hwnd));
             break;
-
         case WM_LBUTTONUP:
             User32::W32_ReleaseCapture();
-            // 在这里触发 Click 并不是最标准的做法，标准做法是处理 WM_COMMAND(BN_CLICKED)
-            // 但为了兼容 Go 代码的逻辑，可以在这里或者 WM_COMMAND 里触发
-            break;
-
-        case WM_COMMAND:
-            // HIWORD(wParam) 是通知码
-            if (HIWORD(wParam) == BN_CLICKED) {
-                if (OnClick) {
-                    OnClick(); // 触发回调
-                }
-                return true;
-            }
             break;
     }
-
-    // 调用默认处理
-    // 注意：ControlBase::PreTranslateMessage 返回 false，
-    // 真正的 DefWindowProc 是在全局 WndProc 里调用的，这里只负责拦截自定义逻辑
-    return false;
+    return User32::W32_DefWindowProc(HWND_CAST(m_hwnd), msg, wparam, lparam);
 }
 
-bool Button::Checked() {
-    LRESULT res = User32::W32_SendMessage(HWND_CAST(m_hwnd), BM_GETCHECK, 0, 0);
+inline bool Button::Checked() const {
+    const LRESULT res = User32::W32_SendMessage(HWND_CAST(m_hwnd), BM_GETCHECK, 0, 0);
     return res == BST_CHECKED;
 }
 
-void Button::SetChecked(bool checked) {
-    WPARAM wparam = checked ? BST_CHECKED : BST_UNCHECKED;
+inline void Button::SetChecked(bool checked) const {
+    const WPARAM wparam = checked ? BST_CHECKED : BST_UNCHECKED;
     User32::W32_SendMessage(HWND_CAST(m_hwnd), BM_SETCHECK, wparam, 0);
 }
 
-void Button::SetIcon(Icon *icon) {
+inline void Button::SetIcon(Icon *icon) const {
     if (icon) {
-        User32::W32_SendMessage((HWND) m_hwnd, BM_SETIMAGE, IMAGE_ICON, (LPARAM) icon->Handle());
+        User32::W32_SendMessage(static_cast<HWND>(m_hwnd), BM_SETIMAGE, IMAGE_ICON, (LPARAM) icon->Handle());
     }
 }
 
@@ -165,8 +136,8 @@ void Button::SetIcon(Icon *icon) {
 // PushButton
 // ----------------------------------------------------------------------------
 
-PushButton *PushButton::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
-    PushButton *pb = new PushButton();
+inline PushButton *PushButton::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
+    auto *pb = new PushButton();
     // BS_PUSHBUTTON | WS_TABSTOP | WS_VISIBLE | WS_CHILD
     DWORD style = BS_PUSHBUTTON | WS_TABSTOP | WS_VISIBLE | WS_CHILD;
     pb->InitControl(L"BUTTON", parent, 0, style);
@@ -176,17 +147,15 @@ PushButton *PushButton::Create(ControlBase *parent, const std::wstring &text, in
     pb->SetPos(x, y);
     pb->SetSize(w, h);
 
-    // 应用现代化主题
     pb->SetTheme(L"Explorer");
 
     return pb;
 }
 
-void PushButton::SetDefault() {
-    HWND hwnd = HWND_CAST(m_hwnd);
+inline void PushButton::SetDefault() const {
+    const auto hwnd = HWND_CAST(m_hwnd);
     LONG_PTR style = User32::W32_GetWindowLongPtr(hwnd, GWL_STYLE);
 
-    // 清除 BS_PUSHBUTTON, 设置 BS_DEFPUSHBUTTON
     style &= ~BS_PUSHBUTTON;
     style |= BS_DEFPUSHBUTTON;
 
@@ -198,8 +167,8 @@ void PushButton::SetDefault() {
 // CheckBox
 // ----------------------------------------------------------------------------
 
-CheckBox *CheckBox::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
-    CheckBox *cb = new CheckBox();
+inline CheckBox *CheckBox::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
+    auto *cb = new CheckBox();
     DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX;
     cb->SetFont(DefaultFont);
     cb->InitControl(L"BUTTON", parent, 0, style);
@@ -214,9 +183,9 @@ CheckBox *CheckBox::Create(ControlBase *parent, const std::wstring &text, int x,
 // RadioButton
 // ----------------------------------------------------------------------------
 
-RadioButton *RadioButton::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
-    RadioButton *rb = new RadioButton();
-    DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTORADIOBUTTON;
+inline RadioButton *RadioButton::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
+    auto *rb = new RadioButton();
+    constexpr DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTORADIOBUTTON;
     rb->SetFont(DefaultFont);
     rb->InitControl(L"BUTTON", parent, 0, style);
     rb->SetText(text);
@@ -230,9 +199,9 @@ RadioButton *RadioButton::Create(ControlBase *parent, const std::wstring &text, 
 // GroupBox
 // ----------------------------------------------------------------------------
 
-GroupBox *GroupBox::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
-    GroupBox *gb = new GroupBox();
-    DWORD style = WS_VISIBLE | WS_CHILD | WS_GROUP | BS_GROUPBOX;
+inline GroupBox *GroupBox::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
+    auto *gb = new GroupBox();
+    constexpr DWORD style = WS_VISIBLE | WS_CHILD | WS_GROUP | BS_GROUPBOX;
     gb->SetFont(DefaultFont);
     gb->InitControl(L"BUTTON", parent, 0, style);
     gb->SetText(text);
@@ -246,8 +215,8 @@ GroupBox *GroupBox::Create(ControlBase *parent, const std::wstring &text, int x,
 // IconButton
 // ----------------------------------------------------------------------------
 
-IconButton *IconButton::Create(ControlBase *parent, Icon *icon, int x, int y, int w, int h) {
-    IconButton *ib = new IconButton();
+inline IconButton *IconButton::Create(ControlBase *parent, Icon *icon, int x, int y, int w, int h) {
+    const auto ib = new IconButton();
     // BS_ICON
     DWORD style = BS_ICON | WS_TABSTOP | WS_VISIBLE | WS_CHILD;
     ib->InitControl(L"BUTTON", parent, 0, style);

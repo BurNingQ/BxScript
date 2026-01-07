@@ -10,6 +10,8 @@
  *
  * @brief    GlobalVars
  */
+#pragma once
+
 #ifndef BXSCRIPT_GLOBAL_VARS_H
 #define BXSCRIPT_GLOBAL_VARS_H
 
@@ -18,14 +20,12 @@
 #include <unordered_map>
 #include <cstdint>
 
-class Controller;
-class Font;
 
 // --- Private global variables ---
 inline void *gAppInstance = nullptr;
 inline std::unordered_map<void *, Controller *> gControllerRegistry;
 inline std::vector<std::wstring> gRegisteredClasses;
-inline uint32_t wmInvokeCallback = 0; // wmInvokeCallback uint32
+inline uint32_t wmInvokeCallback = 0;
 
 // --- Public global variables ---
 typedef intptr_t (__stdcall *W32_WNDPROC)(void *, unsigned int, uintptr_t, uintptr_t);
@@ -44,6 +44,9 @@ intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam
 
 #ifdef BXSCRIPT_IMPLEMENTATION
 
+#ifndef BXSCRIPT_GLOBAL_VARS_IMPL
+#define BXSCRIPT_GLOBAL_VARS_IMPL
+
 #include <windows.h>
 #include "Controller.h"
 #include "ControlBase.h"
@@ -54,24 +57,22 @@ intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam
 #include "internal/Shell32.h"
 
 namespace {
-    // 对照 genPoint
+
     void genPoint(uintptr_t p, int &x, int &y) {
-        x = (int) (short) LOWORD((uint32_t) p);
-        y = (int) (short) HIWORD((uint32_t) p);
+        x = static_cast<int>(static_cast<short>(LOWORD(static_cast<uint32_t>(p))));
+        y = static_cast<int>(static_cast<short>(HIWORD(static_cast<uint32_t>(p))));
     }
 
-    // 对照 genMouseEventArg
     MouseEventData *genMouseEventArg(uintptr_t wparam, uintptr_t lparam) {
-        MouseEventData *data = new MouseEventData();
-        data->Button = (int) wparam;
+        auto data = new MouseEventData();
+        data->Button = static_cast<int>(wparam);
         genPoint(lparam, data->X, data->Y);
         return data;
     }
 
-    // 对照 genDropFilesEventArg
     DropFilesEventData *genDropFilesEventArg(uintptr_t wparam) {
-        HDROP hDrop = (HDROP) wparam;
-        DropFilesEventData *data = new DropFilesEventData();
+        auto hDrop = reinterpret_cast<HDROP>(wparam);
+        auto data = new DropFilesEventData();
 
         unsigned int fileCount = Shell32::W32_DragQueryFileCount(hDrop);
         for (unsigned int i = 0; i < fileCount; i++) {
@@ -90,7 +91,7 @@ namespace {
     }
 }
 
-intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
+inline intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
     // 基础消息预处理
     switch (msg) {
         case WM_HSCROLL: break;
@@ -100,13 +101,11 @@ intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam
     auto it = gControllerRegistry.find(hwnd);
     if (it != gControllerRegistry.end()) {
         Controller *controller = it->second;
-
         // 执行对象自身的 WndProc
         uintptr_t ret = controller->WndProc(msg, wparam, lparam);
-
         switch (msg) {
             case WM_NOTIFY: {
-                NMHDR *nm = (NMHDR *) lparam;
+                const auto nm = (NMHDR *) lparam;
                 auto itChild = gControllerRegistry.find(nm->hwndFrom);
                 if (itChild != gControllerRegistry.end()) {
                     uintptr_t childRet = itChild->second->WndProc(msg, wparam, lparam);
@@ -150,8 +149,8 @@ intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam
                         int x, y;
                         genPoint(lparam, x, y);
                         if (contextMenu != nullptr) {
-                            uint32_t id = (uint32_t) User32::W32_TrackPopupMenuEx(contextMenu->hSubMenu, TPM_NOANIMATION | TPM_RETURNCMD, x, y,
-                                                                                  (HWND) itCtx->second->Handle(), nullptr);
+                            uint32_t id = static_cast<uint32_t>(User32::W32_TrackPopupMenuEx(contextMenu->hSubMenu, TPM_NOANIMATION | TPM_RETURNCMD, x, y,
+                                                                                             static_cast<HWND>(itCtx->second->Handle()), nullptr));
                             MenuItem *item = actionsByID[id];
                             if (item != nullptr) {
                                 item->OnClick().Fire(Event(static_cast<ControlBase *>(itCtx->second), genMouseEventArg(wparam, lparam)));
@@ -199,8 +198,8 @@ intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam
             }
             case WM_KEYUP: {
                 KeyUpEventData data;
-                data.VKey = (int) wparam;
-                data.Code = (int) lparam;
+                data.VKey = static_cast<int>(wparam);
+                data.Code = static_cast<int>(lparam);
                 controller->OnKeyUp().Fire(Event(static_cast<ControlBase *>(controller), &data));
                 break;
             }
@@ -208,7 +207,7 @@ intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam
                 int x, y;
                 genPoint(lparam, x, y);
                 SizeEventData data;
-                data.Type = (unsigned int) wparam;
+                data.Type = static_cast<unsigned int>(wparam);
                 data.Width = x;
                 data.Height = y;
                 controller->OnSize().Fire(Event(static_cast<ControlBase *>(controller), &data));
@@ -220,19 +219,20 @@ intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam
                 }
                 break;
         }
-        return (intptr_t) ret;
+        return static_cast<intptr_t>(ret);
     }
 
-    return (intptr_t) DefWindowProcW((HWND) hwnd, msg, (WPARAM) wparam, (LPARAM) lparam);
+    return DefWindowProcW(static_cast<HWND>(hwnd), msg, wparam, static_cast<LPARAM>(lparam));
 }
 
-// 对应 Go 的 RegisterWindowMessage("WincV0.InvokeCallback")
 struct WndProcInitializer {
     WndProcInitializer() {
-        GeneralWndProcCallBack = (W32_WNDPROC) generalWndProc;
+        GeneralWndProcCallBack = static_cast<W32_WNDPROC>(generalWndProc);
         wmInvokeCallback = ::RegisterWindowMessageW(L"WincV0.InvokeCallback");
     }
 };
 static WndProcInitializer _wndproc_init;
+
+#endif // BXSCRIPT_GLOBAL_VARS_IMPL
 
 #endif

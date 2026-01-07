@@ -34,7 +34,7 @@ enum class SysColorIndex {
     CaptionText = 9, ActiveBorder = 10, InactiveBorder = 11, AppWorkspace = 12,
     Highlight = 13, HighlightText = 14, BtnFace = 15, BtnShadow = 16,
     GrayText = 17, BtnText = 18, InactiveCaptionText = 19, BtnHighlight = 20,
-    // ... 其他常用索引
+
     Desktop = 1, ThreeDFace = 15, ThreeDShadow = 16, ThreeDHighlight = 20
 };
 
@@ -120,88 +120,62 @@ public:
 // 辅助宏
 #define HBRUSH_CAST(ptr) static_cast<HBRUSH>(ptr)
 
-// 内部构造函数 (不暴露给外部)
-static Brush *CreateBrushWrapper(HBRUSH hBrush) {
-    if (!hBrush) return nullptr;
-    Brush *b = new Brush();
-    // 这是一个 hack 方式访问私有成员，或者你可以把构造函数设为 public 但不建议直接用
-    // 为了保持单头文件简洁，这里利用友元或者直接内存操作，
-    // 但最标准的是在类里加个 private constructor 并且 friend 这个工厂函数。
-    // 这里简单起见，假设类定义里加个 SetHandle 或者 friend。
-    // 为了不修改上面声明太复杂，我们直接 memcpy 进去或者改用 public 构造。
-    // 修正：我们在下面直接操作成员，因为我们在同一个文件里实现。
-
-    // 实际上，因为是同一个文件，我们不能直接访问私有成员除非是成员函数。
-    // 让我们把上面的 new 改成 new + 赋值，但 m_hBrush 是私有的。
-    // 最简单的办法：实现代码写成成员函数。
-    return nullptr; // 占位，下面的工厂方法是静态成员，可以访问私有变量
-}
-
-Brush::~Brush() {
+inline Brush::~Brush() {
     Dispose();
 }
 
-void Brush::Dispose() {
+inline void Brush::Dispose() {
     if (m_hBrush) {
         Gdi32::W32_DeleteObject(HBRUSH_CAST(m_hBrush));
         m_hBrush = nullptr;
     }
 }
 
-Brush *Brush::NewSolid(Color color) {
-    // Go代码用的是 CreateBrushIndirect，但 CreateSolidBrush 等价且更简单
-    HBRUSH h = Gdi32::W32_CreateSolidBrush(static_cast<COLORREF>(color.Value()));
+inline Brush *Brush::NewSolid(Color color) {
+    const HBRUSH h = Gdi32::W32_CreateSolidBrush(color.Value());
     if (!h) return nullptr;
-
-    Brush *b = new Brush();
+    const auto b = new Brush();
     b->m_hBrush = h;
     return b;
 }
 
-Brush *Brush::NewSystem(int colorIndex) {
-    // GetSysColorBrush 是 User32 的函数
-    HBRUSH h = GetSysColorBrush(colorIndex);
+inline Brush *Brush::NewSystem(int colorIndex) {
+    const HBRUSH h = GetSysColorBrush(colorIndex);
     if (!h) return nullptr;
-
-    Brush *b = new Brush();
+    const auto b = new Brush();
     b->m_hBrush = h;
     return b;
 }
 
-Brush *Brush::NewSystem(SysColorIndex index) {
+inline Brush *Brush::NewSystem(SysColorIndex index) {
     return NewSystem(static_cast<int>(index));
 }
 
-Brush *Brush::NewHatched(Color color, HatchStyle style) {
+inline Brush *Brush::NewHatched(Color color, HatchStyle style) {
     LOGBRUSH lb;
     lb.lbStyle = BS_HATCHED;
     lb.lbColor = static_cast<COLORREF>(color.Value());
     lb.lbHatch = static_cast<ULONG_PTR>(style);
-
-    HBRUSH h = Gdi32::W32_CreateBrushIndirect(&lb);
+    const HBRUSH h = Gdi32::W32_CreateBrushIndirect(&lb);
     if (!h) return nullptr;
-
-    Brush *b = new Brush();
+    const auto b = new Brush();
     b->m_hBrush = h;
     return b;
 }
 
-Brush *Brush::NewNull() {
+inline Brush *Brush::NewNull() {
     LOGBRUSH lb;
     lb.lbStyle = BS_NULL;
     lb.lbColor = 0;
     lb.lbHatch = 0;
-
-    HBRUSH h = Gdi32::W32_CreateBrushIndirect(&lb);
-    // 或者直接用 GetStockObject(NULL_BRUSH) 也可以，但 CreateBrushIndirect 更符合 Go 原逻辑
+    const HBRUSH h = Gdi32::W32_CreateBrushIndirect(&lb);
     if (!h) return nullptr;
-
-    Brush *b = new Brush();
+    const auto b = new Brush();
     b->m_hBrush = h;
     return b;
 }
 
-Brush *Brush::DefaultBackground() {
+inline Brush *Brush::DefaultBackground() {
     return NewSystem(static_cast<int>(SysColorIndex::BtnFace));
 }
 

@@ -28,9 +28,11 @@ struct RawMsgData {
 
 // 鼠标事件数据
 struct MouseEventData {
+    // 0:左, 1:中, 2:右
     int X, Y;
-    int Button; // 0:左, 1:中, 2:右
-    int Wheel; // 滚轮增量
+    int Button;
+    // 滚轮增量
+    int Wheel;
 };
 
 // 拖放文件数据
@@ -48,6 +50,11 @@ struct PaintEventData {
 struct KeyEventData {
     int VKey;
     int ScanCode;
+};
+
+struct KeyUpEventData {
+    int VKey;
+    int Code;
 };
 
 // 尺寸改变数据

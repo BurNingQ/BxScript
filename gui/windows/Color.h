@@ -32,32 +32,24 @@ public:
     /**
      * 从 RGB 分量创建颜色。
      */
-    static Color RGB(uint8_t r, uint8_t g, uint8_t b) {
-        return Color(static_cast<uint32_t>(r) |
-                     (static_cast<uint32_t>(g) << 8) |
-                     (static_cast<uint32_t>(b) << 16));
+    static Color FromRGB(uint8_t r, uint8_t g, uint8_t b) {
+        return Color(static_cast<uint32_t>(r) | static_cast<uint32_t>(g) << 8 | static_cast<uint32_t>(b) << 16);
     }
 
     /**
      * 从十六进制创建 (如 0xFFFFFF)
      */
     static Color FromHex(uint32_t hex) {
-        // 通常 Hex 是 RRGGBB，需要转为 BBGGRR
-        uint8_t r = (hex >> 16) & 0xFF;
-        uint8_t g = (hex >> 8) & 0xFF;
-        uint8_t b = hex & 0xFF;
-        return RGB(r, g, b);
+        const uint8_t r = (hex >> 16) & 0xFF;
+        const uint8_t g = (hex >> 8) & 0xFF;
+        const uint8_t b = hex & 0xFF;
+        return FromRGB(r, g, b);
     }
-
-    // ======================== 属性获取 ========================
 
     uint8_t R() const { return static_cast<uint8_t>(m_value & 0xFF); }
     uint8_t G() const { return static_cast<uint8_t>((m_value >> 8) & 0xFF); }
     uint8_t B() const { return static_cast<uint8_t>((m_value >> 16) & 0xFF); }
 
-    /**
-     * 获取原始值 (兼容 COLORREF)
-     */
     uint32_t Value() const { return m_value; }
 };
 

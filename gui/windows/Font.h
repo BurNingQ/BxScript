@@ -22,7 +22,8 @@ const uint8_t FontUnderline = 0x04;
 const uint8_t FontStrikeOut = 0x08;
 
 class Font {
-    void *m_hfont = nullptr; // w32.HFONT
+    // w32.HFONT
+    void *m_hfont = nullptr;
     std::wstring m_family;
     int m_pointSize;
     uint8_t m_style;
@@ -45,7 +46,7 @@ public:
     uint8_t Style() const { return m_style; }
 
 private:
-    void *createForDPI(int dpi);
+    void *createForDPI(int dpi) const;
 };
 
 #endif
@@ -56,16 +57,15 @@ private:
 #include "internal/Gdi32.h"
 #include "internal/User32.h"
 
-Font::Font(const std::wstring &family, int pointSize, uint8_t style)
+inline Font::Font(const std::wstring &family, int pointSize, uint8_t style)
     : m_family(family), m_pointSize(pointSize), m_style(style) {
     if (style > (FontBold | FontItalic | FontUnderline | FontStrikeOut)) {
-        // Equivalent to panic
         exit(1);
     }
 
-    HDC hDC = User32::W32_GetDC(NULL);
+    HDC hDC = User32::W32_GetDC(nullptr);
     int screenDPIY = Gdi32::W32_GetDeviceCaps(hDC, LOGPIXELSY);
-    User32::W32_ReleaseDC(NULL, hDC);
+    User32::W32_ReleaseDC(nullptr, hDC);
 
     m_hfont = createForDPI(screenDPIY);
     if (!m_hfont) {
@@ -73,11 +73,11 @@ Font::Font(const std::wstring &family, int pointSize, uint8_t style)
     }
 }
 
-Font::~Font() {
+inline Font::~Font() {
     Dispose();
 }
 
-void *Font::createForDPI(int dpi) {
+inline void *Font::createForDPI(int dpi) const {
     LOGFONTW lf = {0};
 
     lf.lfHeight = -MulDiv(m_pointSize, dpi, 72);
@@ -102,7 +102,7 @@ void *Font::createForDPI(int dpi) {
     return Gdi32::W32_CreateFontIndirect(lf);
 }
 
-void Font::Dispose() {
+inline void Font::Dispose() {
     if (m_hfont) {
         Gdi32::W32_DeleteObject(static_cast<HGDIOBJ>(m_hfont));
         m_hfont = nullptr;

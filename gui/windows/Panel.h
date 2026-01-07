@@ -29,7 +29,7 @@ protected:
 public:
     Panel() = default;
 
-    virtual ~Panel() = default;
+    ~Panel() override = default;
 
     static Panel *New(Controller *parent);
 
@@ -38,7 +38,7 @@ public:
     virtual uintptr_t WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) override;
 };
 
-class ErrorPanel : public ControlBase {
+class ErrorPanel final : public ControlBase {
 protected:
     Pen *m_pen = nullptr;
     int m_margin = 0;
@@ -72,7 +72,7 @@ protected:
 public:
     MultiPanel() = default;
 
-    virtual ~MultiPanel() = default;
+    ~MultiPanel() override = default;
 
     static MultiPanel *New(Controller *parent);
 
@@ -108,10 +108,10 @@ inline static Pen *errorPanelOkPen = nullptr;
 namespace {
     void InitPens() {
         if (!errorPanelPen) {
-            errorPanelPen = Pen::New(0x00010000, 2, Brush::NewSolid(Color::RGB(255, 128, 128)));
+            errorPanelPen = Pen::New(0x00010000, 2, Brush::NewSolid(Color::FromRGB(255, 128, 128)));
         }
         if (!errorPanelOkPen) {
-            errorPanelOkPen = Pen::New(0x00010000, 2, Brush::NewSolid(Color::RGB(220, 220, 220)));
+            errorPanelOkPen = Pen::New(0x00010000, 2, Brush::NewSolid(Color::FromRGB(220, 220, 220)));
         }
     }
 }
@@ -218,7 +218,7 @@ uintptr_t ErrorPanel::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lpar
             canvas->DrawFillRect(*r, m_pen, winBrush);
 
             r->Left += 5;
-            canvas->DrawText(this->Text(), *r, 0, this->GetFont(), Color::RGB(0, 0, 0));
+            canvas->DrawText(this->Text(), *r, 0, this->GetFont(), Color::FromRGB(0, 0, 0));
 
             delete winBrush;
             delete r;

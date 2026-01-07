@@ -18,14 +18,14 @@
 const wchar_t passwordChar = L'*';
 const wchar_t nopasswordChar = L' ';
 
-class Edit : public ControlBase {
+class Edit final : public ControlBase {
 protected:
     EventManager onChange;
 
 public:
     Edit() = default;
 
-    virtual ~Edit() = default;
+    ~Edit() override = default;
 
     static Edit *Create(Controller *parent);
 
@@ -41,14 +41,14 @@ public:
     virtual uintptr_t WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) override;
 };
 
-class MultiEdit : public ControlBase {
+class MultiEdit final : public ControlBase {
 protected:
     EventManager onChange;
 
 public:
     MultiEdit() = default;
 
-    virtual ~MultiEdit() = default;
+    ~MultiEdit() override = default;
 
     static MultiEdit *Create(Controller *parent);
 
@@ -71,63 +71,58 @@ public:
 
 // --- Edit Implementation ---
 
-Edit *Edit::Create(Controller *parent) {
-    Edit *edt = new Edit();
-
+inline Edit *Edit::Create(Controller *parent) {
+    const auto edt = new Edit();
     edt->InitControl(L"EDIT", parent, WS_EX_CLIENTEDGE,
                      WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT | ES_AUTOHSCROLL | ES_WANTRETURN);
-
     edt->SetFont(DefaultFont);
     edt->SetSize(200, 22);
-
     return edt;
 }
 
-Edit *Edit::SetReadOnly(bool isReadOnly) {
-    User32::W32_SendMessage((HWND) m_hwnd, EM_SETREADONLY, (uintptr_t) (isReadOnly ? TRUE : FALSE), 0);
+inline Edit *Edit::SetReadOnly(bool isReadOnly) {
+    User32::W32_SendMessage(static_cast<HWND>(m_hwnd), EM_SETREADONLY, static_cast<uintptr_t>(isReadOnly ? TRUE : FALSE), 0);
     return this;
 }
 
-Edit *Edit::SetPassword(bool isPassword) {
+inline Edit *Edit::SetPassword(bool isPassword) {
     if (isPassword) {
-        User32::W32_SendMessage((HWND) m_hwnd, EM_SETPASSWORDCHAR, (uintptr_t) passwordChar, 0);
+        User32::W32_SendMessage(static_cast<HWND>(m_hwnd), EM_SETPASSWORDCHAR, (uintptr_t) passwordChar, 0);
     } else {
-        User32::W32_SendMessage((HWND) m_hwnd, EM_SETPASSWORDCHAR, 0, 0);
+        User32::W32_SendMessage(static_cast<HWND>(m_hwnd), EM_SETPASSWORDCHAR, 0, 0);
     }
     return this;
 }
 
-uintptr_t Edit::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
+inline uintptr_t Edit::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
     switch (msg) {
         case WM_COMMAND:
-            if (HIWORD((uint32_t) wparam) == EN_CHANGE) {
+            if (HIWORD(static_cast<uint32_t>(wparam)) == EN_CHANGE) {
                 onChange.Fire(Event(this, nullptr));
             }
             break;
     }
-    return User32::W32_DefWindowProc((HWND) m_hwnd, msg, wparam, lparam);
+    return User32::W32_DefWindowProc(static_cast<HWND>(m_hwnd), msg, wparam, lparam);
 }
 
 // --- MultiEdit Implementation ---
 
-MultiEdit *MultiEdit::Create(Controller *parent) {
-    MultiEdit *med = new MultiEdit();
-
+inline MultiEdit *MultiEdit::Create(Controller *parent) {
+    const auto med = new MultiEdit();
     med->InitControl(L"EDIT", parent, WS_EX_CLIENTEDGE,
                      WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT | WS_VSCROLL | WS_HSCROLL |
                      ES_MULTILINE | ES_WANTRETURN | ES_AUTOHSCROLL | ES_AUTOVSCROLL);
-
     med->SetFont(DefaultFont);
     med->SetSize(200, 400);
     return med;
 }
 
-MultiEdit *MultiEdit::SetReadOnly(bool isReadOnly) {
-    User32::W32_SendMessage((HWND) m_hwnd, EM_SETREADONLY, (uintptr_t) (isReadOnly ? TRUE : FALSE), 0);
+inline MultiEdit *MultiEdit::SetReadOnly(bool isReadOnly) {
+    User32::W32_SendMessage(static_cast<HWND>(m_hwnd), EM_SETREADONLY, static_cast<uintptr_t>(isReadOnly ? TRUE : FALSE), 0);
     return this;
 }
 
-MultiEdit *MultiEdit::AddLine(const std::wstring &text) {
+inline MultiEdit *MultiEdit::AddLine(const std::wstring &text) {
     if (this->Text().length() == 0) {
         this->SetText(text);
     } else {
@@ -136,7 +131,7 @@ MultiEdit *MultiEdit::AddLine(const std::wstring &text) {
     return this;
 }
 
-uintptr_t MultiEdit::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
+inline uintptr_t MultiEdit::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
     switch (msg) {
         case WM_COMMAND:
             if (HIWORD((uint32_t) wparam) == EN_CHANGE) {
@@ -144,7 +139,7 @@ uintptr_t MultiEdit::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lpara
             }
             break;
     }
-    return User32::W32_DefWindowProc((HWND) m_hwnd, msg, wparam, lparam);
+    return User32::W32_DefWindowProc(static_cast<HWND>(m_hwnd), msg, wparam, lparam);
 }
 
 #endif

@@ -28,10 +28,12 @@
 
 class Canvas {
     void *m_hdc = nullptr; // HDC
-    void *m_hwnd = nullptr; // HWND (用于 ReleaseDC)
+    void *m_hwnd = nullptr; // HWND
     bool m_shouldRelease = false; // 是否需要释放 DC
 
 public:
+    Canvas() = default;
+
     // 禁止拷贝 (HDC 是独占资源)
     Canvas(const Canvas &) = delete;
 
@@ -55,11 +57,7 @@ public:
 
     void Dispose();
 
-    // ======================== 属性 ========================
-
     void *GetHandle() const { return m_hdc; }
-
-    // ======================== 绘图方法 ========================
 
     /**
      * 绘制位图 (自动缩放)。
@@ -133,8 +131,8 @@ public:
 #define HWND_CAST(ptr) static_cast<HWND>(ptr)
 #define HGDIOBJ_CAST(ptr) static_cast<HGDIOBJ>(ptr)
 
-static RECT ToWinRect(const Rect& r) {
-    return { (LONG)r.Left, (LONG)r.Top, (LONG)r.Right, (LONG)r.Bottom };
+static RECT ToWinRect(const Rect &r) {
+    return {static_cast<LONG>(r.Left), static_cast<LONG>(r.Top), static_cast<LONG>(r.Right), static_cast<LONG>(r.Bottom)};
 }
 
 // RAII 辅助：自动 SelectObject 和 恢复 OldObject
@@ -159,37 +157,38 @@ struct GdiSelector {
 
 // --- Canvas Implementation ---
 
-Canvas *Canvas::FromHwnd(void *hwnd) {
-    HDC hdc = User32::W32_GetDC(HWND_CAST(hwnd));
+inline Canvas *Canvas::FromHwnd(void *hwnd) {
+    const HDC hdc = User32::W32_GetDC(HWND_CAST(hwnd));
     if (!hdc) return nullptr;
 
-    Canvas *c = new Canvas();
+    const auto c = new Canvas();
     c->m_hdc = hdc;
     c->m_hwnd = hwnd;
-    c->m_shouldRelease = true; // 需要 ReleaseDC
+    // 需要 ReleaseDC
+    c->m_shouldRelease = true;
     return c;
 }
 
-Canvas *Canvas::FromHDC(void *hdc) {
+inline Canvas *Canvas::FromHDC(void *hdc) {
     if (!hdc) return nullptr;
-    Canvas *c = new Canvas();
+    const auto c = new Canvas();
     c->m_hdc = hdc;
     c->m_hwnd = nullptr;
-    c->m_shouldRelease = false; // 外部管理的 DC，不需要释放
+    // 外部管理的 DC，不需要释放
+    c->m_shouldRelease = false;
     return c;
 }
 
-Canvas::~Canvas() {
+inline Canvas::~Canvas() {
     Dispose();
 }
 
-void Canvas::Dispose() {
+inline void Canvas::Dispose() {
     if (m_hdc) {
         if (m_shouldRelease) {
             if (m_hwnd) {
                 User32::W32_ReleaseDC(HWND_CAST(m_hwnd), HDC_CAST(m_hdc));
             } else {
-                // 如果是从 CreateDC 创建的，应该用 DeleteDC (Go代码里没有这部分逻辑，这里保留 User32 逻辑)
                 Gdi32::W32_DeleteDC(HDC_CAST(m_hdc));
             }
         }
@@ -197,15 +196,15 @@ void Canvas::Dispose() {
     }
 }
 
-Canvas *Canvas::DrawBitmap(Bitmap *bmp, int x, int y, int w, int h) {
+inline Canvas *Canvas::DrawBitmap(Bitmap *bmp, int x, int y, int w, int h) {
     if (!bmp || !bmp->IsValid()) return this;
 
     HDC destDC = HDC_CAST(m_hdc);
-    HDC memDC = Gdi32::W32_CreateCompatibleDC(destDC); // 创建内存DC
+    // 创建内存DC
+    const HDC memDC = Gdi32::W32_CreateCompatibleDC(destDC);
 
     // 将 Bitmap 选入内存 DC
     HGDIOBJ oldBmp = Gdi32::W32_SelectObject(memDC, HGDIOBJ_CAST(bmp->GetHandle()));
-
     int ow = bmp->GetWidth();
     int oh = bmp->GetHeight();
     if (w <= 0) w = ow;
@@ -213,26 +212,23 @@ Canvas *Canvas::DrawBitmap(Bitmap *bmp, int x, int y, int w, int h) {
 
     // 设置拉伸模式 (3 = COLORONCOLOR)
     int oldMode = Gdi32::W32_SetStretchBltMode(destDC, 3);
-
     // 绘制
     Gdi32::W32_StretchBlt(destDC, x, y, w, h, memDC, 0, 0, ow, oh, SRCCOPY);
-
     // 恢复状态并清理
     Gdi32::W32_SetStretchBltMode(destDC, oldMode);
-    Gdi32::W32_SelectObject(memDC, oldBmp); // 必须恢复旧对象才能删除 DC
+    // 必须恢复旧对象才能删除 DC
+    Gdi32::W32_SelectObject(memDC, oldBmp);
     Gdi32::W32_DeleteDC(memDC);
 
     return this;
 }
 
-bool Canvas::DrawIcon(Icon *ico, int x, int y) {
+inline bool Canvas::DrawIcon(Icon *ico, int x, int y) {
     if (!ico) return false;
-    // DrawIcon 在 User32 中，不在 Gdi32
-    // 如果 User32 封装里没写 DrawIcon，可以直接调 API
-    return ::DrawIcon((HDC)m_hdc, x, y, (HICON)ico->Handle());
+    return ::DrawIcon((HDC) m_hdc, x, y, (HICON) ico->Handle());
 }
 
-Canvas *Canvas::DrawFillRect(const Rect &rect, Pen *pen, Brush *brush) {
+inline Canvas *Canvas::DrawFillRect(const Rect &rect, Pen *pen, Brush *brush) {
     GdiSelector p(HDC_CAST(m_hdc), pen ? pen->GetHandle() : nullptr);
     GdiSelector b(HDC_CAST(m_hdc), brush ? brush->GetHandle() : nullptr);
 
@@ -241,68 +237,59 @@ Canvas *Canvas::DrawFillRect(const Rect &rect, Pen *pen, Brush *brush) {
     return this;
 }
 
-Canvas *Canvas::DrawRect(const Rect &rect, Pen *pen) {
+inline Canvas *Canvas::DrawRect(const Rect &rect, Pen *pen) {
     GdiSelector p(HDC_CAST(m_hdc), pen ? pen->GetHandle() : nullptr);
     // 使用透明画刷 (NULL_BRUSH)
     GdiSelector b(HDC_CAST(m_hdc), Gdi32::W32_GetStockObject(NULL_BRUSH));
-
     RECT rc = ToWinRect(rect);
     Gdi32::W32_Rectangle(HDC_CAST(m_hdc), rc.left, rc.top, rc.right, rc.bottom);
     return this;
 }
 
-Canvas *Canvas::FillRect(const Rect &rect, Brush *brush) {
+inline Canvas *Canvas::FillRect(const Rect &rect, Brush *brush) {
     RECT rc = ToWinRect(rect);
     User32::W32_FillRect(HDC_CAST(m_hdc), &rc, (HBRUSH) brush->GetHandle());
     return this;
 }
 
-Canvas *Canvas::DrawEllipse(const Rect &rect, Pen *pen) {
+inline Canvas *Canvas::DrawEllipse(const Rect &rect, Pen *pen) {
     GdiSelector p(HDC_CAST(m_hdc), pen ? pen->GetHandle() : nullptr);
-    GdiSelector b(HDC_CAST(m_hdc), Gdi32::W32_GetStockObject(NULL_BRUSH)); // 透明填充
-
+    // 透明填充
+    GdiSelector b(HDC_CAST(m_hdc), Gdi32::W32_GetStockObject(NULL_BRUSH));
     RECT rc = ToWinRect(rect);
     Gdi32::W32_Ellipse(HDC_CAST(m_hdc), rc.left, rc.top, rc.right, rc.bottom);
     return this;
 }
 
-Canvas *Canvas::DrawFillEllipse(const Rect &rect, Pen *pen, Brush *brush) {
+inline Canvas *Canvas::DrawFillEllipse(const Rect &rect, Pen *pen, Brush *brush) {
     GdiSelector p(HDC_CAST(m_hdc), pen ? pen->GetHandle() : nullptr);
     GdiSelector b(HDC_CAST(m_hdc), brush ? brush->GetHandle() : nullptr);
-
     RECT rc = ToWinRect(rect);
     Gdi32::W32_Ellipse(HDC_CAST(m_hdc), rc.left, rc.top, rc.right, rc.bottom);
     return this;
 }
 
-Canvas *Canvas::DrawLine(int x1, int y1, int x2, int y2, Pen *pen) {
+inline Canvas *Canvas::DrawLine(int x1, int y1, int x2, int y2, Pen *pen) {
     GdiSelector p(HDC_CAST(m_hdc), pen ? pen->GetHandle() : nullptr);
-
     Gdi32::W32_MoveTo(HDC_CAST(m_hdc), x1, y1, nullptr);
     Gdi32::W32_LineTo(HDC_CAST(m_hdc), x2, y2);
     return this;
 }
 
-Canvas *Canvas::DrawText(const std::wstring &text, const Rect &rect, unsigned int format, Font *font, Color textColor) {
-    HDC hdc = HDC_CAST(m_hdc);
-
+inline Canvas *Canvas::DrawText(const std::wstring &text, const Rect &rect, unsigned int format, Font *font, Color textColor) {
+    const HDC hdc = HDC_CAST(m_hdc);
     // 1. 选入字体
     GdiSelector f(hdc, font ? font->GetHFONT() : nullptr);
-
     // 2. 设置背景模式 (透明)
     int oldBkMode = Gdi32::W32_SetBkMode(hdc, TRANSPARENT);
-
     // 3. 设置文字颜色
     COLORREF oldColor = Gdi32::W32_SetTextColor(hdc, static_cast<COLORREF>(textColor.Value()));
-
     // 4. 绘制
     RECT rc = ToWinRect(rect);
-    User32::W32_DrawText(hdc, text.c_str(), (int) text.length(), &rc, format);
-
+    User32::W32_DrawText(hdc, text.c_str(), static_cast<int>(text.length()), &rc, format);
     // 5. 恢复状态 (字体由 GdiSelector 自动恢复)
     Gdi32::W32_SetTextColor(hdc, oldColor);
     Gdi32::W32_SetBkMode(hdc, oldBkMode);
-
     return this;
 }
 

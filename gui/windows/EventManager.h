@@ -16,32 +16,27 @@
 #include <functional>
 #include "Event.h"
 
-// 定义回调函数原型
 using EventHandler = std::function<void(const Event&)>;
 
 class EventManager {
-private:
+
     EventHandler m_handler = nullptr;
 
 public:
-    // 绑定回调
     void Bind(EventHandler handler) {
         m_handler = handler;
     }
 
-    // 触发事件
     void Fire(const Event& arg) const {
         if (m_handler) {
             m_handler(arg);
         }
     }
 
-    // 检查是否有绑定
     bool IsBound() const {
         return m_handler != nullptr;
     }
 
-    // 快速清除
     void Clear() {
         m_handler = nullptr;
     }

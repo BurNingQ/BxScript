@@ -58,9 +58,8 @@ protected:
     std::vector<std::function<void()> > m_dispatchq;
 
 public:
-    virtual ~ControlBase();
+    ~ControlBase() override;
 
-    // 实现 Controller 接口
     std::wstring Text() override;
 
     bool Enabled() override;
@@ -338,7 +337,6 @@ uintptr_t ControlBase::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lpa
 
 bool ControlBase::PreTranslateMessage(void *msg) { return false; }
 
-// --- 尺寸处理实现 ---
 void ControlBase::clampSize(int &width, int &height) {
     if (m_minWidth != 0) width = _max(width, m_minWidth);
     if (m_maxWidth != 0) width = _min(width, m_maxWidth);

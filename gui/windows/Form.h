@@ -28,7 +28,6 @@ public:
 };
 
 class Form : public ControlBase {
-private:
     LayoutManager *m_layoutMng = nullptr;
 
     // Fullscreen / Unfullscreen state
@@ -41,7 +40,7 @@ private:
 public:
     Form() = default;
 
-    virtual ~Form() = default;
+    ~Form() override = default;
 
     // Static Factory Methods
     static Form *NewCustom(Controller *parent, int exStyle, unsigned int dwStyle);
@@ -113,14 +112,13 @@ Form *Form::NewCustom(Controller *parent, int exStyle, unsigned int dwStyle) {
         dwStyle = WS_OVERLAPPEDWINDOW;
     }
 
-    // 直接给 m_hwnd 赋值，跳过 InitControl 的默认逻辑以使用自定义类名
     HWND parentHwnd = parent ? (HWND) parent->Handle() : nullptr;
     fm->SetHandle(CreateWindowExW(exStyle, L"BxForm", L"", dwStyle,
                                   CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
                                   parentHwnd, nullptr, (HINSTANCE) App::GetInstance(), nullptr));
     fm->SetParent(parent);
 
-    Icon* ico = Icon::NewIconFromResource(App::GetInstance(), 3);
+    Icon *ico = Icon::NewIconFromResource(App::GetInstance(), 3);
     if (ico) {
         fm->SetIcon(0, ico);
     }
@@ -147,7 +145,7 @@ Form *Form::New(Controller *parent) {
                                   parentHwnd, nullptr, (HINSTANCE) App::GetInstance(), nullptr));
     fm->SetParent(parent);
 
-    Icon* ico = Icon::NewIconFromResource(App::GetInstance(), 1);
+    Icon *ico = Icon::NewIconFromResource(App::GetInstance(), 1);
     if (ico) {
         fm->SetIcon(0, ico);
     }
@@ -173,10 +171,10 @@ Form *Form::UpdateLayout() {
 Menu *Form::NewMenu() {
     HMENU hMenu = CreateMenu();
     if (hMenu == 0) exit(1);
-    Menu* m = new Menu();
+    Menu *m = new Menu();
     m->hMenu = hMenu;
     m->hwnd = m_hwnd;
-    if (!SetMenu((HWND)m_hwnd, hMenu)) {
+    if (!SetMenu((HWND) m_hwnd, hMenu)) {
         exit(1);
     }
     return m;
@@ -261,7 +259,7 @@ void Form::UnFullscreen() {
 void Form::SetIcon(int iconType, Icon *icon) {
     if (iconType > 1) exit(1);
     if (icon) {
-        User32::W32_SendMessage((HWND)m_hwnd, WM_SETICON, (WPARAM)iconType, (LPARAM)icon->Handle());
+        User32::W32_SendMessage((HWND) m_hwnd, WM_SETICON, (WPARAM) iconType, (LPARAM) icon->Handle());
     }
 }
 
@@ -270,6 +268,7 @@ void Form::EnableMinButton(bool b) { SetStyle((HWND) m_hwnd, b, WS_MINIMIZEBOX);
 void Form::EnableSizable(bool b) { SetStyle((HWND) m_hwnd, b, WS_THICKFRAME); }
 void Form::EnableDragMove(bool b) {
     /* fm.isDragMove = b */
+    (void) b;
 }
 
 void Form::EnableTopMost(bool b) {
@@ -279,18 +278,18 @@ void Form::EnableTopMost(bool b) {
 uintptr_t Form::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
     switch (msg) {
         case WM_COMMAND:
-            if (lparam == 0 && HIWORD((uint32_t)wparam) == 0) {
-                uint16_t actionID = (uint16_t)LOWORD((uint32_t)wparam);
+            if (lparam == 0 && HIWORD((uint32_t) wparam) == 0) {
+                uint16_t actionID = (uint16_t) LOWORD((uint32_t) wparam);
                 if (actionsByID.count(actionID)) {
                     actionsByID[actionID]->onClick.Fire(Event(this, nullptr));
                 }
             }
             break;
         case WM_KEYDOWN:
-            Shortcut shortcut = { ModifiersDown(), (Key)wparam };
-            if (((uint32_t)lparam >> 30) == 0) {
+            Shortcut shortcut = {ModifiersDown(), (Key) wparam};
+            if (((uint32_t) lparam >> 30) == 0) {
                 if (shortcut2Action.count(shortcut)) {
-                    MenuItem* action = shortcut2Action[shortcut];
+                    MenuItem *action = shortcut2Action[shortcut];
                     if (action->Enabled()) {
                         action->onClick.Fire(Event(this, nullptr));
                     }

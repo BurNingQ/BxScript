@@ -13,19 +13,14 @@
 #ifndef BXSCRIPT_EVENT_H
 #define BXSCRIPT_EVENT_H
 
-#include <any> // C++17 支持存储任意类型数据
+#include <any>
 #include <utility>
-
-// 前置声明
-class ControlBase;
 
 class Event {
 public:
-    // 事件的发出者 (即控件对象)
+
     ControlBase *Sender;
 
-    // 事件携带的附加数据
-    // 使用 std::any 模拟 Go 的 interface{}，可以存 int, string, 指针或你的 Value 对象
     std::any Data;
 
     explicit Event(ControlBase *sender, std::any data = nullptr)

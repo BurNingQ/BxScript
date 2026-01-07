@@ -20,18 +20,16 @@ class ComboBox : public ControlBase {
 
 public:
     // 事件回调：当用户更改了下拉框的选择时触发
-    EventCallback OnSelectedChange;
+    EventManager OnSelectedChange;
 
     ComboBox() = default;
 
-    virtual ~ComboBox() = default;
+    ~ComboBox() override = default;
 
     /**
      * 工厂方法：创建一个下拉列表样式的组合框。
      */
     static ComboBox *Create(ControlBase *parent, int x = 0, int y = 0, int w = 200, int h = 150);
-
-    // ======================== 项管理 ========================
 
     /**
      * 清空所有项。
@@ -53,8 +51,6 @@ public:
      */
     bool DeleteItem(int index);
 
-    // ======================== 选择管理 ========================
-
     /**
      * 获取当前选中项的索引。
      * @return 成功返回索引(0起)，未选中返回 -1。
@@ -70,8 +66,6 @@ public:
      * 获取项的总数。
      */
     int GetItemCount() const { return m_itemCount; }
-
-    // ======================== 消息处理 ========================
 
     virtual bool ProcessMessage(unsigned int msg, uintptr_t wParam, uintptr_t lParam, uintptr_t &result);
 };
@@ -93,15 +87,14 @@ public:
 ComboBox *ComboBox::Create(ControlBase *parent, int x, int y, int w, int h) {
     ComboBox *cb = new ComboBox();
 
-    // CBS_DROPDOWNLIST: 只读下拉列表
-    // WS_VSCROLL: 允许垂直滚动
     unsigned int style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST;
 
     cb->InitControl(L"COMBOBOX", parent, 0, style);
 
     // 设置初始大小和位置
     cb->SetPos(x, y);
-    cb->SetSize(w, h); // 注意：Win32 ComboBox 的高度包含了下拉列表展开后的高度
+    // 注意：Win32 ComboBox 的高度包含了下拉列表展开后的高度
+    cb->SetSize(w, h);
 
     cb->SetTheme(L"Explorer");
     return cb;
@@ -109,7 +102,6 @@ ComboBox *ComboBox::Create(ControlBase *parent, int x, int y, int w, int h) {
 
 bool ComboBox::DeleteAllItems() {
     m_itemCount = 0;
-    // CB_RESETCONTENT: 移除所有项
     return User32::W32_SendMessage(HWND_CAST(m_hwnd), CB_RESETCONTENT, 0, 0) == TRUE;
 }
 

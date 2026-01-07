@@ -25,7 +25,7 @@ class ImageView : public ControlBase {
 public:
     ImageView() = default;
 
-    virtual ~ImageView() = default;
+    ~ImageView() override = default;
 
     // Static Factory Method
     static ImageView *New(Controller *parent);
@@ -57,25 +57,17 @@ public:
 
 ImageView *ImageView::New(Controller *parent) {
     ImageView *iv = new ImageView();
-
     RegClassOnlyOnce(L"BxScriptImageView");
-
     iv->InitWindow(L"BxScriptImageView", parent, WS_EX_CONTROLPARENT, WS_CHILD | WS_VISIBLE);
-
-    // WindowRegistry::Register 已经在 InitWindow 内部完成
-
     iv->SetFont(DefaultFont);
-
     iv->SetText(L"");
-
     iv->SetSize(0, 0);
-
     return iv;
 }
 
 bool ImageView::DrawImageFile(const std::wstring &filepath) {
     // 注意：RGB(255, 255, 0) 是黄色
-    Bitmap *bmp = Bitmap::FromFile(filepath, Color::RGB(255, 255, 0));
+    Bitmap *bmp = Bitmap::FromFile(filepath, Color::FromRGB(255, 255, 0));
     if (!bmp) {
         return false;
     }
@@ -109,19 +101,15 @@ uintptr_t ImageView::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lpara
             break;
 
         case WM_ERASEBKGND:
-            // 对照 Go: return 1 // important
             return 1;
 
         case WM_PAINT:
             if (m_bmp != nullptr) {
                 Canvas *canvas = Canvas::FromHwnd(m_hwnd);
-
                 if (this->Width() <= 0 || this->Height() <= 0) {
                     this->SetSize(m_bmp->GetWidth(), m_bmp->GetHeight());
                 }
-
                 canvas->DrawBitmap(m_bmp, 0, 0, this->Width(), this->Height());
-
                 delete canvas;
             }
             break;
