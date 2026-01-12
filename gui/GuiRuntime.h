@@ -13,11 +13,23 @@
 #ifndef BXSCRIPT_GUIRUNTIME_H
 #define BXSCRIPT_GUIRUNTIME_H
 
+#include "../evaluator/Value.h"
+#include <vector>
 
 class GuiRuntime {
 public:
-    static void Run();
-};
+    /**
+     * 启动 GUI 应用程序
+     * @param rootValues 脚本中定义的窗口数据对象列表 (通常由 win.form 创建)
+     */
+    static void Run(const std::vector<ValuePtr> &rootValues);
 
+private:
+    /**
+     * 混合消息循环 (Hybrid Message Loop)
+     * 同时处理 Windows UI 消息和 BxScript 异步任务
+     */
+    static void MainLoop();
+};
 
 #endif //BXSCRIPT_GUIRUNTIME_H

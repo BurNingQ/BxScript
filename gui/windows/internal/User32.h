@@ -16,6 +16,8 @@
 #include <windows.h>
 #include <string>
 
+#include "gui/windows/Button.h"
+
 class User32 {
     // 内部动态加载器：专门处理 Win10+ 的 User32 API，保证 Win7 不崩溃
     struct DynamicLoader {
@@ -46,6 +48,10 @@ public:
     // =========================================================================================
     // Group 1: 窗口类与创建 (Window Class & Creation)
     // =========================================================================================
+
+    static BOOL W32_DestroyIcon(HICON hIcon) {
+        return DestroyIcon(hIcon);
+    }
 
     static ATOM W32_RegisterClassEx(CONST WNDCLASSEXW *unnamedParam1) {
         return RegisterClassExW(unnamedParam1);
@@ -133,6 +139,10 @@ public:
 
     static BOOL W32_GetClientRect(HWND hWnd, LPRECT lpRect) {
         return GetClientRect(hWnd, lpRect);
+    }
+
+    static BOOL W32_SetForegroundWindow(HWND hwnd) {
+        return SetForegroundWindow(hwnd);
     }
 
     static BOOL W32_SetWindowText(HWND hWnd, LPCWSTR lpString) {
@@ -385,6 +395,10 @@ public:
     // @note 虽然 Win32 有这些 API，但通常建议直接操作 RECT 结构体。封装出来给脚本用很方便。
     // =========================================================================================
 
+    static int W32_MulDiv(int nNumber, int nNumerator, int nDenominator) {
+        return MulDiv(nNumber, nNumerator, nDenominator);
+    }
+
     static BOOL W32_SetRect(LPRECT lprc, int xLeft, int yTop, int xRight, int yBottom) {
         return SetRect(lprc, xLeft, yTop, xRight, yBottom);
     }
@@ -403,6 +417,30 @@ public:
 
     static int W32_GetSystemMetrics(int nIndex) {
         return GetSystemMetrics(nIndex);
+    }
+
+    static BOOL W32_EqualRect(CONST RECT *lprc1, CONST RECT *lprc2) {
+        return EqualRect(lprc1, lprc2);
+    }
+
+    static BOOL W32_InflateRect(LPRECT lprc, int dx, int dy) {
+        return InflateRect(lprc, dx, dy);
+    }
+
+    static BOOL W32_IntersectRect(LPRECT lprcDst, CONST RECT *lprcSrc1, CONST RECT *lprcSrc2) {
+        return IntersectRect(lprcDst, lprcSrc1, lprcSrc2);
+    }
+
+    static BOOL W32_OffsetRect(LPRECT lprc, int dx, int dy) {
+        return OffsetRect(lprc, dx, dy);
+    }
+
+    static BOOL W32_SubtractRect(LPRECT lprcDst, CONST RECT *lprcSrc1, CONST RECT *lprcSrc2) {
+        return SubtractRect(lprcDst, lprcSrc1, lprcSrc2);
+    }
+
+    static BOOL W32_UnionRect(LPRECT lprcDst, CONST RECT *lprcSrc1, CONST RECT *lprcSrc2) {
+        return UnionRect(lprcDst, lprcSrc1, lprcSrc2);
     }
 };
 

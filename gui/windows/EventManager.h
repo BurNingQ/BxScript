@@ -23,7 +23,7 @@ class EventManager {
     EventHandler m_handler = nullptr;
 
 public:
-    void Bind(EventHandler handler) {
+    void Bind(const EventHandler &handler) {
         m_handler = handler;
     }
 

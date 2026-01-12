@@ -55,19 +55,19 @@ public:
      * 获取当前选中项的索引。
      * @return 成功返回索引(0起)，未选中返回 -1。
      */
-    int SelectedItem();
+    int SelectedItem() const;
 
     /**
      * 设置当前选中项。
      */
-    bool SetSelectedItem(int index);
+    bool SetSelectedItem(int index) const;
 
     /**
      * 获取项的总数。
      */
     int GetItemCount() const { return m_itemCount; }
 
-    virtual bool ProcessMessage(unsigned int msg, uintptr_t wParam, uintptr_t lParam, uintptr_t &result);
+    uintptr_t WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) override ;
 };
 
 #endif // BXSCRIPT_COMBOBOX_H
@@ -79,78 +79,6 @@ public:
 
 #ifdef BXSCRIPT_IMPLEMENTATION
 
-#include <windows.h>
-#include "internal/User32.h"
 
-#define HWND_CAST(ptr) static_cast<HWND>(ptr)
-
-ComboBox *ComboBox::Create(ControlBase *parent, int x, int y, int w, int h) {
-    ComboBox *cb = new ComboBox();
-
-    unsigned int style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_VSCROLL | CBS_DROPDOWNLIST;
-
-    cb->InitControl(L"COMBOBOX", parent, 0, style);
-
-    // 设置初始大小和位置
-    cb->SetPos(x, y);
-    // 注意：Win32 ComboBox 的高度包含了下拉列表展开后的高度
-    cb->SetSize(w, h);
-
-    cb->SetTheme(L"Explorer");
-    return cb;
-}
-
-bool ComboBox::DeleteAllItems() {
-    m_itemCount = 0;
-    return User32::W32_SendMessage(HWND_CAST(m_hwnd), CB_RESETCONTENT, 0, 0) == TRUE;
-}
-
-bool ComboBox::InsertItem(int index, const std::wstring &str) {
-    LRESULT res = User32::W32_SendMessage(HWND_CAST(m_hwnd), CB_INSERTSTRING, (WPARAM) index, (LPARAM) str.c_str());
-    if (res != CB_ERR) {
-        m_itemCount++;
-        return true;
-    }
-    return false;
-}
-
-bool ComboBox::AddItem(const std::wstring &str) {
-    // 传 -1 表示追加到末尾
-    return InsertItem(-1, str);
-}
-
-bool ComboBox::DeleteItem(int index) {
-    LRESULT res = User32::W32_SendMessage(HWND_CAST(m_hwnd), CB_DELETESTRING, (WPARAM) index, 0);
-    if (res != CB_ERR) {
-        m_itemCount--;
-        return true;
-    }
-    return false;
-}
-
-int ComboBox::SelectedItem() {
-    // CB_GETCURSEL: 获取当前选择索引
-    return (int) User32::W32_SendMessage(HWND_CAST(m_hwnd), CB_GETCURSEL, 0, 0);
-}
-
-bool ComboBox::SetSelectedItem(int index) {
-    // CB_SETCURSEL: 设置当前选择
-    LRESULT res = User32::W32_SendMessage(HWND_CAST(m_hwnd), CB_SETCURSEL, (WPARAM) index, 0);
-    return (int) res == index;
-}
-
-bool ComboBox::ProcessMessage(unsigned int msg, uintptr_t wParam, uintptr_t lParam, uintptr_t &result) {
-    if (msg == WM_COMMAND) {
-        // HIWORD(wParam) 是通知码
-        unsigned short code = HIWORD(static_cast<DWORD>(wParam));
-        if (code == CBN_SELCHANGE) {
-            if (OnSelectedChange) {
-                OnSelectedChange();
-            }
-            return true;
-        }
-    }
-    return false;
-}
 
 #endif // BXSCRIPT_IMPLEMENTATION

@@ -19,15 +19,15 @@ class Color {
     uint32_t m_value;
 
 public:
-    // 默认构造 (黑色)
     Color() : m_value(0) {
     }
 
-    // 从原始值构造
     explicit Color(uint32_t value) : m_value(value) {
     }
 
-    // ======================== 工厂方法 ========================
+    static Color White() { return FromRGB(255, 255, 255); }
+    static Color Black() { return FromRGB(0, 0, 0); }
+    static Color Red() { return FromRGB(255, 0, 0); }
 
     /**
      * 从 RGB 分量创建颜色。

@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 #include "Canvas.h"
-#include "ListView.h"
+#include "ListInterfaces.h"
 
 // 原始消息数据
 struct RawMsgData {

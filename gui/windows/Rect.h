@@ -17,7 +17,6 @@
 
 class Rect {
 public:
-
     int32_t Left, Top, Right, Bottom;
 
     Rect() : Left(0), Top(0), Right(0), Bottom(0) {
@@ -53,7 +52,7 @@ public:
 
     bool IsPointIn(int x, int y);
 
-    void Substract(Rect *src);
+    void SubsTract(Rect *src);
 
     void Union(Rect *src);
 };
@@ -65,78 +64,79 @@ public:
 // ============================================================================
 
 #ifdef BXSCRIPT_IMPLEMENTATION
+#ifndef BXSCRIPT_RECT_IMPL
+#define BXSCRIPT_RECT_IMPL
 
 #include <windows.h>
 #include "internal/User32.h"
 
-Rect *Rect::NewEmptyRect() {
-    Rect *newRect = new Rect();
+inline Rect *Rect::NewEmptyRect() {
+    auto newRect = new Rect();
     User32::W32_SetRect((LPRECT) newRect, 0, 0, 0, 0);
     return newRect;
 }
 
-Rect *Rect::NewRect(int left, int top, int right, int bottom) {
-    Rect *newRect = new Rect();
+inline Rect *Rect::NewRect(int left, int top, int right, int bottom) {
+    auto newRect = new Rect();
     newRect->Set(left, top, right, bottom);
     return newRect;
 }
 
-void Rect::Data(int32_t &left, int32_t &top, int32_t &right, int32_t &bottom) {
+inline void Rect::Data(int32_t &left, int32_t &top, int32_t &right, int32_t &bottom) {
     left = Left;
     top = Top;
     right = Right;
     bottom = Bottom;
 }
 
-int Rect::Width() const {
-    return (int) (Right - Left);
+inline int Rect::Width() const {
+    return Right - Left;
 }
 
-int Rect::Height() const {
-    return (int) (Bottom - Top);
+inline int Rect::Height() const {
+    return Bottom - Top;
 }
 
-void *Rect::GetW32Rect() {
+inline void *Rect::GetW32Rect() {
     return static_cast<void *>(this);
 }
 
-void Rect::Set(int left, int top, int right, int bottom) {
-    User32::W32_SetRect((LPRECT) this, left, top, right, bottom);
+inline void Rect::Set(int left, int top, int right, int bottom) {
+    User32::W32_SetRect(reinterpret_cast<LPRECT>(this), left, top, right, bottom);
 }
 
-bool Rect::IsEqual(Rect *rect) {
-    return User32::W32_EqualRect((LPRECT) this, (LPRECT) rect) != 0;
+inline bool Rect::IsEqual(Rect *rect) {
+    return User32::W32_EqualRect(reinterpret_cast<LPRECT>(this), reinterpret_cast<LPRECT>(rect)) != 0;
 }
 
-void Rect::Inflate(int x, int y) {
-    // 调用 User32 里的 InflateRect
-    ::InflateRect((LPRECT) this, x, y);
+inline void Rect::Inflate(int x, int y) {
+    ::InflateRect(reinterpret_cast<LPRECT>(this), x, y);
 }
 
-void Rect::Intersect(Rect *src) {
-    User32::W32_IntersectRect((LPRECT) this, (LPRECT) this, (LPRECT) src);
+inline void Rect::Intersect(Rect *src) {
+    User32::W32_IntersectRect(reinterpret_cast<LPRECT>(this), reinterpret_cast<LPRECT>(this), reinterpret_cast<LPRECT>(src));
 }
 
-bool Rect::IsEmpty() {
-    return User32::W32_IsRectEmpty((LPRECT) this) != 0;
+inline bool Rect::IsEmpty() {
+    return User32::W32_IsRectEmpty(reinterpret_cast<LPRECT>(this)) != 0;
 }
 
-void Rect::Offset(int x, int y) {
-    ::OffsetRect((LPRECT) this, x, y);
+inline void Rect::Offset(int x, int y) {
+    ::OffsetRect(reinterpret_cast<LPRECT>(this), x, y);
 }
 
-bool Rect::IsPointIn(int x, int y) {
-    POINT pt = {(LONG) x, (LONG) y};
-    return User32::W32_PtInRect((LPRECT) this, pt) != 0;
+inline bool Rect::IsPointIn(int x, int y) {
+    POINT pt = {static_cast<LONG>(x), static_cast<LONG>(y)};
+    return User32::W32_PtInRect(reinterpret_cast<LPRECT>(this), pt) != 0;
 }
 
-void Rect::Substract(Rect *src) {
-    ::SubtractRect((LPRECT) this, (LPRECT) this, (LPRECT) src);
+inline void Rect::SubsTract(Rect *src) {
+    User32::W32_SubtractRect(reinterpret_cast<LPRECT>(this), reinterpret_cast<const RECT *>(this), reinterpret_cast<const RECT *>(src));
 }
 
-void Rect::Union(Rect *src) {
-    // 调用 User32 里的 UnionRect 封装（如果之前没写，直接调用系统API）
-    ::UnionRect((LPRECT) this, (LPRECT) this, (LPRECT) src);
+inline void Rect::Union(Rect *src) {
+    User32::W32_UnionRect(reinterpret_cast<LPRECT>(this), reinterpret_cast<const RECT *>(this), reinterpret_cast<const RECT *>(src));
 }
 
+#endif // BXSCRIPT_RECT_IMPL
 #endif // BXSCRIPT_IMPLEMENTATION

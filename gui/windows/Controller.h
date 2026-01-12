@@ -15,12 +15,12 @@
 
 #include <string>
 #include <functional>
-#include <cstdint>
+
+#include "Font.h"
 
 class ControlBase;
 class Rect;
 class MenuItem;
-class Font;
 class EventManager;
 
 class Controller {

@@ -16,10 +16,10 @@
 #include <string>
 #include <cstdint>
 
-const uint8_t FontBold = 0x01;
-const uint8_t FontItalic = 0x02;
-const uint8_t FontUnderline = 0x04;
-const uint8_t FontStrikeOut = 0x08;
+constexpr uint8_t FontBold = 0x01;
+constexpr uint8_t FontItalic = 0x02;
+constexpr uint8_t FontUnderline = 0x04;
+constexpr uint8_t FontStrikeOut = 0x08;
 
 class Font {
     // w32.HFONT
@@ -48,65 +48,5 @@ public:
 private:
     void *createForDPI(int dpi) const;
 };
-
-#endif
-
-#ifdef BXSCRIPT_IMPLEMENTATION
-
-#include <windows.h>
-#include "internal/Gdi32.h"
-#include "internal/User32.h"
-
-inline Font::Font(const std::wstring &family, int pointSize, uint8_t style)
-    : m_family(family), m_pointSize(pointSize), m_style(style) {
-    if (style > (FontBold | FontItalic | FontUnderline | FontStrikeOut)) {
-        exit(1);
-    }
-
-    HDC hDC = User32::W32_GetDC(nullptr);
-    int screenDPIY = Gdi32::W32_GetDeviceCaps(hDC, LOGPIXELSY);
-    User32::W32_ReleaseDC(nullptr, hDC);
-
-    m_hfont = createForDPI(screenDPIY);
-    if (!m_hfont) {
-        exit(1);
-    }
-}
-
-inline Font::~Font() {
-    Dispose();
-}
-
-inline void *Font::createForDPI(int dpi) const {
-    LOGFONTW lf = {0};
-
-    lf.lfHeight = -MulDiv(m_pointSize, dpi, 72);
-    if (m_style & FontBold) {
-        lf.lfWeight = FW_BOLD;
-    } else {
-        lf.lfWeight = FW_NORMAL;
-    }
-
-    if (m_style & FontItalic) lf.lfItalic = 1;
-    if (m_style & FontUnderline) lf.lfUnderline = 1;
-    if (m_style & FontStrikeOut) lf.lfStrikeOut = 1;
-
-    lf.lfCharSet = DEFAULT_CHARSET;
-    lf.lfOutPrecision = OUT_TT_PRECIS;
-    lf.lfClipPrecision = CLIP_DEFAULT_PRECIS;
-    lf.lfQuality = CLEARTYPE_QUALITY;
-    lf.lfPitchAndFamily = VARIABLE_PITCH | FF_SWISS;
-
-    wcsncpy(lf.lfFaceName, m_family.c_str(), LF_FACESIZE);
-
-    return Gdi32::W32_CreateFontIndirect(lf);
-}
-
-inline void Font::Dispose() {
-    if (m_hfont) {
-        Gdi32::W32_DeleteObject(static_cast<HGDIOBJ>(m_hfont));
-        m_hfont = nullptr;
-    }
-}
 
 #endif

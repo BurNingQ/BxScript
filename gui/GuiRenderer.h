@@ -14,8 +14,6 @@
 #define BXSCRIPT_GUIRENDERER_H
 #include <vector>
 
-#define BXSCRIPT_IMPLEMENTATION
-
 #include "windows/ControlBase.h"
 #include "common/StringKit.h"
 #include "evaluator/EventLoop.h"
@@ -23,9 +21,15 @@
 #include "evaluator/Value.h"
 #include "windows/App.h"
 #include "windows/Button.h"
+#include "windows/ComboBox.h"
 #include "windows/Form.h"
+#include "windows/ImageView.h"
 #include "windows/Input.h"
 #include "windows/Label.h"
+#include "windows/ListView.h"
+#include "windows/Panel.h"
+#include "windows/ProgressBar.h"
+#include "windows/Slider.h"
 
 class GuiRenderer {
 public:
@@ -49,15 +53,6 @@ public:
         }
     }
 
-    static void MainLoop() {
-        while (App::PollEvents()) {
-            bool hasScriptWork = EventLoop::Dispatch(5);
-            if (!hasScriptWork) {
-                App::WaitEvents(10);
-            }
-        }
-    }
-
 private:
     static ControlBase *BuildRecursive(const ValuePtr &node, ControlBase *parent) {
         if (node->type != ValueType::OBJECT) return nullptr;
@@ -72,16 +67,30 @@ private:
         if (type == "form") {
             ctrl = Form::New(nullptr);
         } else if (type == "button") {
-            ctrl = (ControlBase*)PushButton::Create(parent);
+            ctrl = static_cast<ControlBase *>(PushButton::Create(parent));
         } else if (type == "label") {
             ctrl = Label::Create(parent);
         } else if (type == "input") {
             ctrl = Edit::Create(parent);
         } else if (type == "group") {
-            ctrl = (ControlBase*)GroupBox::Create(parent);
-        }
-        // ... 其他控件 ...
-
+            ctrl = static_cast<ControlBase *>(GroupBox::Create(parent));
+        } else if (type == "checkbox") {
+            ctrl = static_cast<ControlBase *>(CheckBox::Create(parent));
+        } else if (type == "radio") {
+            ctrl = static_cast<ControlBase *>(RadioButton::Create(parent));
+        } else if (type == "multiline") {
+            ctrl = static_cast<ControlBase *>(MultiEdit::Create(parent));
+        } else if (type == "panel") {
+            ctrl = static_cast<ControlBase *>(Panel::New(parent));
+        } else if (type == "slider") {
+            ctrl = static_cast<ControlBase *>(Slider::New(parent));
+        } else if (type == "progress") {
+            ctrl = static_cast<ControlBase *>(ProgressBar::New(parent));
+        } else if (type == "image") {
+            ctrl = static_cast<ControlBase *>(ImageView::New(parent));
+        } else if (type == "list") {
+            ctrl = static_cast<ControlBase *>(ListView::NewListView(parent));
+        } else if (type == "select") ctrl = static_cast<ControlBase *>(ComboBox::Create(parent));
         if (!ctrl) return nullptr;
 
         // 4. 注册 ID 映射
@@ -95,7 +104,7 @@ private:
         // 6. 递归处理子节点
         auto childrenVal = obj->Get("children");
         if (childrenVal->type == ValueType::ARRAY) {
-            auto arr = std::static_pointer_cast<ArrayValue>(childrenVal);
+            const auto arr = std::static_pointer_cast<ArrayValue>(childrenVal);
             for (const auto &childNode: arr->Elements) {
                 BuildRecursive(childNode, ctrl); // 递归
             }
@@ -105,12 +114,15 @@ private:
     }
 
     static void ApplyProperties(ControlBase *ctrl, const std::shared_ptr<ObjectValue> &obj) {
-        // --- 基础属性 ---
-        if (auto v = obj->Get("text"); v->type == ValueType::STRING) {
+        // --- 基础属性 (Text)
+        if (const auto v = obj->Get("text"); v->type == ValueType::STRING) {
             ctrl->SetText(StringKit::U8ToU16(v->ToString()));
         }
+
+        // --- 几何属性 (X, Y, W, H)
         int x = 0, y = 0, w = 0, h = 0;
         bool hasPos = false, hasSize = false;
+
         if (const auto v = obj->Get("x"); v->type == ValueType::NUMBER) {
             x = static_cast<int>(std::static_pointer_cast<NumberValue>(v)->Value);
             hasPos = true;
@@ -127,8 +139,19 @@ private:
             h = static_cast<int>(std::static_pointer_cast<NumberValue>(v)->Value);
             hasSize = true;
         }
+
         if (hasPos) ctrl->SetPos(x, y);
         if (hasSize) ctrl->SetSize(w, h);
+
+        // --- 样式属性 (Visible, Disable)
+        if (auto v = obj->Get("visible"); v->type == ValueType::BOOL) {
+            if (!std::static_pointer_cast<BoolValue>(v)->Value) ctrl->Hide();
+        }
+        if (auto v = obj->Get("disable"); v->type == ValueType::BOOL) {
+            if (std::static_pointer_cast<BoolValue>(v)->Value) ctrl->SetEnabled(false);
+        }
+
+        // --- 事件绑定
         auto onClick = obj->Get("onClick");
         if (onClick->type == ValueType::FUNCTION) {
             if (const auto btn = dynamic_cast<Button *>(ctrl)) {
@@ -136,6 +159,7 @@ private:
                     Interpreter::CallFunction(onClick, {});
                 });
             }
+            // Label 模拟点击
             else if (const auto lbl = dynamic_cast<Label *>(ctrl)) {
                 lbl->OnClick().Bind([onClick](const Event &e) {
                     Interpreter::CallFunction(onClick, {});
@@ -143,8 +167,51 @@ private:
             }
         }
 
-        // 绑定 onChange (Input)
-        // ...
+        auto onChange = obj->Get("onChange");
+        if (onChange->type == ValueType::FUNCTION) {
+            if (const auto edit = dynamic_cast<Edit *>(ctrl)) {
+                edit->OnChange().Bind([onChange](const Event &e) {
+                    Interpreter::CallFunction(onChange, {});
+                });
+            } else if (const auto mEdit = dynamic_cast<MultiEdit *>(ctrl)) {
+                mEdit->OnChange().Bind([onChange](const Event &e) {
+                    Interpreter::CallFunction(onChange, {});
+                });
+            } else if (const auto slider = dynamic_cast<Slider *>(ctrl)) {
+                slider->OnScroll().Bind([onChange](const Event &e) {
+                    Interpreter::CallFunction(onChange, {});
+                });
+            }
+        }
+
+        // --- 控件特有属性处理
+        // 图片源 (src)
+        if (const auto img = dynamic_cast<ImageView *>(ctrl)) {
+            if (const auto v = obj->Get("src"); v->type == ValueType::STRING) {
+                std::string src = v->ToString();
+                // 简单判断是网络图片还是本地图片
+                if (src.rfind("http", 0) == 0) {
+                    img->DrawImageUrl(StringKit::U8ToU16(src));
+                } else {
+                    img->DrawImageFile(StringKit::U8ToU16(src));
+                }
+            }
+        }
+
+        // 进度条/滑块 (min, max, value)
+        if (const auto v = obj->Get("value"); v->type == ValueType::NUMBER) {
+            const int val = static_cast<int>(std::static_pointer_cast<NumberValue>(v)->Value);
+            if (const auto slider = dynamic_cast<Slider *>(ctrl)) slider->SetValue(val);
+            else if (const auto pbar = dynamic_cast<ProgressBar *>(ctrl)) pbar->SetValue(val);
+        }
+
+        // 复选框/单选框 (checked)
+        if (const auto v = obj->Get("checked"); v->type == ValueType::BOOL) {
+            const bool checked = std::static_pointer_cast<BoolValue>(v)->Value;
+            if (const auto btn = dynamic_cast<Button *>(ctrl)) {
+                btn->SetChecked(checked);
+            }
+        }
     }
 };
 

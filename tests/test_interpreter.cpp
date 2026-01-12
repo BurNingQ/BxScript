@@ -52,11 +52,6 @@ protected:
     ValuePtr Eval(const std::string &code) {
         RestTest();
         auto res = Interpreter::Run(code, globalEnv);
-        if (!GuiModule::GlobalForms.empty()) {
-            GuiRuntime::Run();
-        } else {
-            EventLoop::RunLoop();
-        }
         return res;
     }
 
@@ -1046,6 +1041,7 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
                 IO.println("event came from button click");
             })
         ]);
+        win.loop();
     )";
     Eval(code);
     ASSERT_EQ(GuiModule::GlobalForms.size(), 1);

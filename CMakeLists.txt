@@ -172,6 +172,30 @@ set(SOURCE_FILES
         common/ColorKit.h
         libs/stb_image.h
         common/TextureKit.h
+        gui/windows/ListInterfaces.h
+        gui/windows/App.cpp
+        gui/windows/GlobalVars.cpp
+        gui/windows/Bitmap.cpp
+        gui/windows/Brush.cpp
+        gui/windows/Button.cpp
+        gui/windows/Canvas.cpp
+        gui/windows/ComboBox.cpp
+        gui/windows/CommonDlgs.cpp
+        gui/windows/ControlBase.cpp
+        gui/windows/Font.cpp
+        gui/windows/Form.cpp
+        gui/windows/Icon.cpp
+        gui/windows/ImageView.cpp
+        gui/windows/Input.cpp
+        gui/windows/Keyboard.cpp
+        gui/windows/Label.cpp
+        gui/windows/ListView.cpp
+        gui/windows/Menu.cpp
+        gui/windows/MouseControl.cpp
+        gui/windows/Panel.cpp
+        gui/windows/Path.cpp
+        gui/windows/Pen.cpp
+        gui/windows/ProgressBar.cpp
 )
 
 # ==========================================

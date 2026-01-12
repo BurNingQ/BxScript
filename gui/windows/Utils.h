@@ -25,11 +25,11 @@ void SetStyle(void *hwnd, bool b, int style);
 
 void SetExStyle(void *hwnd, bool b, int style);
 
-void *CreateWindow(const std::wstring &className, Controller *parent, unsigned int exStyle, unsigned int style);
+void *CreateWindowX(const std::wstring &className, Controller *parent, unsigned int exStyle, unsigned int style);
 
-void RegisterClass(const std::wstring &className, uintptr_t wndproc);
+void RegisterClassX(const std::wstring &className, uintptr_t wndproc);
 
-uint32_t RegisterWindowMessage(const std::wstring &name);
+uint32_t RegisterWindowMessageX(const std::wstring &name);
 
 // Internal info helpers
 void *getMonitorInfo(void *hwnd); // Returns MONITORINFO* as void*
@@ -54,17 +54,17 @@ int ScaleToDefaultDPI(int pixels, unsigned int dpi);
 #include "internal/User32.h"
 #include "internal/ComCtl32.h"
 
-void internalTrackMouseEvent(void *hwnd) {
+inline void internalTrackMouseEvent(void *hwnd) {
     TRACKMOUSEEVENT tme;
     tme.cbSize = sizeof(tme);
     tme.dwFlags = TME_LEAVE;
-    tme.hwndTrack = (HWND) hwnd;
+    tme.hwndTrack = static_cast<HWND>(hwnd);
     tme.dwHoverTime = HOVER_DEFAULT;
 
-    Comctl32::InitTrackMouseEvent(&tme);
+    ComCtl32::InitTrackMouseEvent(&tme);
 }
 
-void SetStyle(void *hwnd, bool b, int style) {
+inline void SetStyle(void *hwnd, bool b, int style) {
     LONG_PTR originalStyle = User32::W32_GetWindowLongPtr((HWND) hwnd, GWL_STYLE);
     if (originalStyle != 0) {
         if (b) {
@@ -76,7 +76,7 @@ void SetStyle(void *hwnd, bool b, int style) {
     }
 }
 
-void SetExStyle(void *hwnd, bool b, int style) {
+inline void SetExStyle(void *hwnd, bool b, int style) {
     LONG_PTR originalStyle = User32::W32_GetWindowLongPtr((HWND) hwnd, GWL_EXSTYLE);
     if (originalStyle != 0) {
         if (b) {
@@ -88,7 +88,7 @@ void SetExStyle(void *hwnd, bool b, int style) {
     }
 }
 
-void *CreateWindow(const std::wstring &className, Controller *parent, unsigned int exStyle, unsigned int style) {
+inline void *CreateWindowX(const std::wstring &className, Controller *parent, unsigned int exStyle, unsigned int style) {
     void *instance = gAppInstance;
     HWND parentHwnd = nullptr;
     if (parent != nullptr) {
@@ -116,9 +116,9 @@ void *CreateWindow(const std::wstring &className, Controller *parent, unsigned i
     return (void *) hwnd;
 }
 
-void RegisterClass(const std::wstring &className, uintptr_t wndproc) {
-    HINSTANCE instance = (HINSTANCE) gAppInstance;
-    HICON icon = LoadIconW(instance, MAKEINTRESOURCEW(3));
+inline void RegisterClassX(const std::wstring &className, uintptr_t wndproc) {
+    const auto instance = (HINSTANCE) gAppInstance;
+    const HICON icon = LoadIconW(instance, MAKEINTRESOURCEW(3));
 
     WNDCLASSEXW wc = {0};
     wc.cbSize = sizeof(wc);
@@ -136,30 +136,30 @@ void RegisterClass(const std::wstring &className, uintptr_t wndproc) {
     }
 }
 
-uint32_t RegisterWindowMessage(const std::wstring &name) {
+inline uint32_t RegisterWindowMessageX(const std::wstring &name) {
     UINT ret = ::RegisterWindowMessageW(name.c_str());
     if (ret == 0) {
         exit(1); // Equivalent to panic
     }
-    return (uint32_t) ret;
+    return ret;
 }
 
-void *getMonitorInfo(void *hwnd) {
+inline void *getMonitorInfo(void *hwnd) {
     HMONITOR currentMonitor = MonitorFromWindow((HWND) hwnd, MONITOR_DEFAULTTONEAREST);
-    MONITORINFO *info = new MONITORINFO();
+    auto *info = new MONITORINFO();
     info->cbSize = sizeof(MONITORINFO);
     GetMonitorInfoW(currentMonitor, info);
     return (void *) info;
 }
 
 void *getWindowInfo(void *hwnd) {
-    WINDOWINFO *info = new WINDOWINFO();
+    auto *info = new WINDOWINFO();
     info->cbSize = sizeof(WINDOWINFO);
     GetWindowInfo((HWND) hwnd, info);
     return (void *) info;
 }
 
-void RegClassOnlyOnce(const std::wstring &className) {
+inline void RegClassOnlyOnce(const std::wstring &className) {
     bool isExists = false;
     for (const auto &cls: gRegisteredClasses) {
         if (cls == className) {
@@ -169,28 +169,28 @@ void RegClassOnlyOnce(const std::wstring &className) {
     }
 
     if (!isExists) {
-        RegisterClass(className, (uintptr_t) GeneralWndProcCallBack);
+        RegisterClassX(className, reinterpret_cast<uintptr_t>(GeneralWndProcCallBack));
         gRegisteredClasses.push_back(className);
     }
 }
 
-Rect *ScreenToClientRect(void *hwnd, void *rectPtr) {
-    RECT *rect = (RECT *) rectPtr;
+inline Rect *ScreenToClientRect(void *hwnd, void *rectPtr) {
+    const auto rect = static_cast<RECT *>(rectPtr);
     POINT p1 = {rect->left, rect->top};
     POINT p2 = {rect->right, rect->bottom};
 
-    ::ScreenToClient((HWND) hwnd, &p1);
-    ::ScreenToClient((HWND) hwnd, &p2);
+    ::ScreenToClient(static_cast<HWND>(hwnd), &p1);
+    ::ScreenToClient(static_cast<HWND>(hwnd), &p2);
 
     return Rect::NewRect(p1.x, p1.y, p2.x, p2.y);
 }
 
-int ScaleWithDPI(int pixels, unsigned int dpi) {
-    return (pixels * (int) dpi) / 96;
+inline int ScaleWithDPI(int pixels, unsigned int dpi) {
+    return (pixels * static_cast<int>(dpi)) / 96;
 }
 
-int ScaleToDefaultDPI(int pixels, unsigned int dpi) {
-    return (pixels * 96) / (int) dpi;
+inline int ScaleToDefaultDPI(int pixels, unsigned int dpi) {
+    return (pixels * 96) / static_cast<int>(dpi);
 }
 
 #endif

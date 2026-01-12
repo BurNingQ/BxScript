@@ -15,6 +15,7 @@
 
 #include "../evaluator/Value.h"
 #include "common/ColorKit.h"
+#include "gui/GuiRuntime.h"
 
 class GuiModule {
     static ValuePtr CreateWidget(const std::shared_ptr<ObjectValue> &winObj, const std::string &type, const std::vector<ValuePtr> &args) {
@@ -375,7 +376,7 @@ class GuiModule {
 
     static void InitControls(std::shared_ptr<ObjectValue> &o) {
         auto makeFactory = [o](const std::string &type) {
-            std::weak_ptr<ObjectValue> weak_o = o;
+            std::weak_ptr weak_o = o;
             return std::make_shared<NativeFunctionValue>(
                 [weak_o, type](const std::vector<ValuePtr> &args) -> ValuePtr {
                     const auto self = weak_o.lock();
@@ -387,11 +388,16 @@ class GuiModule {
         o->Set("label", makeFactory("label"));
         o->Set("input", makeFactory("input"));
         o->Set("password", makeFactory("password"));
-        o->Set("group", makeFactory("group"));
+        o->Set("multiline", makeFactory("multiline"));
         o->Set("checkbox", makeFactory("checkbox"));
+        o->Set("radio", makeFactory("radio"));
+        o->Set("select", makeFactory("select"));
         o->Set("slider", makeFactory("slider"));
         o->Set("progress", makeFactory("progress"));
         o->Set("image", makeFactory("image"));
+        o->Set("list", makeFactory("list"));
+        o->Set("group", makeFactory("group"));
+        o->Set("panel", makeFactory("panel"));
     }
 
 public:
@@ -400,6 +406,13 @@ public:
         win->Set("refs", std::make_shared<ObjectValue>());
         InitForm(win);
         InitControls(win);
+        win->Set("loop", std::make_shared<NativeFunctionValue>(
+           [](const std::vector<ValuePtr> &args) -> ValuePtr {
+               GuiRuntime::Run(GlobalForms);
+               GlobalForms.clear();
+               return std::make_shared<NullValue>();
+           }
+       ));
         return win;
     }
 
