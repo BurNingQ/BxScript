@@ -25,7 +25,7 @@ public:
         INT,
         STRING,
         SYMBOL,
-        FILE_END,
+        END_OF_FILE,
         LINE_END,
         NONE,
     };
@@ -47,7 +47,7 @@ public:
                 return "STRING";
             case SYMBOL:
                 return "SYMBOL";
-            case FILE_END:
+            case END_OF_FILE:
                 return "EOF";
             case LINE_END:
                 return "EOL";

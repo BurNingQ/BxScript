@@ -95,7 +95,12 @@ std::wstring CommonDlgs::ShowBrowseFolderDlg(ControlBase *parent, const std::wst
 }
 
 int CommonDlgs::MsgBox(ControlBase *parent, const std::wstring &text, const std::wstring &title, unsigned int flags) {
-    HWND hwnd = parent ? static_cast<HWND>(parent->Handle()) : nullptr;
+    HWND hwnd = nullptr;
+    if (parent) {
+        hwnd = static_cast<HWND>(parent->Handle());
+    } else {
+        hwnd = ::GetActiveWindow();
+    }
     return User32::W32_MessageBox(hwnd, text.c_str(), title.c_str(), flags);
 }
 

@@ -18,8 +18,8 @@
 #include "GlobalVars.h"
 #include "WindowRegistry.h"
 
-inline static Pen *errorPanelPen = nullptr;
-inline static Pen *errorPanelOkPen = nullptr;
+static Pen *errorPanelPen = nullptr;
+static Pen *errorPanelOkPen = nullptr;
 
 void InitPens() {
     if (!errorPanelPen) {

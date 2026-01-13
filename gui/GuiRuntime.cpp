@@ -10,21 +10,16 @@
  *
  * @brief    GuiRuntime
  */
-#define BXSCRIPT_IMPLEMENTATION
 #include "GuiRuntime.h"
-
 #include "GuiRenderer.h"
 #include "windows/App.h"
 
 void GuiRuntime::Run(const std::vector<ValuePtr> &rootValues) {
     if (rootValues.empty()) return;
-
     App::Init();
-
     for (const auto &val: rootValues) {
         GuiRenderer::Render(val);
     }
-
     MainLoop();
 }
 
@@ -33,9 +28,7 @@ void GuiRuntime::MainLoop() {
         if (!App::PollEvents()) {
             break;
         }
-
         bool hasScriptWork = EventLoop::Dispatch(10);
-
         if (!hasScriptWork) {
             App::WaitEvents(15);
         }

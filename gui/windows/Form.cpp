@@ -167,7 +167,7 @@ void Form::UnFullscreen() {
     SetWindowPos(static_cast<HWND>(m_hwnd), nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
 }
 
-void Form::SetIcon(int iconType, Icon *icon) const {
+void Form::SetIcon(int iconType, const Icon *icon) const {
     if (iconType > 1) exit(1);
     if (icon) {
         User32::W32_SendMessage(static_cast<HWND>(m_hwnd), WM_SETICON, static_cast<WPARAM>(iconType), reinterpret_cast<LPARAM>(icon->Handle()));
@@ -210,9 +210,9 @@ uintptr_t Form::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
         }
         break;
         case WM_CLOSE:
-            return 0;
+            break;
         case WM_DESTROY:
-            PostQuitMessage(0);
+            App::Exit(0);
             return 0;
         case WM_SIZE:
         case WM_PAINT:

@@ -12,10 +12,8 @@
  */
 
 #include <windows.h>
-
 // 引入底层封装
 #include "App.h"
-
 #include "internal/Kernel32.h"
 #include "internal/User32.h"
 #include "internal/ComCtl32.h"
@@ -31,41 +29,38 @@
 #define HINSTANCE_CAST(ptr) static_cast<HINSTANCE>(ptr)
 #define MSG_CAST(ptr) static_cast<MSG*>(ptr)
 
-inline void App::Init() {
-    HINSTANCE hInst = Kernel32::W32_GetModuleHandle(nullptr);
-    if (!hInst) {
-        MessageBoxW(nullptr, L"Failed to get application instance.", L"Error", MB_ICONERROR);
-        exit(1);
-    }
-    gAppInstance = Kernel32::W32_GetModuleHandle(nullptr);
-
-    Ole32::W32_CoInitializeEx(COINIT_APARTMENTTHREADED);
-
+void App::Init() {
     if (ShCore::IsAvailable()) {
         ShCore::W32_SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+    } else {
+        SetProcessDPIAware();
     }
-
+    HINSTANCE hInst = Kernel32::W32_GetModuleHandle(nullptr);
+    if (!hInst) {
+        MessageBoxW(nullptr, L"获取实例失败", L"BxScript", MB_ICONERROR);
+        exit(1);
+    }
+    G_AppInstance = Kernel32::W32_GetModuleHandle(nullptr);
+    Ole32::W32_CoInitializeEx(COINIT_APARTMENTTHREADED);
     INITCOMMONCONTROLSEX icex = {0};
     icex.dwSize = sizeof(INITCOMMONCONTROLSEX);
     icex.dwICC = ICC_WIN95_CLASSES | ICC_LISTVIEW_CLASSES | ICC_TREEVIEW_CLASSES |
                  ICC_PROGRESS_CLASS | ICC_TAB_CLASSES | ICC_BAR_CLASSES |
                  ICC_USEREX_CLASSES | ICC_STANDARD_CLASSES;
     ComCtl32::InitCommonControls(&icex);
-
     ULONG_PTR token;
     GdiPlus::W32_GdiplusStartup(&token);
     g_gdiplusToken = token;
-
     if (DefaultFont == nullptr) {
         DefaultFont = new Font(L"MS Shell Dlg 2", 8, static_cast<uint8_t>(0));
     }
 }
 
-inline void *App::GetInstance() {
-    return gAppInstance;
+void *App::GetInstance() {
+    return G_AppInstance;
 }
 
-inline void App::Shutdown() {
+void App::Shutdown() {
     if (g_gdiplusToken != 0) {
         GdiPlus::W32_GdiplusShutdown(g_gdiplusToken);
         g_gdiplusToken = 0;
@@ -73,12 +68,12 @@ inline void App::Shutdown() {
     Ole32::W32_CoUninitialize();
 }
 
-inline void App::Exit(int exitCode) {
+void App::Exit(int exitCode) {
     User32::W32_PostQuitMessage(exitCode);
 }
 
-inline bool App::PollEvents() {
-    MSG msg = {0};
+bool App::PollEvents() {
+    MSG msg = {nullptr};
     while (User32::W32_PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
         if (msg.message == WM_QUIT) {
             return false;
@@ -91,12 +86,12 @@ inline bool App::PollEvents() {
     return true;
 }
 
-inline void App::WaitEvents(int timeoutMs) {
+void App::WaitEvents(int timeoutMs) {
     MsgWaitForMultipleObjectsEx(0, nullptr, timeoutMs, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
 }
 
-inline int App::Run() {
-    MSG msg = {0};
+int App::Run() {
+    MSG msg = {nullptr};
     if (DefaultFont) {
         delete DefaultFont;
         DefaultFont = nullptr;
@@ -105,7 +100,7 @@ inline int App::Run() {
     return static_cast<int>(msg.wParam);
 }
 
-inline bool App::PreTranslateMessage(void *msgVoid) {
+bool App::PreTranslateMessage(void *msgVoid) {
     const auto msg = MSG_CAST(msgVoid);
     if (!msg->hwnd) return false;
 
@@ -120,14 +115,14 @@ inline bool App::PreTranslateMessage(void *msgVoid) {
     bool processed = false;
 
     if ((msg->message >= WM_KEYFIRST && msg->message <= WM_KEYLAST) || (msg->message >= WM_MOUSEFIRST && msg->message <= WM_MOUSELAST)) {
-        if (msg->message == WM_KEYDOWN && ctrl->OnKeyDown) {
+        if (msg->message == WM_KEYDOWN && ctrl->OnKeyDown().IsBound()) {
             KeyEventData keyData{};
             keyData.VKey = static_cast<int>(msg->wParam);
             keyData.ScanCode = static_cast<int>((msg->lParam >> 16) & 0xFF);
-            ctrl->OnKeyDown.Fire(Event(ctrl, keyData));
+            ctrl->OnKeyDown().Fire(Event(ctrl, keyData));
         }
 
-        for (ControlBase *p = ctrl; p != nullptr; p = p->GetParent()) {
+        for (ControlBase *p = ctrl; p != nullptr; p = dynamic_cast<ControlBase*>(p->Parent())) {
             if (p->PreTranslateMessage(msg)) {
                 processed = true;
                 break;

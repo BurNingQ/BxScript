@@ -15,7 +15,9 @@
 
 #include "../evaluator/Value.h"
 #include "common/ColorKit.h"
+#include "common/StringKit.h"
 #include "gui/GuiRuntime.h"
+#include "gui/windows/CommonDlgs.h"
 
 class GuiModule {
     static ValuePtr CreateWidget(const std::shared_ptr<ObjectValue> &winObj, const std::string &type, const std::vector<ValuePtr> &args) {
@@ -25,7 +27,11 @@ class GuiModule {
         const std::string id = args[0]->ToString();
         widget->Set("id", args[0]);
         InjectLayoutMethods(widget);
-        if (type == "form" || type == "group") {
+        if (type == "form") {
+            InjectContainerMethods(widget);
+            InjectFormMethods(widget);
+        }
+        if (type == "group") {
             InjectContainerMethods(widget);
         }
         if (type == "image") {
@@ -76,6 +82,21 @@ class GuiModule {
             }
         );
         widget->Set("src", srcFn);
+    }
+
+    static void InjectFormMethods(const std::shared_ptr<ObjectValue> &widget) {
+        std::weak_ptr weak_w = widget;
+        // icon
+        auto const iconFn = std::make_shared<NativeFunctionValue>(
+            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
+                auto self = weak_w.lock();
+                if (!self) return std::make_shared<NullValue>();
+                if (!args.empty()) {
+                    self->Set("icon", std::make_shared<StringValue>(args[0]->ToString()));
+                }
+                return self;
+            });
+        widget->Set("icon", iconFn);
     }
 
     static void InjectContainerMethods(const std::shared_ptr<ObjectValue> &widget) {
@@ -208,18 +229,6 @@ class GuiModule {
             });
         widget->Set("text", textFn);
 
-        // click
-        auto const clickFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                if (!args.empty() && args[0]->type == ValueType::FUNCTION) {
-                    self->Set("onClick", args[0]);
-                }
-                return self;
-            });
-        widget->Set("onClick", clickFn);
-
         // backgroundColor
         auto const bgColorFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
@@ -304,29 +313,17 @@ class GuiModule {
             });
         widget->Set("align", alignFn);
 
-        // change
-        auto const changeFn = std::make_shared<NativeFunctionValue>(
+        // event
+        auto const eventFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
                 if (!self) return std::make_shared<NullValue>();
-                if (!args.empty() && args[0]->type == ValueType::FUNCTION) {
-                    self->Set("change", args[0]);
+                if (!args.empty() && args.size() == 2 && args[0]->type == ValueType::STRING && args[1]->type == ValueType::FUNCTION) {
+                    self->Set(args[0]->ToString(), args[1]);
                 }
                 return self;
             });
-        widget->Set("onChange", changeFn);
-
-        // hover
-        auto const hoverFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                if (!args.empty() && args[0]->type == ValueType::FUNCTION) {
-                    self->Set("hover", args[0]);
-                }
-                return self;
-            });
-        widget->Set("onHover", hoverFn);
+        widget->Set("on", eventFn);
 
         // padding
         auto const paddingFn = std::make_shared<NativeFunctionValue>(
@@ -400,19 +397,42 @@ class GuiModule {
         o->Set("panel", makeFactory("panel"));
     }
 
+    static void InitMessageLoop(std::shared_ptr<ObjectValue> &o) {
+        const auto loopFn = std::make_shared<NativeFunctionValue>(
+            [](const std::vector<ValuePtr> &args) -> ValuePtr {
+                GuiRuntime::Run(GlobalForms);
+                GlobalForms.clear();
+                return std::make_shared<NullValue>();
+            }
+        );
+        o->Set("loop", loopFn);
+    }
+
+    static void InitAlert(std::shared_ptr<ObjectValue> &o) {
+        const auto alertFn = std::make_shared<NativeFunctionValue>(
+            [](const std::vector<ValuePtr> &args) -> ValuePtr {
+                std::wstring msg{L"BxScript提示"};
+                std::wstring title{L"BxScript提示"};
+                if (!args.empty()) {
+                    msg = StringKit::U8ToU16(args[0]->ToString());
+                }
+                if (!args.empty() && args.size() > 1) {
+                    title = StringKit::U8ToU16(args[0]->ToString());
+                }
+                CommonDlgs::MsgBoxInfo(nullptr, msg, title);
+                return std::make_shared<NullValue>();
+            });
+        o->Set("alert", alertFn);
+    }
+
 public:
     static ValuePtr CreateGuiModule() {
         auto win = std::make_shared<ObjectValue>();
         win->Set("refs", std::make_shared<ObjectValue>());
         InitForm(win);
         InitControls(win);
-        win->Set("loop", std::make_shared<NativeFunctionValue>(
-           [](const std::vector<ValuePtr> &args) -> ValuePtr {
-               GuiRuntime::Run(GlobalForms);
-               GlobalForms.clear();
-               return std::make_shared<NullValue>();
-           }
-       ));
+        InitAlert(win);
+        InitMessageLoop(win);
         return win;
     }
 

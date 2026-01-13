@@ -27,7 +27,9 @@ public:
 
     static Icon *NewIconFromFile(const std::wstring &path);
 
-    static const Icon *NewIconFromResource(void *instance, int resId);
+    static Icon *NewIconFromImageFile(const std::wstring &path);
+
+    static Icon *NewIconFromResource(void *instance, int resId);
 
     static Icon const *ExtractIconX(const std::wstring &fileName, int index);
 

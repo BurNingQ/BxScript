@@ -15,7 +15,7 @@
 #include "internal/User32.h"
 #include "GlobalVars.h"
 
-inline Label *Label::Create(Controller *parent) {
+Label *Label::Create(Controller *parent) {
     const auto lb = new Label();
     // WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP
     lb->InitControl(L"STATIC", parent, 0, WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP);
@@ -25,7 +25,7 @@ inline Label *Label::Create(Controller *parent) {
     return lb;
 }
 
-inline uintptr_t Label::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
+uintptr_t Label::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
     switch (msg) {
         case WM_COMMAND:
             onClick.Fire(Event(this, nullptr));

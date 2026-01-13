@@ -47,7 +47,7 @@ Token Lexer::NextToken() {
     while (true) {
         std::string chaz = this->NextChar();
         if (this->IsEndOfFile()) {
-            return Token{TokenKind(TokenKind::FILE_END), "", 0, 0};
+            return Token{TokenKind(TokenKind::END_OF_FILE), "", 0, 0};
         }
         if (chaz.empty()) {
             continue;
@@ -183,5 +183,5 @@ Token Lexer::NextToken() {
         throw std::runtime_error(
             "未知字符: '" + chaz + "',行: " + std::to_string(RowNum) + ",列: " + std::to_string(RowPos));
     }
-    return Token{TokenKind(TokenKind::FILE_END), "", RowNum, RowPos};
+    return Token{TokenKind(TokenKind::END_OF_FILE), "", RowNum, RowPos};
 }

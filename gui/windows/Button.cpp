@@ -23,7 +23,7 @@
 // Button Implementation
 // ----------------------------------------------------------------------------
 
-inline uintptr_t Button::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
+uintptr_t Button::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
     switch (msg) {
         case WM_COMMAND:
             OnClick.Fire(Event(this, nullptr));
@@ -39,17 +39,17 @@ inline uintptr_t Button::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t l
     return User32::W32_DefWindowProc(HWND_CAST(m_hwnd), msg, wparam, lparam);
 }
 
-inline bool Button::Checked() const {
+bool Button::Checked() const {
     const LRESULT res = User32::W32_SendMessage(HWND_CAST(m_hwnd), BM_GETCHECK, 0, 0);
     return res == BST_CHECKED;
 }
 
-inline void Button::SetChecked(bool checked) const {
+void Button::SetChecked(bool checked) const {
     const WPARAM wparam = checked ? BST_CHECKED : BST_UNCHECKED;
     User32::W32_SendMessage(HWND_CAST(m_hwnd), BM_SETCHECK, wparam, 0);
 }
 
-inline void Button::SetIcon(Icon *icon) const {
+void Button::SetIcon(Icon *icon) const {
     if (icon) {
         User32::W32_SendMessage(static_cast<HWND>(m_hwnd), BM_SETIMAGE, IMAGE_ICON, (LPARAM) icon->Handle());
     }
@@ -59,7 +59,7 @@ inline void Button::SetIcon(Icon *icon) const {
 // PushButton
 // ----------------------------------------------------------------------------
 
-inline PushButton *PushButton::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
+PushButton *PushButton::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
     auto *pb = new PushButton();
     // BS_PUSHBUTTON | WS_TABSTOP | WS_VISIBLE | WS_CHILD
     DWORD style = BS_PUSHBUTTON | WS_TABSTOP | WS_VISIBLE | WS_CHILD;
@@ -75,7 +75,7 @@ inline PushButton *PushButton::Create(ControlBase *parent, const std::wstring &t
     return pb;
 }
 
-inline void PushButton::SetDefault() const {
+void PushButton::SetDefault() const {
     const auto hwnd = HWND_CAST(m_hwnd);
     LONG_PTR style = User32::W32_GetWindowLongPtr(hwnd, GWL_STYLE);
 
@@ -90,7 +90,7 @@ inline void PushButton::SetDefault() const {
 // CheckBox
 // ----------------------------------------------------------------------------
 
-inline CheckBox *CheckBox::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
+CheckBox *CheckBox::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
     auto *cb = new CheckBox();
     DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX;
     cb->SetFont(DefaultFont);
@@ -106,7 +106,7 @@ inline CheckBox *CheckBox::Create(ControlBase *parent, const std::wstring &text,
 // RadioButton
 // ----------------------------------------------------------------------------
 
-inline RadioButton *RadioButton::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
+RadioButton *RadioButton::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
     auto *rb = new RadioButton();
     constexpr DWORD style = WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_AUTORADIOBUTTON;
     rb->SetFont(DefaultFont);
@@ -122,7 +122,7 @@ inline RadioButton *RadioButton::Create(ControlBase *parent, const std::wstring 
 // GroupBox
 // ----------------------------------------------------------------------------
 
-inline GroupBox *GroupBox::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
+GroupBox *GroupBox::Create(ControlBase *parent, const std::wstring &text, int x, int y, int w, int h) {
     auto *gb = new GroupBox();
     constexpr DWORD style = WS_VISIBLE | WS_CHILD | WS_GROUP | BS_GROUPBOX;
     gb->SetFont(DefaultFont);
@@ -138,7 +138,7 @@ inline GroupBox *GroupBox::Create(ControlBase *parent, const std::wstring &text,
 // IconButton
 // ----------------------------------------------------------------------------
 
-inline IconButton *IconButton::Create(ControlBase *parent, Icon *icon, int x, int y, int w, int h) {
+IconButton *IconButton::Create(ControlBase *parent, Icon *icon, int x, int y, int w, int h) {
     const auto ib = new IconButton();
     // BS_ICON
     DWORD style = BS_ICON | WS_TABSTOP | WS_VISIBLE | WS_CHILD;

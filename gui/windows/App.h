@@ -13,6 +13,8 @@
 #ifndef BXSCRIPT_APP_H
 #define BXSCRIPT_APP_H
 
+#include <cstdint>
+
 class App {
     inline static uintptr_t g_gdiplusToken = 0;
 

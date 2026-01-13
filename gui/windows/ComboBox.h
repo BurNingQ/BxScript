@@ -71,14 +71,3 @@ public:
 };
 
 #endif // BXSCRIPT_COMBOBOX_H
-
-
-// ============================================================================
-// Implementation
-// ============================================================================
-
-#ifdef BXSCRIPT_IMPLEMENTATION
-
-
-
-#endif // BXSCRIPT_IMPLEMENTATION

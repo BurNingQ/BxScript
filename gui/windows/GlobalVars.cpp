@@ -53,7 +53,7 @@ DropFilesEventData *genDropFilesEventArg(uintptr_t wparam) {
     return data;
 }
 
-inline intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
+intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
     // 基础消息预处理
     switch (msg) {
         case WM_HSCROLL: break;

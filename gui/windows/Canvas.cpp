@@ -53,7 +53,7 @@ struct GdiSelector {
 
 // --- Canvas Implementation ---
 
-inline Canvas *Canvas::FromHwnd(void *hwnd) {
+Canvas *Canvas::FromHwnd(void *hwnd) {
     const HDC hdc = User32::W32_GetDC(HWND_CAST(hwnd));
     if (!hdc) return nullptr;
 
@@ -65,7 +65,7 @@ inline Canvas *Canvas::FromHwnd(void *hwnd) {
     return c;
 }
 
-inline Canvas *Canvas::FromHDC(void *hdc) {
+Canvas *Canvas::FromHDC(void *hdc) {
     if (!hdc) return nullptr;
     const auto c = new Canvas();
     c->m_hdc = hdc;
@@ -75,11 +75,11 @@ inline Canvas *Canvas::FromHDC(void *hdc) {
     return c;
 }
 
-inline Canvas::~Canvas() {
+Canvas::~Canvas() {
     Dispose();
 }
 
-inline void Canvas::Dispose() {
+void Canvas::Dispose() {
     if (m_hdc) {
         if (m_shouldRelease) {
             if (m_hwnd) {
@@ -92,7 +92,7 @@ inline void Canvas::Dispose() {
     }
 }
 
-inline Canvas *Canvas::DrawBitmap(Bitmap *bmp, int x, int y, int w, int h) {
+Canvas *Canvas::DrawBitmap(Bitmap *bmp, int x, int y, int w, int h) {
     if (!bmp || !bmp->IsValid()) return this;
 
     HDC destDC = HDC_CAST(m_hdc);
@@ -119,12 +119,12 @@ inline Canvas *Canvas::DrawBitmap(Bitmap *bmp, int x, int y, int w, int h) {
     return this;
 }
 
-inline bool Canvas::DrawIcon(Icon *ico, int x, int y) {
+bool Canvas::DrawIcon(Icon *ico, int x, int y) {
     if (!ico) return false;
     return ::DrawIcon((HDC) m_hdc, x, y, (HICON) ico->Handle());
 }
 
-inline Canvas *Canvas::DrawFillRect(const Rect &rect, Pen *pen, Brush *brush) {
+Canvas *Canvas::DrawFillRect(const Rect &rect, Pen *pen, Brush *brush) {
     GdiSelector p(HDC_CAST(m_hdc), pen ? pen->GetHandle() : nullptr);
     GdiSelector b(HDC_CAST(m_hdc), brush ? brush->GetHandle() : nullptr);
 
@@ -133,7 +133,7 @@ inline Canvas *Canvas::DrawFillRect(const Rect &rect, Pen *pen, Brush *brush) {
     return this;
 }
 
-inline Canvas *Canvas::DrawRect(const Rect &rect, Pen *pen) {
+Canvas *Canvas::DrawRect(const Rect &rect, Pen *pen) {
     GdiSelector p(HDC_CAST(m_hdc), pen ? pen->GetHandle() : nullptr);
     // 使用透明画刷 (NULL_BRUSH)
     GdiSelector b(HDC_CAST(m_hdc), Gdi32::W32_GetStockObject(NULL_BRUSH));
@@ -142,13 +142,13 @@ inline Canvas *Canvas::DrawRect(const Rect &rect, Pen *pen) {
     return this;
 }
 
-inline Canvas *Canvas::FillRect(const Rect &rect, Brush *brush) {
+Canvas *Canvas::FillRect(const Rect &rect, Brush *brush) {
     RECT rc = ToWinRect(rect);
     User32::W32_FillRect(HDC_CAST(m_hdc), &rc, (HBRUSH) brush->GetHandle());
     return this;
 }
 
-inline Canvas *Canvas::DrawEllipse(const Rect &rect, Pen *pen) {
+Canvas *Canvas::DrawEllipse(const Rect &rect, Pen *pen) {
     GdiSelector p(HDC_CAST(m_hdc), pen ? pen->GetHandle() : nullptr);
     // 透明填充
     GdiSelector b(HDC_CAST(m_hdc), Gdi32::W32_GetStockObject(NULL_BRUSH));
@@ -157,7 +157,7 @@ inline Canvas *Canvas::DrawEllipse(const Rect &rect, Pen *pen) {
     return this;
 }
 
-inline Canvas *Canvas::DrawFillEllipse(const Rect &rect, Pen *pen, Brush *brush) {
+Canvas *Canvas::DrawFillEllipse(const Rect &rect, Pen *pen, Brush *brush) {
     GdiSelector p(HDC_CAST(m_hdc), pen ? pen->GetHandle() : nullptr);
     GdiSelector b(HDC_CAST(m_hdc), brush ? brush->GetHandle() : nullptr);
     RECT rc = ToWinRect(rect);
@@ -165,14 +165,14 @@ inline Canvas *Canvas::DrawFillEllipse(const Rect &rect, Pen *pen, Brush *brush)
     return this;
 }
 
-inline Canvas *Canvas::DrawLine(int x1, int y1, int x2, int y2, Pen *pen) {
+Canvas *Canvas::DrawLine(int x1, int y1, int x2, int y2, Pen *pen) {
     GdiSelector p(HDC_CAST(m_hdc), pen ? pen->GetHandle() : nullptr);
     Gdi32::W32_MoveTo(HDC_CAST(m_hdc), x1, y1, nullptr);
     Gdi32::W32_LineTo(HDC_CAST(m_hdc), x2, y2);
     return this;
 }
 
-inline Canvas *Canvas::DrawTextX(const std::wstring &text, const Rect &rect, unsigned int format, Font *font, Color textColor) {
+Canvas *Canvas::DrawTextX(const std::wstring &text, const Rect &rect, unsigned int format, Font *font, Color textColor) {
     const HDC hdc = HDC_CAST(m_hdc);
     // 1. 选入字体
     GdiSelector f(hdc, font ? font->GetHFONT() : nullptr);

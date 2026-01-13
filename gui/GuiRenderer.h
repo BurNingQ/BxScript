@@ -72,6 +72,8 @@ private:
             ctrl = Label::Create(parent);
         } else if (type == "input") {
             ctrl = Edit::Create(parent);
+        } else if (type == "password") {
+            ctrl = Edit::Create(parent)->SetPassword(true);
         } else if (type == "group") {
             ctrl = static_cast<ControlBase *>(GroupBox::Create(parent));
         } else if (type == "checkbox") {
@@ -140,8 +142,19 @@ private:
             hasSize = true;
         }
 
-        if (hasPos) ctrl->SetPos(x, y);
+        // size高优先级，center等依赖大小
         if (hasSize) ctrl->SetSize(w, h);
+        if (hasPos) ctrl->SetPos(x, y);
+
+        if (const auto form = dynamic_cast<Form *>(ctrl)) {
+            if (const auto v = obj->Get("center"); v->type == ValueType::BOOL) {
+                form->Center();
+            }
+            if (const auto v = obj->Get("icon"); v->type == ValueType::STRING) {
+                const auto icon = Icon::NewIconFromImageFile(StringKit::U8ToU16(v->ToString()));
+                form->SetIcon(0, icon);
+            }
+        }
 
         // --- 样式属性 (Visible, Disable)
         if (auto v = obj->Get("visible"); v->type == ValueType::BOOL) {
@@ -152,7 +165,7 @@ private:
         }
 
         // --- 事件绑定
-        auto onClick = obj->Get("onClick");
+        auto onClick = obj->Get("click");
         if (onClick->type == ValueType::FUNCTION) {
             if (const auto btn = dynamic_cast<Button *>(ctrl)) {
                 btn->OnClick.Bind([onClick](const Event &e) {
@@ -167,7 +180,7 @@ private:
             }
         }
 
-        auto onChange = obj->Get("onChange");
+        auto onChange = obj->Get("change");
         if (onChange->type == ValueType::FUNCTION) {
             if (const auto edit = dynamic_cast<Edit *>(ctrl)) {
                 edit->OnChange().Bind([onChange](const Event &e) {

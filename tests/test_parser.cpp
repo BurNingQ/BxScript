@@ -35,7 +35,7 @@ TEST(LexerTest, BasicTokenize) {
     Token t5 = lexer.NextToken(); // ;
 
     Token t6 = lexer.NextToken(); // EOF
-    EXPECT_EQ(t6._TokenType.GetEnum(), TokenKind::FILE_END);
+    EXPECT_EQ(t6._TokenType.GetEnum(), TokenKind::END_OF_FILE);
 }
 
 TEST(LexerTest, StringHandling) {

@@ -8,7 +8,7 @@
  * BxScript 仅供技术研究与合法开发。严禁用于灰产、黑客攻击等任何非法用途。
  * 开发者 BurNingLi 不承担因违规使用产生的任何法律责任。
  *
- * @brief    事件循环，所有异步回调均发送任务到主事件队列,交给主线程适合的适合执行
+ * @brief    事件循环，所有异步回调均发送任务到主事件队列,交给主线程适合的适合执行，保活等
  */
 #ifndef BXSCRIPT_EVENTLOOP_H
 #define BXSCRIPT_EVENTLOOP_H

@@ -18,18 +18,18 @@
 // 辅助宏
 #define HBRUSH_CAST(ptr) static_cast<HBRUSH>(ptr)
 
-inline Brush::~Brush() {
+Brush::~Brush() {
     Dispose();
 }
 
-inline void Brush::Dispose() {
+void Brush::Dispose() {
     if (m_hBrush) {
         Gdi32::W32_DeleteObject(HBRUSH_CAST(m_hBrush));
         m_hBrush = nullptr;
     }
 }
 
-inline Brush *Brush::NewSolid(Color color) {
+Brush *Brush::NewSolid(Color color) {
     const HBRUSH h = Gdi32::W32_CreateSolidBrush(color.Value());
     if (!h) return nullptr;
     const auto b = new Brush();
@@ -37,7 +37,7 @@ inline Brush *Brush::NewSolid(Color color) {
     return b;
 }
 
-inline Brush *Brush::NewSystem(int colorIndex) {
+Brush *Brush::NewSystem(int colorIndex) {
     const HBRUSH h = GetSysColorBrush(colorIndex);
     if (!h) return nullptr;
     const auto b = new Brush();
@@ -45,11 +45,11 @@ inline Brush *Brush::NewSystem(int colorIndex) {
     return b;
 }
 
-inline Brush *Brush::NewSystem(SysColorIndex index) {
+Brush *Brush::NewSystem(SysColorIndex index) {
     return NewSystem(static_cast<int>(index));
 }
 
-inline Brush *Brush::NewHatched(Color color, HatchStyle style) {
+Brush *Brush::NewHatched(Color color, HatchStyle style) {
     LOGBRUSH lb;
     lb.lbStyle = BS_HATCHED;
     lb.lbColor = static_cast<COLORREF>(color.Value());
@@ -61,7 +61,7 @@ inline Brush *Brush::NewHatched(Color color, HatchStyle style) {
     return b;
 }
 
-inline Brush *Brush::NewNull() {
+Brush *Brush::NewNull() {
     LOGBRUSH lb;
     lb.lbStyle = BS_NULL;
     lb.lbColor = 0;
@@ -73,6 +73,6 @@ inline Brush *Brush::NewNull() {
     return b;
 }
 
-inline Brush *Brush::DefaultBackground() {
+Brush *Brush::DefaultBackground() {
     return NewSystem(static_cast<int>(SysColorIndex::BtnFace));
 }

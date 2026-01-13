@@ -14,7 +14,7 @@
 #include "internal/Gdi32.h"
 #include "internal/User32.h"
 
-inline Font::Font(const std::wstring &family, int pointSize, uint8_t style)
+Font::Font(const std::wstring &family, int pointSize, uint8_t style)
     : m_family(family), m_pointSize(pointSize), m_style(style) {
     if (style > (FontBold | FontItalic | FontUnderline | FontStrikeOut)) {
         exit(1);
@@ -30,11 +30,11 @@ inline Font::Font(const std::wstring &family, int pointSize, uint8_t style)
     }
 }
 
-inline Font::~Font() {
+Font::~Font() {
     Dispose();
 }
 
-inline void *Font::createForDPI(int dpi) const {
+void *Font::createForDPI(int dpi) const {
     LOGFONTW lf = {0};
 
     lf.lfHeight = -MulDiv(m_pointSize, dpi, 72);
@@ -59,7 +59,7 @@ inline void *Font::createForDPI(int dpi) const {
     return Gdi32::W32_CreateFontIndirect(lf);
 }
 
-inline void Font::Dispose() {
+void Font::Dispose() {
     if (m_hfont) {
         Gdi32::W32_DeleteObject(m_hfont);
         m_hfont = nullptr;

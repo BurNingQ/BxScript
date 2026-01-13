@@ -67,7 +67,7 @@ public:
 
     bool IsFullScreen() const { return m_isFullscreen; }
 
-    void SetIcon(int iconType, Icon *icon) const;
+    void SetIcon(int iconType, const Icon *icon) const;
 
     void EnableMaxButton(bool b) const;
 

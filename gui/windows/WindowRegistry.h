@@ -20,14 +20,14 @@ class ControlBase;
 class WindowRegistry {
 public:
     static void Register(void* hwnd, Controller* ctrl) {
-        if (hwnd) gControllerRegistry[hwnd] = ctrl;
+        if (hwnd) G_ControllerRegistry[hwnd] = ctrl;
     }
     static void Unregister(void* hwnd) {
-        if (hwnd) gControllerRegistry.erase(hwnd);
+        if (hwnd) G_ControllerRegistry.erase(hwnd);
     }
     static ControlBase* Get(void* hwnd) {
-        auto it = gControllerRegistry.find(hwnd);
-        return (it != gControllerRegistry.end()) ? reinterpret_cast<ControlBase *>(it->second) : nullptr;
+        auto it = G_ControllerRegistry.find(hwnd);
+        return (it != G_ControllerRegistry.end()) ? reinterpret_cast<ControlBase *>(it->second) : nullptr;
     }
 };
 

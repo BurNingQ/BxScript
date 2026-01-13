@@ -15,11 +15,11 @@
 #include "Brush.h"
 #include "internal/Gdi32.h"
 
-inline Pen::~Pen() {
+Pen::~Pen() {
     Dispose();
 }
 
-inline Pen *Pen::New(unsigned int style, unsigned int width, Brush *brush) {
+Pen *Pen::New(unsigned int style, unsigned int width, Brush *brush) {
     if (brush == nullptr) {
         // panic("Brush cannot be nil")
         exit(1);
@@ -44,7 +44,7 @@ inline Pen *Pen::New(unsigned int style, unsigned int width, Brush *brush) {
     return pen;
 }
 
-inline Pen *Pen::NewNull() {
+Pen *Pen::NewNull() {
     LOGBRUSH lb = {0};
     lb.lbStyle = BS_NULL;
 
@@ -61,7 +61,7 @@ inline Pen *Pen::NewNull() {
     return pen;
 }
 
-inline void Pen::Dispose() {
+void Pen::Dispose() {
     if (m_hPen) {
         Gdi32::W32_DeleteObject(static_cast<HGDIOBJ>(m_hPen));
         m_hPen = nullptr;

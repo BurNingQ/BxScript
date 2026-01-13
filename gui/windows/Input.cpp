@@ -15,7 +15,7 @@
 #include "internal/User32.h"
 #include "GlobalVars.h"
 
-inline Edit *Edit::Create(Controller *parent) {
+Edit *Edit::Create(Controller *parent) {
     const auto edt = new Edit();
     edt->InitControl(L"EDIT", parent, WS_EX_CLIENTEDGE,
                      WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT | ES_AUTOHSCROLL | ES_WANTRETURN);
@@ -24,12 +24,12 @@ inline Edit *Edit::Create(Controller *parent) {
     return edt;
 }
 
-inline Edit *Edit::SetReadOnly(bool isReadOnly) {
+Edit *Edit::SetReadOnly(bool isReadOnly) {
     User32::W32_SendMessage(static_cast<HWND>(m_hwnd), EM_SETREADONLY, static_cast<uintptr_t>(isReadOnly ? TRUE : FALSE), 0);
     return this;
 }
 
-inline Edit *Edit::SetPassword(bool isPassword) {
+Edit *Edit::SetPassword(bool isPassword) {
     if (isPassword) {
         User32::W32_SendMessage(static_cast<HWND>(m_hwnd), EM_SETPASSWORDCHAR, (uintptr_t) passwordChar, 0);
     } else {
@@ -38,7 +38,7 @@ inline Edit *Edit::SetPassword(bool isPassword) {
     return this;
 }
 
-inline uintptr_t Edit::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
+uintptr_t Edit::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
     switch (msg) {
         case WM_COMMAND:
             if (HIWORD(static_cast<uint32_t>(wparam)) == EN_CHANGE) {
@@ -50,7 +50,7 @@ inline uintptr_t Edit::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lpa
     return User32::W32_DefWindowProc(static_cast<HWND>(m_hwnd), msg, wparam, lparam);
 }
 
-inline MultiEdit *MultiEdit::Create(Controller *parent) {
+MultiEdit *MultiEdit::Create(Controller *parent) {
     const auto med = new MultiEdit();
     med->InitControl(L"EDIT", parent, WS_EX_CLIENTEDGE,
                      WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT | WS_VSCROLL | WS_HSCROLL |
@@ -60,12 +60,12 @@ inline MultiEdit *MultiEdit::Create(Controller *parent) {
     return med;
 }
 
-inline MultiEdit *MultiEdit::SetReadOnly(bool isReadOnly) {
+MultiEdit *MultiEdit::SetReadOnly(bool isReadOnly) {
     User32::W32_SendMessage(static_cast<HWND>(m_hwnd), EM_SETREADONLY, static_cast<uintptr_t>(isReadOnly ? TRUE : FALSE), 0);
     return this;
 }
 
-inline MultiEdit *MultiEdit::AddLine(const std::wstring &text) {
+MultiEdit *MultiEdit::AddLine(const std::wstring &text) {
     if (this->Text().length() == 0) {
         this->SetText(text);
     } else {
@@ -74,7 +74,7 @@ inline MultiEdit *MultiEdit::AddLine(const std::wstring &text) {
     return this;
 }
 
-inline uintptr_t MultiEdit::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
+uintptr_t MultiEdit::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
     switch (msg) {
         case WM_COMMAND:
             if (HIWORD(static_cast<uint32_t>(wparam)) == EN_CHANGE) {

@@ -30,10 +30,10 @@ void Parser::BackToken(const Token &token) {
 Program Parser::ParserSourceCode(const std::string &code) {
     std::vector<std::unique_ptr<Statement> > body{};
     Token token = this->NextToken();
-    while (token._TokenType.GetEnum() != TokenKind::FILE_END) {
+    while (token._TokenType.GetEnum() != TokenKind::END_OF_FILE) {
         body.push_back(this->ParseStatement());
         token = this->NextToken();
-        if (token._TokenType.GetEnum() != TokenKind::FILE_END) {
+        if (token._TokenType.GetEnum() != TokenKind::END_OF_FILE) {
             this->BackToken(token);
         }
     }
@@ -91,7 +91,7 @@ std::unique_ptr<Statement> Parser::ParseStatement() {
     if (tk.TokenValue == ";") {
         return make_unique<EmptyStatement>();
     }
-    if (tk._TokenType.GetEnum() == TokenKind::FILE_END) {
+    if (tk._TokenType.GetEnum() == TokenKind::END_OF_FILE) {
         return make_unique<ExpressionStatement>(make_unique<BadExpression>());
     }
     this->BackToken(tk);
@@ -919,7 +919,7 @@ Program Parser::ParseProgram() {
     std::vector<std::unique_ptr<Statement> > body;
     while (true) {
         auto tk = this->NextToken();
-        if (tk._TokenType.GetEnum() == TokenKind::FILE_END) {
+        if (tk._TokenType.GetEnum() == TokenKind::END_OF_FILE) {
             break;
         }
         this->BackToken(tk);

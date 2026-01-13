@@ -18,7 +18,7 @@
 #include "EventData.h"
 #include "Utils.h"
 
-inline ListView *ListView::NewListBox(Controller *parent) {
+ListView *ListView::NewListBox(Controller *parent) {
     auto *lv = new ListView();
     unsigned int style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | LVS_REPORT | LVS_EDITLABELS | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER;
     lv->InitControl(L"SysListView32", parent, 0, style);
@@ -28,7 +28,7 @@ inline ListView *ListView::NewListBox(Controller *parent) {
     return lv;
 }
 
-inline ListView *ListView::NewListView(Controller *parent) {
+ListView *ListView::NewListView(Controller *parent) {
     auto *lv = new ListView();
     unsigned int style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | LVS_REPORT | LVS_EDITLABELS | LVS_SHOWSELALWAYS;
     lv->InitControl(L"SysListView32", parent, 0, style);

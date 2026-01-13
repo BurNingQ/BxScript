@@ -62,9 +62,3 @@ public:
 };
 
 #endif
-
-#ifdef BXSCRIPT_IMPLEMENTATION
-
-
-
-#endif

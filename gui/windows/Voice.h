@@ -24,38 +24,3 @@ void StopVoice();
 void CloseVoice();
 
 #endif // BXSCRIPT_VOICE_H
-
-// ============================================================================
-// Implementation
-// ============================================================================
-
-#ifdef BXSCRIPT_IMPLEMENTATION
-
-#include <windows.h>
-#include "internal/WinMM.h"
-
-namespace {
-    void sendMCICommand(const std::wstring &command) {
-        wchar_t buf[256];
-        WinMM::W32_mciSendString(command.c_str(), buf, 256, nullptr);
-    }
-}
-
-void OpenVoice(const std::wstring &voice) {
-    std::wstring cmd = L"open \"" + voice + L"\" type mpegvideo alias BxScriptAudio";
-    sendMCICommand(cmd);
-}
-
-void PlayVoice() {
-    sendMCICommand(L"play BxScriptAudio");
-}
-
-void StopVoice() {
-    sendMCICommand(L"stop BxScriptAudio");
-}
-
-void CloseVoice() {
-    sendMCICommand(L"close BxScriptAudio");
-}
-
-#endif // BXSCRIPT_IMPLEMENTATION
