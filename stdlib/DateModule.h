@@ -20,7 +20,7 @@
 #include <thread>
 #include "../evaluator/Value.h"
 #include "common/StringKit.h"
-#include "evaluator/Logger.h"
+#include "error/RuntimeError.h"
 #include <iomanip>
 
 using namespace std::chrono;
@@ -67,7 +67,7 @@ class DateModule {
         const auto fromFn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &args) -> ValuePtr {
                 if (args.empty() || (args[0]->type != ValueType::NUMBER && args[0]->type != ValueType::STRING)) {
-                    Logger::Error("参数错误: Date.from(timestamp/dateString)");
+                    throw RuntimeError("参数错误: Date.from(timestamp/dateString)");
                 }
                 auto o = std::make_shared<ObjectValue>();
                 long long timestamp = 0;
@@ -96,7 +96,7 @@ class DateModule {
                         tm.tm_mon -= 1;
                         timestamp = std::mktime(&tm) * 1000;
                     } else {
-                        Logger::Error("参数错误: Date.from(yyyy-MM-dd HH:mm:ss/yyyy年MM月dd日 HH时mm分:ss秒)");
+                        throw RuntimeError("参数错误: Date.from(yyyy-MM-dd HH:mm:ss/yyyy年MM月dd日 HH时mm分:ss秒)");
                     }
                 }
                 const auto tt = static_cast<time_t>(static_cast<double>(timestamp) / 1000.0);
@@ -116,7 +116,7 @@ class DateModule {
                 const auto self = weak_o.lock();
                 std::string fmt = "yyyy-MM-dd HH:mm:ss";
                 if (args[0]->type != ValueType::STRING) {
-                    Logger::Error("参数错误: Date.format(fmt)");
+                    throw RuntimeError("参数错误: Date.format(fmt)");
                 } else {
                     fmt = std::static_pointer_cast<StringValue>(args[0])->Value;
                 }
@@ -126,7 +126,7 @@ class DateModule {
                     return std::make_shared<NullValue>();
                 }
                 if (timestamp->type != ValueType::NUMBER) {
-                    Logger::Error("参数错误: 内部timestamp类型错误");
+                    throw RuntimeError("参数错误: 内部timestamp类型错误");
                 }
                 const double ms = std::static_pointer_cast<NumberValue>(timestamp)->Value;
                 const auto tt = static_cast<time_t>(ms / 1000.0);

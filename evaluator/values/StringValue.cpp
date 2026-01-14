@@ -15,7 +15,7 @@
 
 #include "../Value.h"
 #include <cmath>
-#include "../Logger.h"
+#include "error/RuntimeError.h"
 #include "common/StringKit.h"
 #include "../Environment.h"
 
@@ -67,9 +67,9 @@ ValuePtr StringValue::Get(const std::string &key) {
     if (key == "substr") {
         auto fn = [self = std::static_pointer_cast<StringValue>(shared_from_this())]
         (const std::vector<ValuePtr> &args) -> ValuePtr {
-            if (args.size() != 2) Logger::Error("参数错误: substr(start, end)");
+            if (args.size() != 2) throw RuntimeError("参数错误: substr(start, end)");
             if (args.at(0)->type != ValueType::NUMBER || args.at(1)->type != ValueType::NUMBER) {
-                Logger::Error("参数错误: substr(Number, Number)");
+                throw RuntimeError("参数错误: substr(Number, Number)");
             }
             const auto arg1 = std::static_pointer_cast<NumberValue>(args.at(0));
             const auto arg2 = std::static_pointer_cast<NumberValue>(args.at(1));
@@ -79,7 +79,7 @@ ValuePtr StringValue::Get(const std::string &key) {
             if (start > len) start = len;
             if (end > len) end = len;
             if (start > end) {
-                Logger::Error("参数错误: substr(start, end), start 不能大于 end");
+                throw RuntimeError("参数错误: substr(start, end), start 不能大于 end");
             }
             size_t count = end - start;
             if (count == 0) {

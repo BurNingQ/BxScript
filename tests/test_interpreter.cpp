@@ -1033,14 +1033,14 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
         import std.Win as win;
         import std.IO as IO;
         let f = win.form("mainForm").center().size(600, 800).text("测试窗口").add([
-            win.label("l1").text("用户: ").pos(10, 10).size(100, 40),
-            win.input("userName").text("请输入用户名").pos(60, 15).size(200, 20),
+            win.label("l1").text("用户: ").pos(10, 10).size(100, 40).fontColor({R: 64, G: 158, B: 255}),
+            win.input("userName").text("请输入用户名").pos(60, 10).size(200, 24).fontSize(12),
             win.label("l2").text("密码: ").pos(10, 50).size(100, 40),
             win.password("password").pos(60, 55).size(200, 30),
             win.button("btn1").size(120, 40).pos(100, 200).text("点击我试试").on("click", function(){
                 IO.println("event came from button click");
                 win.alert("测试点击")
-            }).onclick()
+            })
         ]).icon("C:\\Users\\Administrator\\Desktop\\logo.ico");
         win.loop();
     )";

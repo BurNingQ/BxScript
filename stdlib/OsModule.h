@@ -30,7 +30,7 @@ class OsModule {
                 std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
 #endif
                 if (!pipe) {
-                    Logger::Error("执行命令失败: " + cmd);
+                    throw RuntimeError("执行命令失败: " + cmd);
                 }
                 while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
                     result += buffer.data();

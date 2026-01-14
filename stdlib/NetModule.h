@@ -230,11 +230,11 @@ class NetModule {
             [method, hasBody](const std::vector<ValuePtr> &args) -> ValuePtr {
                 size_t minArgs = hasBody ? 2 : 1;
                 if (args.size() < minArgs) {
-                    Logger::Error("参数错误: Net." + method + "(url, " + (hasBody ? "data, " : "") + "[header], [callback])");
+                    throw RuntimeError("参数错误: Net." + method + "(url, " + (hasBody ? "data, " : "") + "[header], [callback])");
                 }
                 const std::string url = args[0]->ToString();
                 auto parts = ParseUrl(url);
-                if (parts.host.empty()) Logger::Error("URL 解析失败");
+                if (parts.host.empty()) throw RuntimeError("URL 解析失败");
                 std::string postData;
                 std::vector<std::pair<std::string, std::string> > headers;
                 ValuePtr callback = nullptr;

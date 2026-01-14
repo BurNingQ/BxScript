@@ -17,6 +17,9 @@
 #include "EventManager.h"
 #include <vector>
 #include <mutex>
+#include <windef.h>
+
+#include "Color.h"
 
 class ControlBase : public Controller {
 protected:
@@ -54,6 +57,12 @@ protected:
 
     std::mutex m_mutex;
     std::vector<std::function<void()> > m_dispatchq;
+
+    Color fontColor = Color::Black();
+    Color bgColor = Color::White();
+    bool defineFontColor = false;
+    bool defineBackgroundColor = false;
+    void* formBrush = nullptr;
 
 public:
     ~ControlBase() override;
@@ -99,6 +108,12 @@ public:
     ControlBase *Show() override;
 
     ControlBase *Hide() override;
+
+    ControlBase *SetTextColor(Color c);
+
+    ControlBase *SetBackgroundColor(Color c);
+
+    void* HandleCtlColor(void* hdc, unsigned int uMsg) const;
 
     MenuItem *ContextMenu() override { return m_contextMenu; }
     void SetContextMenu(MenuItem *menu) override { m_contextMenu = menu; }

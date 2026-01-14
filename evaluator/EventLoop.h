@@ -19,7 +19,7 @@
 #include <mutex>
 #include "Value.h"
 #include "Interpreter.h"
-#include "Logger.h"
+#include "error/RuntimeError.h"
 #include <thread>
 
 using namespace std::chrono;
@@ -79,7 +79,7 @@ public:
             try {
                 Interpreter::CallFunction(localQueue[i].callback, localQueue[i].args);
             } catch (const std::exception &e) {
-                Logger::Error(std::string("事件循环错误: ") + e.what());
+                throw RuntimeError(std::string("事件循环错误: ") + e.what());
             }
             if (maxDurationMs > 0) {
                 auto now = steady_clock::now();

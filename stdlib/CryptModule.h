@@ -44,7 +44,7 @@ class CryptModule {
                     return std::make_shared<StringValue>("");
                 }
                 if (args[0]->type != ValueType::STRING) {
-                    Logger::Error("参数错误: Crypt.encode([str])");
+                    throw RuntimeError("参数错误: Crypt.encode([str])");
                 }
                 auto arg = std::static_pointer_cast<StringValue>(args[0]);
                 std::string output;
@@ -90,7 +90,7 @@ class CryptModule {
                     return std::make_shared<StringValue>("");
                 }
                 if (args[0]->type != ValueType::STRING) {
-                    Logger::Error("参数错误: Crypt.decode([str])");
+                    throw RuntimeError("参数错误: Crypt.decode([str])");
                 }
                 auto arg = std::static_pointer_cast<StringValue>(args[0]);
                 std::string output;
@@ -140,7 +140,7 @@ class CryptModule {
                     return std::make_shared<StringValue>("");
                 }
                 if (args[0]->type != ValueType::STRING) {
-                    Logger::Error("Crypt.md5([str])");
+                    throw RuntimeError("Crypt.md5([str])");
                 }
                 const auto arg = std::static_pointer_cast<StringValue>(args[0]);
                 return std::make_shared<StringValue>(MD5()(arg->Value));
@@ -155,7 +155,7 @@ class CryptModule {
                     return std::make_shared<StringValue>("");
                 }
                 if (args[0]->type != ValueType::STRING) {
-                    Logger::Error("Crypt.sha256([str])");
+                    throw RuntimeError("Crypt.sha256([str])");
                 }
                 const auto arg = std::static_pointer_cast<StringValue>(args[0]);
                 return std::make_shared<StringValue>(SHA256()(arg->Value));
@@ -167,7 +167,7 @@ class CryptModule {
         const auto fn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &args)-> ValuePtr {
                 if (args.size() != 3) {
-                    Logger::Error("参数错误: Crypt.hmac(algo, key, msg)");
+                    throw RuntimeError("参数错误: Crypt.hmac(algo, key, msg)");
                 }
                 const std::string algo = args[0]->ToString();
                 const std::string key = args[1]->ToString();
@@ -178,7 +178,7 @@ class CryptModule {
                 } else if (algo == "md5" || algo == "MD5") {
                     result = hmac<MD5>(msg, key);
                 } else {
-                    Logger::Error("不支持的 HMAC 算法: " + algo);
+                    throw RuntimeError("不支持的 HMAC 算法: " + algo);
                 }
                 return std::make_shared<StringValue>(result);
             });

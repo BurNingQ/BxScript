@@ -14,6 +14,7 @@
 #define BXSCRIPT_GUIRENDERER_H
 #include <vector>
 
+#include "common/ColorKit.h"
 #include "windows/ControlBase.h"
 #include "common/StringKit.h"
 #include "evaluator/EventLoop.h"
@@ -23,6 +24,7 @@
 #include "windows/Button.h"
 #include "windows/ComboBox.h"
 #include "windows/Form.h"
+#include "windows/GlobalVars.h"
 #include "windows/ImageView.h"
 #include "windows/Input.h"
 #include "windows/Label.h"
@@ -119,6 +121,47 @@ private:
         // --- 基础属性 (Text)
         if (const auto v = obj->Get("text"); v->type == ValueType::STRING) {
             ctrl->SetText(StringKit::U8ToU16(v->ToString()));
+        }
+
+        // --- 字体处理
+        std::wstring fontFmaily = L"MS Shell Dlg 2";
+        int fontSize = 8;
+        int fontStyle = 0x00;
+        // auto ft = DefaultFont;
+        if (const auto v = obj->Get("fontSize"); v->type == ValueType::NUMBER) {
+            fontSize = std::static_pointer_cast<NumberValue>(v)->Value;
+        }
+        auto ft = new Font(fontFmaily, fontSize, fontStyle);
+        ctrl->SetFont(ft);
+
+        // ---- 文字颜色处理
+        if (const auto v = obj->Get("fontColor"); v->type == ValueType::OBJECT) {
+            auto const o = std::static_pointer_cast<ObjectValue>(v);
+            auto const r = o->Get("R");
+            auto const g = o->Get("G");
+            auto const b = o->Get("B");
+            if (r->type == ValueType::NUMBER && g->type == ValueType::NUMBER && b->type == ValueType::NUMBER) {
+                auto const nr = static_cast<int>(std::static_pointer_cast<NumberValue>(r)->Value);
+                auto const ng = static_cast<int>(std::static_pointer_cast<NumberValue>(g)->Value);
+                auto const nb = static_cast<int>(std::static_pointer_cast<NumberValue>(b)->Value);
+                auto const color = Color::FromRGB(nr, ng, nb);
+                ctrl->SetTextColor(color);
+            }
+        }
+
+        // ---- 背景颜色处理
+        if (const auto v = obj->Get("bgColor"); v->type == ValueType::OBJECT) {
+            auto const o = std::static_pointer_cast<ObjectValue>(v);
+            auto const r = o->Get("R");
+            auto const g = o->Get("G");
+            auto const b = o->Get("B");
+            if (r->type == ValueType::NUMBER && g->type == ValueType::NUMBER && b->type == ValueType::NUMBER) {
+                auto const nr = static_cast<int>(std::static_pointer_cast<NumberValue>(r)->Value);
+                auto const ng = static_cast<int>(std::static_pointer_cast<NumberValue>(g)->Value);
+                auto const nb = static_cast<int>(std::static_pointer_cast<NumberValue>(b)->Value);
+                auto const color = Color::FromRGB(nr, ng, nb);
+                ctrl->SetBackgroundColor(color);
+            }
         }
 
         // --- 几何属性 (X, Y, W, H)

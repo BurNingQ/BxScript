@@ -56,6 +56,8 @@ class GuiModule {
                             if (obj->Get("A") && obj->Get("A")->type == ValueType::NUMBER) {
                                 return obj;
                             }
+                            obj->Set("A", std::make_shared<NumberValue>(255));
+                            return obj;
                         }
                     }
                 }
@@ -229,15 +231,15 @@ class GuiModule {
             });
         widget->Set("text", textFn);
 
-        // backgroundColor
+        // bgColor
         auto const bgColorFn = std::make_shared<NativeFunctionValue>(
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
                 if (!self) return std::make_shared<NullValue>();
-                self->Set("backgroundColor", ArgsColorToObject(args));
+                self->Set("bgColor", ArgsColorToObject(args));
                 return self;
             });
-        widget->Set("backgroundColor", bgColorFn);
+        widget->Set("bgColor", bgColorFn);
 
         // border
         auto const borderFn = std::make_shared<NativeFunctionValue>(

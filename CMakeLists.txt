@@ -201,6 +201,7 @@ set(SOURCE_FILES
         common/ColorKit.h
         libs/stb_image.h
         common/TextureKit.h
+        error/RuntimeError.h
 )
 
 # ==========================================

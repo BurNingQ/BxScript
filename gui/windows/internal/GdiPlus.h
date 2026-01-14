@@ -17,9 +17,6 @@
 #include <windows.h>
 #include <gdiplus.h>
 
-// 建议在 CMakeLists.txt 中链接 gdiplus，或者这里加 pragma
-// #pragma comment(lib, "gdiplus.lib")
-
 class GdiPlus {
 public:
     // =========================================================================================

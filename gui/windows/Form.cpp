@@ -238,6 +238,18 @@ uintptr_t Form::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
             if (hasConstraints) return 0;
             break;
         }
+        case WM_CTLCOLOREDIT:
+        case WM_CTLCOLORSTATIC:
+        case WM_CTLCOLORLISTBOX: {
+            const auto hdc = reinterpret_cast<HDC>(wparam);
+            const auto hChild = reinterpret_cast<HWND>(lparam);
+            if (const auto *ctrl = WindowRegistry::Get(hChild)) {
+                if (auto brush = ctrl->HandleCtlColor(hdc, msg)) {
+                    return reinterpret_cast<uintptr_t>(brush);
+                }
+            }
+            break;
+        }
         default: ;
     }
     return DefWindowProcW(static_cast<HWND>(m_hwnd), msg, wparam, lparam);

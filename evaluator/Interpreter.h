@@ -28,6 +28,7 @@ public:
     static std::unordered_map<std::string, std::shared_ptr<Program> > ModuleAST;
     static std::vector<std::shared_ptr<Program> > ASTRegistry;
     static std::unordered_map<std::string, ValuePtr> CppStdCache;
+    static thread_local const Expression* CurrentNode;
 
     // 环境预热
     static void SetupEnvironment(const std::shared_ptr<Environment>& env);

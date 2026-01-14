@@ -13,10 +13,13 @@
 #include "ControlBase.h"
 
 #include <windows.h>
+
+#include "Brush.h"
 #include "WindowRegistry.h"
 #include "internal/User32.h"
 #include "internal/UxTheme.h"
 #include "internal/ShCore.h"
+#include "internal/Gdi32.h"
 #include "Utils.h"
 #include "Rect.h"
 
@@ -26,6 +29,11 @@ static int _max(int a, int b) { return a > b ? a : b; }
 ControlBase::~ControlBase() {
     if (m_hwnd) {
         WindowRegistry::Unregister(m_hwnd);
+    }
+    // 清理画刷
+    if (formBrush) {
+        DeleteObject(formBrush);
+        formBrush = nullptr;
     }
 }
 
@@ -44,7 +52,7 @@ void ControlBase::InitWindow(const std::wstring &className, Controller *parent, 
     InitControl(className, parent, exstyle, style);
 }
 
-void ControlBase::SetTheme(const std::wstring& appName) const {
+void ControlBase::SetTheme(const std::wstring &appName) const {
     UxTheme::W32_SetWindowTheme(static_cast<HWND>(m_hwnd), appName.c_str(), nullptr);
 }
 
@@ -137,6 +145,46 @@ ControlBase *ControlBase::EnableDragAcceptFiles(bool b) {
     return this;
 }
 
+ControlBase *ControlBase::SetTextColor(Color c) {
+    this->fontColor = c;
+    this->defineFontColor = true;
+    Invalidate(true);
+    return this;
+}
+
+ControlBase *ControlBase::SetBackgroundColor(Color c) {
+    this->bgColor = c;
+    this->defineBackgroundColor = true;
+    if (formBrush) DeleteObject(formBrush);
+    formBrush = Brush::NewSolid(c);
+    Invalidate(true);
+    return this;
+}
+
+void *ControlBase::HandleCtlColor(void *hdc, unsigned int uMsg) const {
+    const auto hDC = static_cast<HDC>(hdc);
+    if (defineFontColor) {
+        Gdi32::W32_SetTextColor(hDC, fontColor.Value());
+    }
+    if (uMsg == WM_CTLCOLOREDIT || uMsg == WM_CTLCOLORLISTBOX) {
+        Gdi32::W32_SetBkMode(hDC, OPAQUE);
+        if (defineBackgroundColor) {
+            Gdi32::W32_SetBkColor(hDC, bgColor.Value());
+        } else {
+            Gdi32::W32_SetBkColor(hDC, GetSysColor(COLOR_WINDOW));
+        }
+    } else {
+        Gdi32::W32_SetBkMode(hDC, TRANSPARENT);
+    }
+    if (defineBackgroundColor) {
+        return formBrush;
+    }
+    if (uMsg == WM_CTLCOLORSTATIC) {
+        return static_cast<HBRUSH>(Gdi32::W32_GetStockObject(HOLLOW_BRUSH));
+    }
+    return nullptr;
+}
+
 void ControlBase::SetFont(Font *font) {
     if (font && font->GetHFONT()) {
         User32::W32_SendMessage(static_cast<HWND>(m_hwnd), WM_SETFONT, reinterpret_cast<uintptr_t>(font->GetHFONT()), 1);
@@ -153,16 +201,15 @@ void ControlBase::Invoke(std::function<void()> f) {
         f();
         return;
     }
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard lock(m_mutex);
     m_dispatchq.push_back(f);
-    // PostMessage(m_hwnd, wmInvokeCallback, 0, 0);
 }
 
 void ControlBase::invokeCallbacks() {
     if (InvokeRequired()) return;
     std::vector<std::function<void()> > q;
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
+        std::lock_guard lock(m_mutex);
         q.swap(m_dispatchq);
     }
     for (auto &v: q) v();

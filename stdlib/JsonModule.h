@@ -24,7 +24,7 @@ class JsonModule {
         const auto fn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &args)-> ValuePtr {
                 if (args.empty() || args[0]->type != ValueType::STRING) {
-                    Logger::Error("参数错误: JSON.parse(jsonString)");
+                    throw RuntimeError("参数错误: JSON.parse(jsonString)");
                 }
                 try {
                     auto arg = std::static_pointer_cast<StringValue>(args[0]);
@@ -33,7 +33,7 @@ class JsonModule {
                 } catch (const nlohmann::json::parse_error &e) {
                     std::stringstream ss;
                     ss << "JSON 解析失败 (byte " << e.byte << "): " << e.what();
-                    Logger::Error(ss.str());
+                    throw RuntimeError(ss.str());
                 }
                 return std::make_shared<NullValue>();
             });

@@ -15,7 +15,7 @@
 
 #include "../Value.h"
 #include <cmath>
-#include "../Logger.h"
+#include "error/RuntimeError.h"
 #include "../Environment.h"
 
 bool ArrayValue::Equal(ValuePtr v) {
@@ -126,16 +126,16 @@ ValuePtr ArrayValue::Get(const std::string &key) {
             auto fn = [self = std::static_pointer_cast<ArrayValue>(shared_from_this())]
             (const std::vector<ValuePtr> &args) -> ValuePtr {
                 if (args.empty()) {
-                    Logger::Error("参数错误: remove(index, [count])");
+                    throw RuntimeError("参数错误: remove(index, [count])");
                 }
                 if (args[0]->type != ValueType::NUMBER) {
-                    Logger::Error("参数错误: 索引必须是数字");
+                    throw RuntimeError("参数错误: 索引必须是数字");
                 }
                 const long index = static_cast<long>(std::static_pointer_cast<NumberValue>(args[0])->Value);
                 long count = 1;
                 if (args.size() > 1) {
                     if (args[1]->type != ValueType::NUMBER) {
-                        Logger::Error("参数错误: 数量必须是数字");
+                        throw RuntimeError("参数错误: 数量必须是数字");
                     }
                     count = static_cast<long>(std::static_pointer_cast<NumberValue>(args[1])->Value);
                 }
@@ -161,14 +161,14 @@ ValuePtr ArrayValue::Get(const std::string &key) {
             auto fn = [self = std::static_pointer_cast<ArrayValue>(shared_from_this())]
             (const std::vector<ValuePtr> &args) -> ValuePtr {
                 if (args.size() < 2) {
-                    Logger::Error("参数错误: insert(index, item)");
+                    throw RuntimeError("参数错误: insert(index, item)");
                 }
                 if (args[0]->type != ValueType::NUMBER) {
-                    Logger::Error("参数错误: 索引必须是数字");
+                    throw RuntimeError("参数错误: 索引必须是数字");
                 }
                 const long index = static_cast<long>(std::static_pointer_cast<NumberValue>(args[0])->Value);
                 if (index < 0 || index > self->Elements.size()) {
-                    Logger::Error("参数错误: insert 索引越界");
+                    throw RuntimeError("参数错误: insert 索引越界");
                 }
                 self->Elements.insert(self->Elements.begin() + index, args[1]);
                 return std::make_shared<NumberValue>(self->Elements.size());
@@ -182,7 +182,7 @@ ValuePtr ArrayValue::Get(const std::string &key) {
                     return std::make_shared<ArrayValue>(std::vector(self->Elements));
                 }
                 if (args[0]->type != ValueType::NUMBER) {
-                    Logger::Error("参数错误: slice(number, [end])");
+                    throw RuntimeError("参数错误: slice(number, [end])");
                 }
                 auto len = self->Elements.size();
                 auto start = static_cast<long long>(std::static_pointer_cast<NumberValue>(args[0])->Value);
@@ -198,7 +198,7 @@ ValuePtr ArrayValue::Get(const std::string &key) {
                 auto begin = self->Elements.begin() + start;
                 if (args.size() > 1) {
                     if (args[1]->type != ValueType::NUMBER) {
-                        Logger::Error("参数错误: slice(number, [end])");
+                        throw RuntimeError("参数错误: slice(number, [end])");
                     }
                     auto end = static_cast<long long>(std::static_pointer_cast<NumberValue>(args[1])->Value);
                     if (end < 0) {
@@ -226,7 +226,7 @@ ValuePtr ArrayValue::Get(const std::string &key) {
                 long long start = 0;
                 if (args.size() > 1) {
                     if (args[1]->type != ValueType::NUMBER) {
-                        Logger::Error("参数错误: array.indexOf(ele, [start])");
+                        throw RuntimeError("参数错误: array.indexOf(ele, [start])");
                     }
                     start = static_cast<long long>(std::static_pointer_cast<NumberValue>(args[1])->Value);
                 }
@@ -257,7 +257,7 @@ ValuePtr ArrayValue::Get(const std::string &key) {
                 long long start = 0;
                 if (args.size() > 1) {
                     if (args[1]->type != ValueType::NUMBER) {
-                        Logger::Error("参数错误: array.indexOf(ele, [start])");
+                        throw RuntimeError("参数错误: array.indexOf(ele, [start])");
                     }
                     start = static_cast<long long>(std::static_pointer_cast<NumberValue>(args[1])->Value);
                 }
@@ -300,7 +300,7 @@ void ArrayValue::Set(const std::string &key, const ValuePtr value) {
         if (index >= Elements.size()) Elements.resize(index + 1, std::make_shared<NullValue>());
         Elements[index] = value;
     } catch (...) {
-        Logger::Error("数组索引必须是整数: " + key);
+        throw RuntimeError("数组索引必须是整数: " + key);
     }
 }
 

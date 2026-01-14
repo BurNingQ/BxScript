@@ -21,6 +21,8 @@
 class Expression {
 public:
     virtual ~Expression() = default;
+
+    virtual std::string ToSource() const { return "<expr>"; }
 };
 
 class Statement {
@@ -83,10 +85,14 @@ public:
 class BracketExpression : public Expression {
 public:
     explicit BracketExpression(std::unique_ptr<Expression> l, std::unique_ptr<Expression> m) : Left(std::move(l)),
-        Member(std::move(m)) {
+                                                                                               Member(std::move(m)) {
     }
 
     std::unique_ptr<Expression> Left{}, Member{};
+
+    std::string ToSource() const override {
+        return Left->ToSource() + "[" + Member->ToSource() + "]";
+    }
 };
 
 class CallExpression : public Expression {
@@ -98,6 +104,10 @@ public:
 
     std::unique_ptr<Expression> Callee{};
     std::vector<std::unique_ptr<Expression> > ArgumentList;
+
+    std::string ToSource() const override {
+        return Callee->ToSource() + "(...)";
+    }
 };
 
 class ConditionalExpression : public Expression {
@@ -113,18 +123,25 @@ public:
 class Identifier : public Expression {
 public:
     explicit Identifier(std::string name) : Name{std::move(name)} {
-    };
+    }
+
     std::string Name{};
+
+    std::string ToSource() const override { return Name; }
 };
 
 class DotExpression : public Expression {
 public:
     explicit DotExpression(std::unique_ptr<Expression> l, std::unique_ptr<Identifier> id) : Left(std::move(l)),
-        Identifier(std::move(id)) {
+                                                                                            Identifier(std::move(id)) {
     }
 
     std::unique_ptr<Expression> Left{};
     std::unique_ptr<Identifier> Identifier{};
+
+    std::string ToSource() const override {
+        return Left->ToSource() + "." + Identifier->Name;
+    }
 };
 
 class EmptyExpression : public Expression {
@@ -200,6 +217,8 @@ public:
     }
 
     std::string Literal{};
+
+    std::string ToSource() const override { return "\"" + Literal + "\""; }
 };
 
 class ThisExpression : public Expression {
@@ -224,7 +243,7 @@ public:
 class VariableExpression : public Expression {
 public:
     explicit VariableExpression(std::string name, std::unique_ptr<Expression> initializer) : Name(std::move(name)),
-        Initializer(std::move(initializer)) {
+                                                                                             Initializer(std::move(initializer)) {
     }
 
     std::string Name{};

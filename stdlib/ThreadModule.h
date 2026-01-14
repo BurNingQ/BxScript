@@ -44,7 +44,7 @@ class ThreadModule {
         const auto fn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &args) -> ValuePtr {
                 if (args.empty() || args[0]->type != ValueType::FUNCTION) {
-                    Logger::Error("参数错误: Thread.invoke(fn, [args])");
+                    throw RuntimeError("参数错误: Thread.invoke(fn, [args])");
                 }
                 auto threadFn = args[0];
                 auto threadArgs = std::vector(args.begin() + 1, args.end());

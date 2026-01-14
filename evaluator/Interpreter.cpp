@@ -15,6 +15,7 @@
 #include "../stdlib/DateModule.h"
 #include <cmath>
 
+#include "error/RuntimeError.h"
 #include "stdlib/CryptModule.h"
 #include "stdlib/GuiModule.h"
 #include "stdlib/IOModule.h"
@@ -28,6 +29,7 @@ std::unordered_map<std::string, ValuePtr> Interpreter::ModuleCache;
 std::unordered_map<std::string, std::shared_ptr<Program> > Interpreter::ModuleAST;
 std::vector<std::shared_ptr<Program> > Interpreter::ASTRegistry{};
 std::unordered_map<std::string, ValuePtr> Interpreter::CppStdCache{};
+thread_local const Expression* Interpreter::CurrentNode = nullptr;
 
 void Interpreter::SetupEnvironment(const std::shared_ptr<Environment> &env) {
     env->DeclareVar("String", StringValue::InitBuiltins());
@@ -58,49 +60,58 @@ ValuePtr Interpreter::CallFunction(const ValuePtr &callee, const std::vector<Val
         }
         return result;
     }
-    throw std::runtime_error("试图调用非函数对象: " + callee->ToString());
+    throw RuntimeError("试图调用非函数对象: " + callee->ToString(), nullptr, callee);
 }
 
 ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_ptr<Environment> &env) {
-    for (const auto &importStmt: program.Imports) {
-        if (importStmt->Path.size() >= 2 && importStmt->Path[0] == "std") {
-            const std::string moduleName = importStmt->Path[1];
-            if (CppStdCache.find(moduleName) != CppStdCache.end()) {
-                env->DeclareVar(importStmt->AliasName, CppStdCache[moduleName]);
-                continue;
+    try {
+        for (const auto &importStmt: program.Imports) {
+            if (importStmt->Path.size() >= 2 && importStmt->Path[0] == "std") {
+                const std::string moduleName = importStmt->Path[1];
+                if (CppStdCache.find(moduleName) != CppStdCache.end()) {
+                    env->DeclareVar(importStmt->AliasName, CppStdCache[moduleName]);
+                    continue;
+                }
+                ValuePtr module = nullptr;
+                if (moduleName == "IO") module = IOModule::CreateIOModule();
+                else if (moduleName == "Net") module = NetModule::CreateNetModule();
+                else if (moduleName == "JSON") module = JsonModule::CreateJsonModule();
+                else if (moduleName == "Crypt") module = CryptModule::CreateCryptModule();
+                else if (moduleName == "Date") module = DateModule::CreateDateModule();
+                else if (moduleName == "Thread") module = ThreadModule::CreateThreadModule();
+                else if (moduleName == "Regex") module = RegexModule::CreateRegexModule();
+                else if (moduleName == "OS") module = OsModule::CreateOSModule();
+                else if (moduleName == "Win") module = GuiModule::CreateGuiModule();
+                if (module) {
+                    CppStdCache[moduleName] = module;
+                    env->DeclareVar(importStmt->AliasName, module);
+                    continue;
+                }
             }
-            ValuePtr module = nullptr;
-            if (moduleName == "IO") module = IOModule::CreateIOModule();
-            else if (moduleName == "Net") module = NetModule::CreateNetModule();
-            else if (moduleName == "JSON") module = JsonModule::CreateJsonModule();
-            else if (moduleName == "Crypt") module = CryptModule::CreateCryptModule();
-            else if (moduleName == "Date") module = DateModule::CreateDateModule();
-            else if (moduleName == "Thread") module = ThreadModule::CreateThreadModule();
-            else if (moduleName == "Regex") module = RegexModule::CreateRegexModule();
-            else if (moduleName == "OS") module = OsModule::CreateOSModule();
-            else if (moduleName == "Win") module = GuiModule::CreateGuiModule();
-            if (module) {
-                CppStdCache[moduleName] = module;
-                env->DeclareVar(importStmt->AliasName, module);
-                continue;
+            LoadModule(importStmt.get(), env);
+        }
+        // 函数提升
+        for (const auto &stmt: program.Body) {
+            if (const auto *funcStmt = dynamic_cast<FunctionStatement *>(stmt.get())) {
+                FunctionLiteral *funcLit = funcStmt->Function.get();
+                auto funcValue = std::make_shared<FunctionValue>(funcLit, env);
+                env->DeclareVar(funcLit->Name->Name, funcValue);
             }
         }
-        LoadModule(importStmt.get(), env);
-    }
-    // 函数提升
-    for (const auto &stmt: program.Body) {
-        if (const auto *funcStmt = dynamic_cast<FunctionStatement *>(stmt.get())) {
-            FunctionLiteral *funcLit = funcStmt->Function.get();
-            auto funcValue = std::make_shared<FunctionValue>(funcLit, env);
-            env->DeclareVar(funcLit->Name->Name, funcValue);
+        // 执行流程
+        ValuePtr lastEvaluated = std::make_shared<NullValue>();
+        for (const auto &stmt: program.Body) {
+            lastEvaluated = Execute(stmt.get(), env);
         }
+        return lastEvaluated;
+    } catch (const RuntimeError &e) {
+        if (e.Node == nullptr) {
+            e.Node = CurrentNode;
+        }
+        std::cerr << FormatRuntimeError(e) << std::endl;
+        // 内部错误
+        exit(1);
     }
-    // 执行流程
-    ValuePtr lastEvaluated = std::make_shared<NullValue>();
-    for (const auto &stmt: program.Body) {
-        lastEvaluated = Execute(stmt.get(), env);
-    }
-    return lastEvaluated;
 }
 
 ValuePtr Interpreter::Execute(Statement *stmt, const std::shared_ptr<Environment> &env) {
@@ -224,6 +235,7 @@ ValuePtr Interpreter::Execute(Statement *stmt, const std::shared_ptr<Environment
 }
 
 ValuePtr Interpreter::Evaluate(Expression *expr, std::shared_ptr<Environment> env) {
+    CurrentNode = expr;
     if (expr == nullptr) {
         return std::make_shared<NullValue>();
     }
@@ -314,7 +326,7 @@ ValuePtr Interpreter::Evaluate(Expression *expr, std::shared_ptr<Environment> en
             ValuePtr newValue;
             auto calculate = [&](const ValuePtr &currentVal) {
                 if (currentVal->type != ValueType::NUMBER) {
-                    throw std::runtime_error("自增/自减只能作用于数字类型");
+                    throw RuntimeError("自增/自减只能作用于数字类型", unary, currentVal);
                 }
                 const double v = std::static_pointer_cast<NumberValue>(currentVal)->Value;
                 const double change = (op == "++") ? 1.0 : -1.0;
@@ -343,7 +355,7 @@ ValuePtr Interpreter::Evaluate(Expression *expr, std::shared_ptr<Environment> en
                 calculate(val);
                 obj->Set(key->ToString(), newValue); // 写回对象
             } else {
-                throw std::runtime_error("非法的表达式Invalid L-Value for Prefix/Postfix operation");
+                throw RuntimeError("非法的表达式", unary);
             }
             // 如果是后缀 (i++)，返回旧值；如果是前缀 (++i)，返回新值
             return unary->Postfix ? oldValue : newValue;
@@ -354,15 +366,15 @@ ValuePtr Interpreter::Evaluate(Expression *expr, std::shared_ptr<Environment> en
             return std::make_shared<BoolValue>(!IsTruthy(val));
         }
         if (op == "-") {
-            if (val->type != ValueType::NUMBER) throw std::runtime_error("- 操作符只能用于数字");
+            if (val->type != ValueType::NUMBER) throw RuntimeError("- 操作符只能用于数字", unary, val);
             double v = std::static_pointer_cast<NumberValue>(val)->Value;
             return std::make_shared<NumberValue>(-v);
         }
         if (op == "+") {
-            if (val->type != ValueType::NUMBER) throw std::runtime_error("+ 操作符只能用于数字");
+            if (val->type != ValueType::NUMBER) throw RuntimeError("+ 操作符只能用于数字", unary, val);
             return val;
         }
-        throw std::runtime_error("Unknown Unary Operator: " + op);
+        throw RuntimeError("不支持的操作符: " + op, unary, val);
     }
     // 赋值操作 (Assignment)
     if (const auto *assign = dynamic_cast<AssignExpression *>(expr)) {
@@ -408,7 +420,7 @@ ValuePtr Interpreter::Evaluate(Expression *expr, std::shared_ptr<Environment> en
             obj->Set(keyStr, newValue);
             return newValue;
         }
-        throw std::runtime_error("无效的赋值目标");
+        throw RuntimeError("无效的赋值目标", assign);
     }
     // 成员访问 (读取)
     // 点号访问 (obj.x)
@@ -425,6 +437,9 @@ ValuePtr Interpreter::Evaluate(Expression *expr, std::shared_ptr<Environment> en
     // 函数调用
     if (const auto *call = dynamic_cast<CallExpression *>(expr)) {
         ValuePtr callee = Evaluate(call->Callee.get(), env);
+        if (callee->type != ValueType::FUNCTION && callee->type != ValueType::NATIVE_FUNCTION) {
+            throw RuntimeError("不是函数或不可调用", call->Callee.get(), callee);
+        }
         std::vector<ValuePtr> args;
         for (const auto &argExpr: call->ArgumentList) {
             args.push_back(Evaluate(argExpr.get(), env));
@@ -469,7 +484,7 @@ ValuePtr Interpreter::ApplyBinary(const Token &op, const ValuePtr &left, const V
         if (o == "-") return std::make_shared<NumberValue>(l - r);
         if (o == "*") return std::make_shared<NumberValue>(l * r);
         if (o == "/") {
-            if (r == 0) throw std::runtime_error("除数不能为0");
+            if (r == 0) throw RuntimeError("除数不能为0: " + left->ToString() + " / " + right->ToString());
             return std::make_shared<NumberValue>(l / r);
         }
         if (o == "%") return std::make_shared<NumberValue>(fmod(l, r));
@@ -490,7 +505,7 @@ ValuePtr Interpreter::ApplyBinary(const Token &op, const ValuePtr &left, const V
     // 通用相等性检查
     if (o == "==") return std::make_shared<BoolValue>(left->Equal(right));
     if (o == "!=") return std::make_shared<BoolValue>(!left->Equal(right));
-    throw std::runtime_error("不支持的操作: " + left->ToString() + " " + o + " " + right->ToString());
+    throw RuntimeError("不支持的操作: " + left->ToString() + " " + o + " " + right->ToString());
 }
 
 void Interpreter::LoadModule(const ImportStatement *stmt, std::shared_ptr<Environment> env) {

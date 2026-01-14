@@ -15,8 +15,8 @@
 
 #include "ControlBase.h"
 
-const wchar_t passwordChar = L'*';
-const wchar_t nopasswordChar = L' ';
+constexpr wchar_t passwordChar = L'*';
+constexpr wchar_t nopasswordChar = L' ';
 
 class Edit final : public ControlBase {
 protected:

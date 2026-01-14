@@ -15,7 +15,7 @@
 
 #include "../Value.h"
 #include "../Environment.h"
-#include "evaluator/Logger.h"
+#include "error/RuntimeError.h"
 
 bool ObjectValue::Equal(ValuePtr v) {
     if (v->type != ValueType::OBJECT) {
@@ -59,7 +59,7 @@ ValuePtr ObjectValue::InitBuiltins() {
     const auto keysFn = std::make_shared<NativeFunctionValue>(
         [](const std::vector<ValuePtr> &args) -> ValuePtr {
             if (args.empty() || args[0]->type != ValueType::OBJECT) {
-                Logger::Error("参数错误: Object.keys(obj)");
+                throw RuntimeError("参数错误: Object.keys(obj)");
             }
             const auto target = std::static_pointer_cast<ObjectValue>(args[0]);
             std::vector<ValuePtr> keys;
@@ -76,7 +76,7 @@ ValuePtr ObjectValue::InitBuiltins() {
     const auto removeKeyFn = std::make_shared<NativeFunctionValue>(
         [](const std::vector<ValuePtr> &args) -> ValuePtr {
             if (args.empty() || args[0]->type != ValueType::OBJECT) {
-                Logger::Error("参数错误: Object.remove(obj, [str...])");
+                throw RuntimeError("参数错误: Object.remove(obj, [str...])");
             }
             const auto target = std::static_pointer_cast<ObjectValue>(args[0]);
             if (args.size() > 1) {

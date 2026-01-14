@@ -30,7 +30,7 @@ class RegexModule {
                     const std::regex re(pattern);
                     return std::make_shared<BoolValue>(std::regex_search(text, re));
                 } catch (const std::regex_error &e) {
-                    Logger::Error("正则表达式错误: " + std::string(e.what()));
+                    throw RuntimeError("正则表达式错误: " + std::string(e.what()));
                 }
                 return std::make_shared<BoolValue>(false);
             }
@@ -51,7 +51,7 @@ class RegexModule {
                     auto r = std::regex_replace(source, re, target);
                     return std::make_shared<StringValue>(r);
                 } catch (const std::regex_error &e) {
-                    Logger::Error("正则表达式错误: " + std::string(e.what()));
+                    throw RuntimeError("正则表达式错误: " + std::string(e.what()));
                 }
                 return std::make_shared<StringValue>("");
             });
