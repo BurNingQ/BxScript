@@ -208,37 +208,41 @@ private:
         }
 
         // --- 事件绑定
-        auto onClick = obj->Get("click");
-        if (onClick->type == ValueType::FUNCTION) {
-            if (const auto btn = dynamic_cast<Button *>(ctrl)) {
-                btn->OnClick.Bind([onClick](const Event &e) {
-                    Interpreter::CallFunction(onClick, {});
+        auto BindEvent = [&](const std::string &propName, EventManager &cppEvent) {
+            if (auto funcVal = obj->Get(propName); funcVal->type == ValueType::FUNCTION) {
+                cppEvent.Bind([funcVal](const Event &e) {
+                    Interpreter::CallFunction(funcVal, {});
                 });
             }
-            // Label 模拟点击
-            else if (const auto lbl = dynamic_cast<Label *>(ctrl)) {
-                lbl->OnClick().Bind([onClick](const Event &e) {
-                    Interpreter::CallFunction(onClick, {});
-                });
-            }
+        };
+        BindEvent("mouseover", ctrl->OnMouseHover());
+        BindEvent("mouseleave", ctrl->OnMouseLeave());
+        BindEvent("mousemove", ctrl->OnMouseMove());
+        BindEvent("onLBDown", ctrl->OnLBDown());
+        BindEvent("onLBUp", ctrl->OnLBUp());
+        BindEvent("keyup", ctrl->OnKeyUp());
+        BindEvent("keydown", ctrl->OnKeyDown());
+        BindEvent("resize", ctrl->OnSize());
+        BindEvent("create", ctrl->OnCreate());
+        BindEvent("close", ctrl->OnClose());
+        BindEvent("paint", ctrl->OnPaint());
+        if (const auto btn = dynamic_cast<Button *>(ctrl)) {
+            BindEvent("click", btn->OnClick);
+        } else if (const auto lbl = dynamic_cast<Label *>(ctrl)) {
+            BindEvent("click", lbl->OnClick());
+        }
+        if (const auto edit = dynamic_cast<Edit *>(ctrl)) {
+            BindEvent("change", edit->OnChange());
+        } else if (const auto mEdit = dynamic_cast<MultiEdit *>(ctrl)) {
+            BindEvent("change", mEdit->OnChange());
+        } else if (const auto slider = dynamic_cast<Slider *>(ctrl)) {
+            BindEvent("change", slider->OnScroll());
+        } else if (const auto combo = dynamic_cast<ComboBox *>(ctrl)) {
+            BindEvent("change", combo->OnSelectedChange);
+        } else if (const auto lv = dynamic_cast<ListView *>(ctrl)) {
+            BindEvent("change", lv->OnItemChanged());
         }
 
-        auto onChange = obj->Get("change");
-        if (onChange->type == ValueType::FUNCTION) {
-            if (const auto edit = dynamic_cast<Edit *>(ctrl)) {
-                edit->OnChange().Bind([onChange](const Event &e) {
-                    Interpreter::CallFunction(onChange, {});
-                });
-            } else if (const auto mEdit = dynamic_cast<MultiEdit *>(ctrl)) {
-                mEdit->OnChange().Bind([onChange](const Event &e) {
-                    Interpreter::CallFunction(onChange, {});
-                });
-            } else if (const auto slider = dynamic_cast<Slider *>(ctrl)) {
-                slider->OnScroll().Bind([onChange](const Event &e) {
-                    Interpreter::CallFunction(onChange, {});
-                });
-            }
-        }
 
         // --- 控件特有属性处理
         // 图片源 (src)

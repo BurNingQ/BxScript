@@ -13,11 +13,20 @@
 #ifndef BXSCRIPT_GUIMODULE_H
 #define BXSCRIPT_GUIMODULE_H
 
+#include <unordered_set>
+
 #include "../evaluator/Value.h"
 #include "common/ColorKit.h"
 #include "common/StringKit.h"
 #include "gui/GuiRuntime.h"
 #include "gui/windows/CommonDlgs.h"
+
+static std::unordered_set<std::string> stdEvents{
+    "click", "change", "mouseover", "mouseleave",
+    "mousemove", "mousepress", "mouseup", "close",
+    "create", "resize", "paint", "keyup",
+    "keydown", "dbclick"
+};
 
 class GuiModule {
     static ValuePtr CreateWidget(const std::shared_ptr<ObjectValue> &winObj, const std::string &type, const std::vector<ValuePtr> &args) {
@@ -39,6 +48,10 @@ class GuiModule {
         }
         winObj->Get("refs")->Set(id, widget);
         return widget;
+    }
+
+    static bool IsValidEvent(const std::string &alias) {
+        return stdEvents.find(alias) != stdEvents.end();
     }
 
     static ValuePtr ArgsColorToObject(const std::vector<ValuePtr> &args) {
@@ -320,9 +333,15 @@ class GuiModule {
             [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
                 auto self = weak_w.lock();
                 if (!self) return std::make_shared<NullValue>();
-                if (!args.empty() && args.size() == 2 && args[0]->type == ValueType::STRING && args[1]->type == ValueType::FUNCTION) {
-                    self->Set(args[0]->ToString(), args[1]);
+                if (args.empty() || args.size() < 2) throw RuntimeError("参数错误: widget.on('event', function)");
+                if (args[0]->type != ValueType::STRING || args[1]->type != ValueType::FUNCTION) {
+                    throw RuntimeError("参数错误: widget.on('event', function)");
                 }
+                const std::string evtAlias = args[0]->ToString();
+                if (IsValidEvent(evtAlias)) {
+                    throw RuntimeError("参数错误: " + evtAlias + " 不支持");
+                }
+                self->Set(evtAlias, args[1]);
                 return self;
             });
         widget->Set("on", eventFn);

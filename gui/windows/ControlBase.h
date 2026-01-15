@@ -25,10 +25,10 @@ class ControlBase : public Controller {
 protected:
     void *m_hwnd = nullptr;
     Font *m_font = nullptr;
-    Controller *m_parent = nullptr;
-    MenuItem *m_contextMenu = nullptr;
+    Controller *parentHwnd = nullptr;
+    MenuItem *contextMenu = nullptr;
 
-    bool m_isForm = false;
+    bool isForm = false;
 
     int m_minWidth = 0, m_minHeight = 0;
     int m_maxWidth = 0, m_maxHeight = 0;
@@ -56,7 +56,7 @@ protected:
     EventManager onSize;
 
     std::mutex m_mutex;
-    std::vector<std::function<void()> > m_dispatchq;
+    std::vector<std::function<void()> > uiThreadDispatch;
 
     Color fontColor = Color::Black();
     Color bgColor = Color::White();
@@ -77,9 +77,9 @@ public:
 
     void Invalidate(bool erase) override;
 
-    Controller *Parent() override { return m_parent; }
+    Controller *Parent() override { return parentHwnd; }
 
-    void SetParent(Controller *parent) { m_parent = parent; }
+    void SetParent(Controller *parent) { parentHwnd = parent; }
 
     void Pos(int &x, int &y) override;
 
@@ -115,8 +115,8 @@ public:
 
     void* HandleCtlColor(void* hdc, unsigned int uMsg) const;
 
-    MenuItem *ContextMenu() override { return m_contextMenu; }
-    void SetContextMenu(MenuItem *menu) override { m_contextMenu = menu; }
+    MenuItem *ContextMenu() override { return contextMenu; }
+    void SetContextMenu(MenuItem *menu) override { contextMenu = menu; }
 
     Font *GetFont() override { return m_font; }
 
@@ -167,7 +167,7 @@ public:
 
     void SetAndClearStyleBits(unsigned int set, unsigned int clear) const;
 
-    void SetIsForm(bool isform) { m_isForm = isform; }
+    void SetIsForm(bool isform) { isForm = isform; }
 
     void SetTranslucentBackground();
 

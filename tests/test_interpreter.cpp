@@ -1041,7 +1041,9 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
                 IO.println("event came from button click");
                 win.alert("测试点击")
             })
-        ]).icon("C:\\Users\\Administrator\\Desktop\\logo.ico");
+        ]).icon("C:\\Users\\Administrator\\Desktop\\logo.ico").on("resize", function(){
+            IO.println("resizing");
+        });
         win.loop();
     )";
     Eval(code);

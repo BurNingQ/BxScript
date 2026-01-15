@@ -24,7 +24,7 @@ void MouseControl::Init(Controller *parent, const std::wstring &className, unsig
                                         CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
                                         parent ? static_cast<HWND>(parent->Handle()) : nullptr,
                                         nullptr, static_cast<HINSTANCE>(G_AppInstance), nullptr);
-    m_parent = parent;
+    parentHwnd = parent;
     WindowRegistry::Register(m_hwnd, this);
 
     isMouseLeft = true;

@@ -78,7 +78,7 @@ void ErrorPanel::init(Controller *parent) {
     m_hwnd = User32::W32_CreateWindowEx(WS_EX_CONTROLPARENT, L"BxErrorPanel", L"", WS_CHILD | WS_VISIBLE,
                                         CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
                                         parent ? static_cast<HWND>(parent->Handle()) : nullptr, nullptr, static_cast<HINSTANCE>(G_AppInstance), nullptr);
-    m_parent = parent;
+    parentHwnd = parent;
     WindowRegistry::Register(m_hwnd, this);
 }
 

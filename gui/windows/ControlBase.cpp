@@ -38,7 +38,7 @@ ControlBase::~ControlBase() {
 }
 
 void ControlBase::InitControl(const std::wstring &className, Controller *parent, unsigned int exstyle, unsigned int style) {
-    m_parent = parent;
+    parentHwnd = parent;
     const HWND hParent = parent ? static_cast<HWND>(parent->Handle()) : nullptr;
     m_hwnd = User32::W32_CreateWindowEx(exstyle, className.c_str(), L"", style,
                                         CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
@@ -85,9 +85,9 @@ void ControlBase::Pos(int &x, int &y) {
     User32::W32_GetWindowRect(static_cast<HWND>(m_hwnd), &rc);
     x = rc.left;
     y = rc.top;
-    if (!m_isForm && m_parent) {
+    if (!isForm && parentHwnd) {
         POINT pt = {(LONG) rc.left, (LONG) rc.top};
-        ScreenToClient(static_cast<HWND>(m_parent->Handle()), &pt);
+        ScreenToClient(static_cast<HWND>(parentHwnd->Handle()), &pt);
         x = pt.x;
         y = pt.y;
     }
@@ -202,7 +202,7 @@ void ControlBase::Invoke(std::function<void()> f) {
         return;
     }
     std::lock_guard lock(m_mutex);
-    m_dispatchq.push_back(f);
+    uiThreadDispatch.push_back(f);
 }
 
 void ControlBase::invokeCallbacks() {
@@ -210,7 +210,7 @@ void ControlBase::invokeCallbacks() {
     std::vector<std::function<void()> > q;
     {
         std::lock_guard lock(m_mutex);
-        q.swap(m_dispatchq);
+        q.swap(uiThreadDispatch);
     }
     for (auto &v: q) v();
 }
@@ -272,7 +272,7 @@ void ControlBase::SetAndClearStyleBits(unsigned int set, unsigned int clear) con
 Rect *ControlBase::Bounds() {
     RECT rc;
     User32::W32_GetWindowRect(static_cast<HWND>(m_hwnd), &rc);
-    if (m_isForm) {
+    if (isForm) {
         return new Rect(rc.left, rc.top, rc.right, rc.bottom);
     }
     return new Rect(rc.left, rc.top, rc.right, rc.bottom);

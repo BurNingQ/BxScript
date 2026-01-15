@@ -311,7 +311,7 @@ uintptr_t ListView::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam
                     }
                 }
                 onKeyDown.Fire(Event(this, (int) nmkey->wVKey));
-                User32::W32_SendMessage(static_cast<HWND>(m_parent->Handle()), WM_KEYDOWN, nmkey->wVKey, 0);
+                User32::W32_SendMessage(static_cast<HWND>(parentHwnd->Handle()), WM_KEYDOWN, nmkey->wVKey, 0);
                 break;
             }
             case LVN_ITEMCHANGING: {
