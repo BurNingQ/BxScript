@@ -338,7 +338,7 @@ class GuiModule {
                     throw RuntimeError("参数错误: widget.on('event', function)");
                 }
                 const std::string evtAlias = args[0]->ToString();
-                if (IsValidEvent(evtAlias)) {
+                if (!IsValidEvent(evtAlias)) {
                     throw RuntimeError("参数错误: " + evtAlias + " 不支持");
                 }
                 self->Set(evtAlias, args[1]);

@@ -202,6 +202,7 @@ set(SOURCE_FILES
         libs/stb_image.h
         common/TextureKit.h
         error/RuntimeError.h
+        stdlib/TimerModule.h
 )
 
 # ==========================================

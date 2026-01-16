@@ -139,6 +139,14 @@ ValuePtr Interpreter::Execute(Statement *stmt, const std::shared_ptr<Environment
         }
         return std::make_shared<NullValue>();
     }
+    // 三目
+    if (const auto *condExpr = dynamic_cast<ConditionalExpression *>(stmt)) {
+        ValuePtr testRes = Evaluate(condExpr->Test.get(), env);
+        if (IsTruthy(testRes)) {
+            return Evaluate(condExpr->Ok.get(), env);
+        }
+        return Evaluate(condExpr->Else.get(), env);
+    }
     // 代码块 { ... }
     if (const auto *block = dynamic_cast<BlockStatement *>(stmt)) {
         const auto blockEnv = std::make_shared<Environment>(env);
