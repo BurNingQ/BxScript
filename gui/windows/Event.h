@@ -15,10 +15,10 @@
 
 #include <any>
 #include <utility>
+#include "ControlBase.h"
 
 class Event {
 public:
-
     ControlBase *Sender;
 
     std::any Data;
@@ -27,7 +27,7 @@ public:
         : Sender(sender), Data(std::move(data)) {
     }
 
-    static Event FromInt(ControlBase* sender, unsigned int val) {
+    static Event FromInt(ControlBase *sender, unsigned int val) {
         return Event(sender, std::make_any<unsigned int>(val));
     }
 

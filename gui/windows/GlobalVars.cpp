@@ -111,8 +111,9 @@ intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam
                         int x, y;
                         genPoint(lparam, x, y);
                         if (contextMenu != nullptr) {
-                            const auto id = static_cast<uint32_t>(User32::W32_TrackPopupMenuEx(contextMenu->hSubMenu, TPM_NOANIMATION | TPM_RETURNCMD, x, y,
-                                                                                         static_cast<HWND>(itCtx->second->Handle()), nullptr));
+                            const auto id = static_cast<uint32_t>(User32::W32_TrackPopupMenuEx(
+                                contextMenu->hSubMenu, TPM_NOANIMATION | TPM_RETURNCMD, x, y,
+                                static_cast<HWND>(itCtx->second->Handle()), nullptr));
                             MenuItem *item = actionsByID[id];
                             if (item != nullptr) {
                                 item->OnClick().Fire(Event(dynamic_cast<ControlBase *>(itCtx->second), genMouseEventArg(wparam, lparam)));
@@ -163,6 +164,13 @@ intptr_t __stdcall generalWndProc(void *hwnd, unsigned int msg, uintptr_t wparam
                 data.VKey = static_cast<int>(wparam);
                 data.Code = static_cast<int>(lparam);
                 controller->OnKeyUp().Fire(Event(dynamic_cast<ControlBase *>(controller), &data));
+                break;
+            }
+            case WM_MOUSEWHEEL: {
+                const short delta = GET_WHEEL_DELTA_WPARAM(wparam);
+                MouseEventData *data = genMouseEventArg(wparam, lparam);
+                data->Wheel = delta;
+                controller->OnMouseWheel().Fire(Event(dynamic_cast<ControlBase *>(controller), data));
                 break;
             }
             case WM_SIZE: {

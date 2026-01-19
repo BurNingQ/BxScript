@@ -1028,6 +1028,69 @@ TEST_F(InterpreterTest, Net404) {
     ASSERT_IS_NUMBER(statusVal, 404);
 }
 
+TEST_F(InterpreterTest, SetTimeoutBasic) {
+    std::string code = R"(
+        import std.Timer as Timer;
+        let global_flag = false;
+        Timer.setTimeout(function() {
+            global_flag = true;
+        }, 50);
+    )";
+    EvalAsync(code);
+    auto res = GetGlobalVar("global_flag");
+    ASSERT_EQ(res->type, ValueType::BOOL);
+    EXPECT_EQ(std::static_pointer_cast<BoolValue>(res)->Value, true);
+}
+
+// 测试 2: clearTimeout 取消任务
+TEST_F(InterpreterTest, ClearTimeout) {
+    std::string code = R"(
+        import std.Timer as Timer;
+        let global_count = 0;
+        let id = Timer.setTimeout(function() {
+            global_count = 1;
+        }, 100);
+        Timer.clear(id);
+    )";
+    EvalAsync(code);
+    auto res = GetGlobalVar("global_count");
+    ASSERT_IS_NUMBER(res, 0.0);
+}
+
+TEST_F(InterpreterTest, SetIntervalBasic) {
+    std::string code = R"(
+        import std.Timer as Timer;
+        let global_ticks = 0;
+        let id = Timer.setInterval(function() {
+            global_ticks += 1;
+            if (global_ticks >= 3) {
+                Timer.clear(id);
+            }
+        }, 20);
+    )";
+    // 执行 (大约需要 60ms + 调度开销)
+    EvalAsync(code);
+    auto res = GetGlobalVar("global_ticks");
+    ASSERT_IS_NUMBER(res, 3.0);
+}
+
+TEST_F(InterpreterTest, MultipleTimers) {
+    std::string code = R"(
+        import std.Timer as Timer;
+        let global_fast = 0;
+        let global_slow = 0;
+        Timer.setTimeout(function() {
+            global_fast = 1;
+        }, 20);
+        Timer.setTimeout(function() {
+            global_slow = 1;
+        }, 60);
+    )";
+    EvalAsync(code);
+    ASSERT_IS_NUMBER(GetGlobalVar("global_fast"), 1.0);
+    ASSERT_IS_NUMBER(GetGlobalVar("global_slow"), 1.0);
+}
+
 TEST_F(InterpreterTest, GuiBuildStructure) {
     const std::string code = R"(
         import std.Win as win;
@@ -1037,9 +1100,14 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
             win.input("userName").text("请输入用户名").pos(60, 10).size(200, 24).fontSize(12),
             win.label("l2").text("密码: ").pos(10, 50).size(100, 40),
             win.password("password").pos(60, 55).size(200, 30),
-            win.button("btn1").size(120, 40).pos(100, 200).text("点击我试试").on("click", function(){
+            win.button("btn1").size(120, 40).pos(60, 95).text("点击我试试").on("click", function(){
                 IO.println("event came from button click");
                 win.alert("测试点击")
+            }),
+            win.image("i1").src("C:\\Users\\Administrator\\Desktop\\XH.png").pos(60, 155).size(100, 100).on("mouseup", function(){
+                win.alert("鼠标放开", 1)
+            }).on("scroll", function(){
+                IO.println("image scroll");
             })
         ]).icon("C:\\Users\\Administrator\\Desktop\\logo.ico").on("resize", function(){
             IO.println("resizing");

@@ -215,6 +215,7 @@ private:
                 });
             }
         };
+        BindEvent("scroll", ctrl->OnMouseWheel());
         BindEvent("mouseover", ctrl->OnMouseHover());
         BindEvent("mouseleave", ctrl->OnMouseLeave());
         BindEvent("mousemove", ctrl->OnMouseMove());

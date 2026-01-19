@@ -83,6 +83,7 @@ public:
     virtual EventManager& OnRBUp() = 0;
     virtual EventManager& OnRBDbl() = 0;
     virtual EventManager& OnMouseMove() = 0;
+    virtual EventManager& OnMouseWheel() = 0;
 
     virtual EventManager& OnMouseHover() = 0;
     virtual EventManager& OnMouseLeave() = 0;

@@ -54,6 +54,7 @@ protected:
     EventManager onKeyDown;
     EventManager onPaint;
     EventManager onSize;
+    EventManager onMouseWheel;
 
     std::mutex m_mutex;
     std::vector<std::function<void()> > uiThreadDispatch;
@@ -151,6 +152,7 @@ public:
     EventManager &OnKeyDown() override { return onKeyDown; }
     EventManager &OnPaint() override { return onPaint; }
     EventManager &OnSize() override { return onSize; }
+    EventManager &OnMouseWheel() override { return onMouseWheel; }
 
     void invokeCallbacks() override;
 

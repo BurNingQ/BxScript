@@ -24,6 +24,7 @@
 #include "stdlib/OsModule.h"
 #include "stdlib/RegexModule.h"
 #include "stdlib/ThreadModule.h"
+#include "stdlib/TimerModule.h"
 
 std::unordered_map<std::string, ValuePtr> Interpreter::ModuleCache;
 std::unordered_map<std::string, std::shared_ptr<Program> > Interpreter::ModuleAST;
@@ -82,6 +83,7 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_
                 else if (moduleName == "Regex") module = RegexModule::CreateRegexModule();
                 else if (moduleName == "OS") module = OsModule::CreateOSModule();
                 else if (moduleName == "Win") module = GuiModule::CreateGuiModule();
+                else if (moduleName == "Timer") module = TimerModule::CreateTimerModule();
                 if (module) {
                     CppStdCache[moduleName] = module;
                     env->DeclareVar(importStmt->AliasName, module);

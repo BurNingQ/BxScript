@@ -146,7 +146,7 @@ int main(const int argc, char *argv[]) {
         return 0;
     }
     if (!GuiModule::GlobalForms.empty()) {
-        GuiRuntime::Run();
+        GuiRuntime::Run(GuiModule::GlobalForms);
     } else {
         EventLoop::RunLoop();
     }

@@ -42,22 +42,28 @@ class TimerModule {
                 }
                 EventLoop::AddActiveTask();
                 std::thread([id, ms, cb, isLoop]() {
-                    std::this_thread::sleep_for(milliseconds(ms));
-                    {
-                        std::lock_guard lock(timerMutex);
-                        auto it = activeTimers.find(id);
-                        if (it != activeTimers.end()) {
-                            // 倒计时到期后, 定时器存在, 推送到事件循环
-                            EventLoop::Enqueue(cb, {});
-                            // 完成任务, 剔除标记
-                            if (!isLoop) {
-                                activeTimers.erase(it);
+                    while (true) {
+                        bool shouldContinue = false;
+                        std::this_thread::sleep_for(milliseconds(ms));
+                        {
+                            std::lock_guard lock(timerMutex);
+                            if (auto it = activeTimers.find(id); it != activeTimers.end()) {
+                                EventLoop::Enqueue(cb, {});
+                                if (isLoop) {
+                                    shouldContinue = true;
+                                } else {
+                                    shouldContinue = false;
+                                    activeTimers.erase(it);
+                                }
+                            } else {
+                                shouldContinue = false;
                             }
                         }
+                        if (!shouldContinue) {
+                            break;
+                        }
                     }
-                    if (!isLoop) {
-                        EventLoop::RemoveActiveTask();
-                    }
+                    EventLoop::RemoveActiveTask();
                 }).detach();
                 return std::make_shared<NumberValue>(id);
             });

@@ -23,9 +23,10 @@
 
 static std::unordered_set<std::string> stdEvents{
     "click", "change", "mouseover", "mouseleave",
-    "mousemove", "mousepress", "mouseup", "close",
+    "mousemove", "mousedown", "mouseup", "close",
     "create", "resize", "paint", "keyup",
-    "keydown", "dbclick"
+    "keydown", "dbclick", "focus", "blur",
+    "scroll"
 };
 
 class GuiModule {
