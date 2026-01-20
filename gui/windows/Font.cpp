@@ -15,7 +15,7 @@
 #include "internal/User32.h"
 
 Font::Font(const std::wstring &family, int pointSize, uint8_t style)
-    : m_family(family), m_pointSize(pointSize), m_style(style) {
+    : family(family), pointSize(pointSize), style(style) {
     if (style > (FontBold | FontItalic | FontUnderline | FontStrikeOut)) {
         exit(1);
     }
@@ -37,16 +37,16 @@ Font::~Font() {
 void *Font::createForDPI(int dpi) const {
     LOGFONTW lf = {0};
 
-    lf.lfHeight = -MulDiv(m_pointSize, dpi, 72);
-    if (m_style & FontBold) {
+    lf.lfHeight = -MulDiv(pointSize, dpi, 72);
+    if (style & FontBold) {
         lf.lfWeight = FW_BOLD;
     } else {
         lf.lfWeight = FW_NORMAL;
     }
 
-    if (m_style & FontItalic) lf.lfItalic = 1;
-    if (m_style & FontUnderline) lf.lfUnderline = 1;
-    if (m_style & FontStrikeOut) lf.lfStrikeOut = 1;
+    if (style & FontItalic) lf.lfItalic = 1;
+    if (style & FontUnderline) lf.lfUnderline = 1;
+    if (style & FontStrikeOut) lf.lfStrikeOut = 1;
 
     lf.lfCharSet = DEFAULT_CHARSET;
     lf.lfOutPrecision = OUT_TT_PRECIS;
@@ -54,7 +54,7 @@ void *Font::createForDPI(int dpi) const {
     lf.lfQuality = CLEARTYPE_QUALITY;
     lf.lfPitchAndFamily = VARIABLE_PITCH | FF_SWISS;
 
-    wcsncpy(lf.lfFaceName, m_family.c_str(), LF_FACESIZE);
+    wcsncpy(lf.lfFaceName, family.c_str(), LF_FACESIZE);
 
     return Gdi32::W32_CreateFontIndirect(lf);
 }

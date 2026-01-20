@@ -189,9 +189,26 @@ public:
     bool Equal(ValuePtr v) override;
 };
 
+using ScriptExecutorType = std::function<ValuePtr(ValuePtr, const std::vector<ValuePtr>&)>;
+
 class ObjectValue final : public RuntimeValue {
 public:
+    // 执行器
+    static ScriptExecutorType GlobalExecutor;
+    // Hook
+    using NativeGetter = std::function<ValuePtr()>;
+    using NativeSetter = std::function<void(ValuePtr)>;
+    // Hook 存储
+    std::unordered_map<std::string, NativeGetter> Getters;
+    std::unordered_map<std::string, NativeSetter> Setters;
+    // Hook注册
+    void RegisterHooks(const std::string& key, NativeGetter getter, NativeSetter setter) {
+        if (getter) Getters[key] = std::move(getter);
+        if (setter) Setters[key] = std::move(setter);
+    }
+    // 数据存储
     std::unordered_map<std::string, ValuePtr> Properties;
+    // 原型
     static std::shared_ptr<ObjectValue> Prototype;
 
     explicit ObjectValue() : RuntimeValue(ValueType::OBJECT) {

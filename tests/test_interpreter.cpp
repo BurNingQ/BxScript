@@ -1102,7 +1102,8 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
             win.password("password").pos(60, 55).size(200, 30),
             win.button("btn1").size(120, 40).pos(60, 95).text("点击我试试").on("click", function(){
                 IO.println("event came from button click");
-                win.alert("测试点击")
+                win.alert("测试点击");
+                f.btn1.text("代理Setter测试");
             }),
             win.image("i1").src("C:\\Users\\Administrator\\Desktop\\XH.png").pos(60, 155).size(100, 100).on("mouseup", function(){
                 win.alert("鼠标放开", 1)

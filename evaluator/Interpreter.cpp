@@ -30,9 +30,12 @@ std::unordered_map<std::string, ValuePtr> Interpreter::ModuleCache;
 std::unordered_map<std::string, std::shared_ptr<Program> > Interpreter::ModuleAST;
 std::vector<std::shared_ptr<Program> > Interpreter::ASTRegistry{};
 std::unordered_map<std::string, ValuePtr> Interpreter::CppStdCache{};
-thread_local const Expression* Interpreter::CurrentNode = nullptr;
+thread_local const Expression *Interpreter::CurrentNode = nullptr;
 
 void Interpreter::SetupEnvironment(const std::shared_ptr<Environment> &env) {
+    ObjectValue::GlobalExecutor = [](const ValuePtr &fn, const std::vector<ValuePtr> &args) -> ValuePtr {
+        return CallFunction(fn, args);
+    };
     env->DeclareVar("String", StringValue::InitBuiltins());
     env->DeclareVar("Number", NumberValue::InitBuiltins());
     env->DeclareVar("Array", ArrayValue::InitBuiltins());

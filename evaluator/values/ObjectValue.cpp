@@ -32,6 +32,8 @@ bool ObjectValue::Equal(ValuePtr v) {
 
 // ObjectValue
 ValuePtr ObjectValue::Get(const std::string &key) {
+    if (Getters.count(key)) return Getters[key]();
+
     if (Properties.find(key) != Properties.end()) return Properties[key];
 
     if (Prototype && this != Prototype.get()) {
@@ -50,6 +52,7 @@ ValuePtr ObjectValue::Get(const std::string &key) {
 }
 
 void ObjectValue::Set(const std::string &key, ValuePtr value) {
+    if (Setters.count(key)) Setters[key](value);
     Properties[key] = value;
 }
 
@@ -91,5 +94,41 @@ ValuePtr ObjectValue::InitBuiltins() {
             return std::make_shared<NullValue>();
         });
     objObj->Set("remove", removeKeyFn);
+    const auto defineSetter = std::make_shared<NativeFunctionValue>(
+        [](const std::vector<ValuePtr> &args) -> ValuePtr {
+            if (args.size() < 3 || args[0]->type != ValueType::OBJECT || args[1]->type != ValueType::STRING || args[2]->type != ValueType::FUNCTION) {
+                return std::make_shared<NullValue>();
+            }
+            const auto target = std::static_pointer_cast<ObjectValue>(args[0]);
+            const auto attr = std::static_pointer_cast<StringValue>(args[1]);
+            const auto proxyFn = std::static_pointer_cast<FunctionValue>(args[2]);
+            const auto setterFn = [proxyFn](ValuePtr val) {
+                if (GlobalExecutor) {
+                    GlobalExecutor(proxyFn, {val});
+                }
+            };
+            target->RegisterHooks(attr->ToString(), nullptr, setterFn);
+            return std::make_shared<NullValue>();
+        });
+    objObj->Set("defineSetter", defineSetter);
+
+    const auto defineGetter = std::make_shared<NativeFunctionValue>(
+        [](const std::vector<ValuePtr> &args) -> ValuePtr {
+            if (args.size() < 3 || args[0]->type != ValueType::OBJECT || args[1]->type != ValueType::STRING || args[2]->type != ValueType::FUNCTION) {
+                return std::make_shared<NullValue>();
+            }
+            const auto target = std::static_pointer_cast<ObjectValue>(args[0]);
+            const auto attr = std::static_pointer_cast<StringValue>(args[1]);
+            const auto proxyFn = std::static_pointer_cast<FunctionValue>(args[2]);
+            const auto getterFn = [proxyFn]() -> ValuePtr {
+                if (GlobalExecutor) {
+                    return GlobalExecutor(proxyFn, {});
+                }
+                return std::make_shared<NullValue>();
+            };
+            target->RegisterHooks(attr->ToString(), getterFn, nullptr);
+            return std::make_shared<NullValue>();
+        });
+    objObj->Set("defineGetter", defineGetter);
     return objObj;
 }

@@ -21,6 +21,7 @@ std::shared_ptr<ObjectValue> ArrayValue::Prototype = std::make_shared<ObjectValu
 std::shared_ptr<ObjectValue> FunctionValue::Prototype = std::make_shared<ObjectValue>();
 std::shared_ptr<ObjectValue> ObjectValue::Prototype = std::make_shared<ObjectValue>();
 std::shared_ptr<ObjectValue> BufferValue::Prototype = std::make_shared<ObjectValue>();
+ScriptExecutorType ObjectValue::GlobalExecutor = nullptr;
 
 ValuePtr RuntimeValue::Get(const std::string &key) {
     throw RuntimeError("类型错误,不能获取属性'" + key + "' 来自: " + this->ToString());

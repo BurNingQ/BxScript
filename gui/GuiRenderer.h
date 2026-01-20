@@ -56,6 +56,89 @@ public:
     }
 
 private:
+    static void BindNativeSync(ControlBase *ctrl, std::shared_ptr<ObjectValue> obj) {
+        obj->RegisterHooks("text", [ctrl]() -> ValuePtr {
+                               const std::wstring txt = ctrl->Text();
+                               return std::make_shared<StringValue>(StringKit::U16ToU8(txt));
+                           },
+                           [ctrl](const ValuePtr &v) {
+                               ctrl->SetText(StringKit::U8ToU16(v->ToString()));
+                           }
+        );
+        obj->RegisterHooks("visible", [ctrl]() -> ValuePtr {
+                               return std::make_shared<BoolValue>(ctrl->Visible());
+                           },
+                           [ctrl](const ValuePtr &v) {
+                               if (v->type != ValueType::BOOL) return;
+                               if (std::static_pointer_cast<BoolValue>(v)->Value) ctrl->Show();
+                               else ctrl->Hide();
+                           }
+        );
+        obj->RegisterHooks("x", [ctrl]() -> ValuePtr {
+                               int x, y;
+                               ctrl->Pos(x, y);
+                               return std::make_shared<NumberValue>(x);
+                           },
+                           [ctrl](const ValuePtr &v) {
+                               if (v->type != ValueType::NUMBER) return;
+                               int x, y;
+                               ctrl->Pos(x, y);
+                               const int newX = static_cast<int>(std::static_pointer_cast<NumberValue>(v)->Value);
+                               ctrl->SetPos(newX, y);
+                           }
+        );
+        obj->RegisterHooks("y", [ctrl]() -> ValuePtr {
+                               int x, y;
+                               ctrl->Pos(x, y);
+                               return std::make_shared<NumberValue>(y);
+                           },
+                           [ctrl](const ValuePtr &v) {
+                               if (v->type != ValueType::NUMBER) return;
+                               int x, y;
+                               ctrl->Pos(x, y);
+                               const int newY = static_cast<int>(std::static_pointer_cast<NumberValue>(v)->Value);
+                               ctrl->SetPos(x, newY);
+                           }
+        );
+        obj->RegisterHooks("width", [ctrl]() -> ValuePtr {
+                               return std::make_shared<NumberValue>(ctrl->Width());
+                           },
+                           [ctrl](const ValuePtr &v) {
+                               if (v->type != ValueType::NUMBER) return;
+                               const auto h = ctrl->Height();
+                               const int newW = static_cast<int>(std::static_pointer_cast<NumberValue>(v)->Value);
+                               ctrl->SetSize(newW, h);
+                           }
+        );
+        obj->RegisterHooks("height", [ctrl]() -> ValuePtr {
+                               return std::make_shared<NumberValue>(ctrl->Height());
+                           },
+                           [ctrl](const ValuePtr &v) {
+                               if (v->type != ValueType::NUMBER) return;
+                               const auto w = ctrl->Width();
+                               const int newH = static_cast<int>(std::static_pointer_cast<NumberValue>(v)->Value);
+                               ctrl->SetSize(w, newH);
+                           }
+        );
+        obj->RegisterHooks("disable", [ctrl]() -> ValuePtr {
+                               return std::make_shared<BoolValue>(ctrl->Enabled());
+                           }, [ctrl](const ValuePtr &v) {
+                               if (v->type != ValueType::BOOL) return;
+                               const auto tv = std::static_pointer_cast<BoolValue>(v);
+                               ctrl->SetEnabled(!tv->Value);
+                           });
+        obj->RegisterHooks("src", [ctrl]() -> ValuePtr {
+                               return std::make_shared<BoolValue>(ctrl->Enabled());
+                           }, [ctrl](const ValuePtr &v) {
+                               if (v->type != ValueType::STRING) return;
+                               if (const std::string src = v->ToString(); src.rfind("http", 0) == 0) {
+                                   dynamic_cast<ImageView *>(ctrl)->DrawImageUrl(StringKit::U8ToU16(src));
+                               } else {
+                                   dynamic_cast<ImageView *>(ctrl)->DrawImageFile(StringKit::U8ToU16(src));
+                               }
+                           });
+    }
+
     static ControlBase *BuildRecursive(const ValuePtr &node, ControlBase *parent) {
         if (node->type != ValueType::OBJECT) return nullptr;
         const auto obj = std::static_pointer_cast<ObjectValue>(node);
@@ -97,20 +180,19 @@ private:
         } else if (type == "select") ctrl = static_cast<ControlBase *>(ComboBox::Create(parent));
         if (!ctrl) return nullptr;
 
-        // 4. 注册 ID 映射
+        // 注册 ID 映射
         if (!id.empty()) {
             ControlMap[id] = ctrl;
         }
 
-        // 5. 应用属性 (Text, Pos, Size, Events)
+        // 应用属性 (Text, Pos, Size, Events)
         ApplyProperties(ctrl, obj);
 
-        // 6. 递归处理子节点
-        auto childrenVal = obj->Get("children");
-        if (childrenVal->type == ValueType::ARRAY) {
+        // 递归处理子节点
+        if (auto childrenVal = obj->Get("children"); childrenVal->type == ValueType::ARRAY) {
             const auto arr = std::static_pointer_cast<ArrayValue>(childrenVal);
             for (const auto &childNode: arr->Elements) {
-                BuildRecursive(childNode, ctrl); // 递归
+                BuildRecursive(childNode, ctrl);
             }
         }
 
@@ -118,23 +200,22 @@ private:
     }
 
     static void ApplyProperties(ControlBase *ctrl, const std::shared_ptr<ObjectValue> &obj) {
-        // --- 基础属性 (Text)
+        // 基础属性 (Text)
         if (const auto v = obj->Get("text"); v->type == ValueType::STRING) {
             ctrl->SetText(StringKit::U8ToU16(v->ToString()));
         }
 
-        // --- 字体处理
-        std::wstring fontFmaily = L"MS Shell Dlg 2";
-        int fontSize = 8;
-        int fontStyle = 0x00;
-        // auto ft = DefaultFont;
+        // 字体处理
+        std::wstring fontFamily = DefaultFont->Family();
+        int fontSize = DefaultFont->PointSize();
+        int fontStyle = DefaultFont->Style();
         if (const auto v = obj->Get("fontSize"); v->type == ValueType::NUMBER) {
-            fontSize = std::static_pointer_cast<NumberValue>(v)->Value;
+            fontSize = static_cast<int>(std::static_pointer_cast<NumberValue>(v)->Value);
         }
-        auto ft = new Font(fontFmaily, fontSize, fontStyle);
+        auto ft = new Font(fontFamily, fontSize, fontStyle);
         ctrl->SetFont(ft);
 
-        // ---- 文字颜色处理
+        // 文字颜色处理
         if (const auto v = obj->Get("fontColor"); v->type == ValueType::OBJECT) {
             auto const o = std::static_pointer_cast<ObjectValue>(v);
             auto const r = o->Get("R");
@@ -149,7 +230,7 @@ private:
             }
         }
 
-        // ---- 背景颜色处理
+        // 背景颜色处理
         if (const auto v = obj->Get("bgColor"); v->type == ValueType::OBJECT) {
             auto const o = std::static_pointer_cast<ObjectValue>(v);
             auto const r = o->Get("R");
@@ -164,7 +245,7 @@ private:
             }
         }
 
-        // --- 几何属性 (X, Y, W, H)
+        // 几何属性 (X, Y, W, H)
         int x = 0, y = 0, w = 0, h = 0;
         bool hasPos = false, hasSize = false;
 
@@ -199,7 +280,7 @@ private:
             }
         }
 
-        // --- 样式属性 (Visible, Disable)
+        // 样式属性 (Visible, Disable)
         if (auto v = obj->Get("visible"); v->type == ValueType::BOOL) {
             if (!std::static_pointer_cast<BoolValue>(v)->Value) ctrl->Hide();
         }
@@ -207,7 +288,7 @@ private:
             if (std::static_pointer_cast<BoolValue>(v)->Value) ctrl->SetEnabled(false);
         }
 
-        // --- 事件绑定
+        // 事件绑定
         auto BindEvent = [&](const std::string &propName, EventManager &cppEvent) {
             if (auto funcVal = obj->Get(propName); funcVal->type == ValueType::FUNCTION) {
                 cppEvent.Bind([funcVal](const Event &e) {
@@ -219,8 +300,8 @@ private:
         BindEvent("mouseover", ctrl->OnMouseHover());
         BindEvent("mouseleave", ctrl->OnMouseLeave());
         BindEvent("mousemove", ctrl->OnMouseMove());
-        BindEvent("onLBDown", ctrl->OnLBDown());
-        BindEvent("onLBUp", ctrl->OnLBUp());
+        BindEvent("mousedown", ctrl->OnLBDown());
+        BindEvent("mouseup", ctrl->OnLBUp());
         BindEvent("keyup", ctrl->OnKeyUp());
         BindEvent("keydown", ctrl->OnKeyDown());
         BindEvent("resize", ctrl->OnSize());
@@ -245,13 +326,12 @@ private:
         }
 
 
-        // --- 控件特有属性处理
+        // 控件特有属性处理
         // 图片源 (src)
         if (const auto img = dynamic_cast<ImageView *>(ctrl)) {
             if (const auto v = obj->Get("src"); v->type == ValueType::STRING) {
-                std::string src = v->ToString();
                 // 简单判断是网络图片还是本地图片
-                if (src.rfind("http", 0) == 0) {
+                if (std::string src = v->ToString(); src.rfind("http", 0) == 0) {
                     img->DrawImageUrl(StringKit::U8ToU16(src));
                 } else {
                     img->DrawImageFile(StringKit::U8ToU16(src));
@@ -273,6 +353,8 @@ private:
                 btn->SetChecked(checked);
             }
         }
+
+        BindNativeSync(ctrl, obj);
     }
 };
 

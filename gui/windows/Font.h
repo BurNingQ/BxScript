@@ -24,9 +24,9 @@ constexpr uint8_t FontStrikeOut = 0x08;
 class Font {
     // w32.HFONT
     void *m_hfont = nullptr;
-    std::wstring m_family;
-    int m_pointSize;
-    uint8_t m_style;
+    std::wstring family;
+    int pointSize;
+    uint8_t style;
 
 public:
 
@@ -35,15 +35,16 @@ public:
     ~Font();
 
     void *GetHFONT() const { return m_hfont; }
-    bool Bold() const { return (m_style & FontBold) > 0; }
+    bool Bold() const { return (style & FontBold) > 0; }
 
     void Dispose();
 
-    std::wstring Family() const { return m_family; }
-    bool Italic() const { return (m_style & FontItalic) > 0; }
-    bool StrikeOut() const { return (m_style & FontStrikeOut) > 0; }
-    bool Underline() const { return (m_style & FontUnderline) > 0; }
-    uint8_t Style() const { return m_style; }
+    std::wstring Family() const { return family; }
+    uint8_t Style() const { return style; }
+    int PointSize() const { return pointSize; }
+    bool Italic() const { return (style & FontItalic) > 0; }
+    bool StrikeOut() const { return (style & FontStrikeOut) > 0; }
+    bool Underline() const { return (style & FontUnderline) > 0; }
 
 private:
     void *createForDPI(int dpi) const;

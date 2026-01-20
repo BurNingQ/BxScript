@@ -47,7 +47,6 @@ class GuiModule {
         if (type == "image") {
             InjectImageMethods(widget);
         }
-        winObj->Get("refs")->Set(id, widget);
         return widget;
     }
 
@@ -85,6 +84,24 @@ class GuiModule {
             }
         }
         return std::move(fc);
+    }
+
+    static void CollectRefs(const std::shared_ptr<ObjectValue> &rootForm, const std::shared_ptr<ObjectValue> &node) {
+        if (auto const idVal = node->Get("id"); idVal->type == ValueType::STRING) {
+            if (const std::string id = idVal->ToString(); !id.empty()) {
+                if (auto const refs = rootForm->Get("refs"); refs->type == ValueType::OBJECT) {
+                    std::static_pointer_cast<ObjectValue>(refs)->Set(id, node);
+                }
+            }
+        }
+        if (auto const childrenVal = node->Get("children"); childrenVal->type == ValueType::ARRAY) {
+            auto const arr = std::static_pointer_cast<ArrayValue>(childrenVal);
+            for (const auto &child: arr->Elements) {
+                if (child->type == ValueType::OBJECT) {
+                    CollectRefs(rootForm, std::static_pointer_cast<ObjectValue>(child));
+                }
+            }
+        }
     }
 
     static void InjectImageMethods(const std::shared_ptr<ObjectValue> &widget) {
@@ -141,12 +158,23 @@ class GuiModule {
                 } else {
                     children = std::static_pointer_cast<ArrayValue>(childrenVal);
                 }
+                const std::string type = self->Get("_type")->ToString();
                 if (!addArgs.empty()) {
                     if (addArgs[0]->type == ValueType::ARRAY) {
                         const auto arr = std::static_pointer_cast<ArrayValue>(addArgs[0]);
                         children->Elements.insert(children->Elements.end(), arr->Elements.begin(), arr->Elements.end());
+                        if (type == "form") {
+                            for (auto &child: arr->Elements) {
+                                if (child->type == ValueType::OBJECT) {
+                                    CollectRefs(self, std::static_pointer_cast<ObjectValue>(child));
+                                }
+                            }
+                        }
                     } else if (addArgs[0]->type == ValueType::OBJECT) {
                         children->Elements.push_back(addArgs[0]);
+                        if (type == "form") {
+                            CollectRefs(self, std::static_pointer_cast<ObjectValue>(addArgs[0]));
+                        }
                     }
                 }
                 return self;
@@ -450,7 +478,6 @@ class GuiModule {
 public:
     static ValuePtr CreateGuiModule() {
         auto win = std::make_shared<ObjectValue>();
-        win->Set("refs", std::make_shared<ObjectValue>());
         InitForm(win);
         InitControls(win);
         InitAlert(win);

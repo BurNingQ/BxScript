@@ -19,6 +19,7 @@
 #include <string>
 #include <unordered_map>
 #include <cstdint>
+#include "Controller.h"
 
 inline void *G_AppInstance = nullptr;
 inline std::unordered_map<void *, Controller *> G_ControllerRegistry;
