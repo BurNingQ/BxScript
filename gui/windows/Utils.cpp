@@ -150,9 +150,9 @@ Rect *ScreenToClientRect(void *hwnd, void *rectPtr) {
 }
 
 int ScaleWithDPI(int pixels, unsigned int dpi) {
-    return (pixels * static_cast<int>(dpi)) / 96;
+    return (pixels * static_cast<int>(dpi) + 48) / 96;
 }
 
 int ScaleToDefaultDPI(int pixels, unsigned int dpi) {
-    return (pixels * 96) / static_cast<int>(dpi);
+    return (pixels * 96 + static_cast<int>(dpi) / 2) / static_cast<int>(dpi);
 }

@@ -1095,20 +1095,24 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
     const std::string code = R"(
         import std.Win as win;
         import std.IO as IO;
+        import std.JSON as json;
         let f = win.form("mainForm").center().size(600, 800).text("测试窗口").add([
-            win.label("l1").text("用户: ").pos(10, 10).size(100, 40).fontColor({R: 64, G: 158, B: 255}),
-            win.input("userName").text("请输入用户名").pos(60, 10).size(200, 24).fontSize(12),
+            win.label("l1").text("用户: ").pos(10, 10).size(100, 40).font({fontColor: {R: 64, G: 158, B: 255}}),
+            win.input("userName").text("请输入用户名").pos(60, 10).size(200, 24).font({fontSize: 12, fontColor: {R: 64, G: 158, B: 255}}),
             win.label("l2").text("密码: ").pos(10, 50).size(100, 40),
             win.password("password").pos(60, 55).size(200, 30),
             win.button("btn1").size(120, 40).pos(60, 95).text("点击我试试").on("click", function(){
                 IO.println("event came from button click");
                 win.alert("测试点击");
-                f.btn1.text("代理Setter测试");
+                f.refs.btn1.text("代理Setter测试");
             }),
             win.image("i1").src("C:\\Users\\Administrator\\Desktop\\XH.png").pos(60, 155).size(100, 100).on("mouseup", function(){
                 win.alert("鼠标放开", 1)
             }).on("scroll", function(){
                 IO.println("image scroll");
+                let s = f.refs.i1.size();
+                f.refs.i1.size(s.width + 2, s.height + 2)
+                IO.println(json.stringify(f.refs.i1.size()));
             })
         ]).icon("C:\\Users\\Administrator\\Desktop\\logo.ico").on("resize", function(){
             IO.println("resizing");

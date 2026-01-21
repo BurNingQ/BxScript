@@ -10,6 +10,32 @@
  *
  * @brief    GuiModule
  */
+
+/**
+ * Architecture Note / 架构说明:
+ *
+ * [English]
+ * Control methods (like .text(), .pos()) capture the widget via std::shared_ptr (Strong Reference).
+ * This intentionally creates a circular reference (Widget -> Function -> Closure -> Widget),
+ * preventing automatic destruction via reference counting.
+ *
+ * Reason: To support fluent/chaining APIs (e.g., win.label().text().pos()) where temporary
+ * objects must survive between method calls during expression evaluation.
+ *
+ * Impact: Since GUI controls typically live for the duration of the window/application,
+ * granular garbage collection is not a priority compared to API usability.
+ * Resources are reclaimed by the OS upon process termination.
+ *
+ * [中文]
+ * 控件的方法（如 .text(), .pos()）通过 std::shared_ptr（强引用）捕获控件对象。
+ * 这会有意地造成循环引用（控件 -> 函数 -> 闭包 -> 控件），从而阻止引用计数机制自动销毁对象。
+ *
+ * 原因：为了支持流式/链式 API 调用（例如 win.label().text().pos()）。在解释器求值过程中，
+ * 临时对象必须在连续的方法调用之间保持存活。
+ *
+ * 影响：鉴于 GUI 控件的生命周期通常伴随整个窗口或应用程序，相比于严格的垃圾回收，
+ * API 的易用性优先级更高。所有资源将在进程终止时由操作系统回收。
+ */
 #ifndef BXSCRIPT_GUIMODULE_H
 #define BXSCRIPT_GUIMODULE_H
 
@@ -29,27 +55,8 @@ static std::unordered_set<std::string> stdEvents{
     "scroll"
 };
 
-class GuiModule {
-    static ValuePtr CreateWidget(const std::shared_ptr<ObjectValue> &winObj, const std::string &type, const std::vector<ValuePtr> &args) {
-        if (args.empty()) return std::make_shared<NullValue>();
-        auto widget = std::make_shared<ObjectValue>();
-        widget->Set("_type", std::make_shared<StringValue>(type));
-        const std::string id = args[0]->ToString();
-        widget->Set("id", args[0]);
-        InjectLayoutMethods(widget);
-        if (type == "form") {
-            InjectContainerMethods(widget);
-            InjectFormMethods(widget);
-        }
-        if (type == "group") {
-            InjectContainerMethods(widget);
-        }
-        if (type == "image") {
-            InjectImageMethods(widget);
-        }
-        return widget;
-    }
-
+class GuiModuleKit {
+public:
     static bool IsValidEvent(const std::string &alias) {
         return stdEvents.find(alias) != stdEvents.end();
     }
@@ -104,61 +111,100 @@ class GuiModule {
         }
     }
 
-    static void InjectImageMethods(const std::shared_ptr<ObjectValue> &widget) {
-        std::weak_ptr weak_w = widget;
-        auto const srcFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self || args.empty()) return std::make_shared<NullValue>();
-                self->Set("src", std::make_shared<StringValue>(args[0]->ToString()));
-                return self;
+    template<typename... Args>
+    static void AddAccessor(const std::shared_ptr<ObjectValue> &widget, const std::string &funcName, Args... attributes) {
+        std::vector<std::string> keys = {attributes...};
+        const auto accessor = std::make_shared<NativeFunctionValue>(
+            [widget, keys](const std::vector<ValuePtr> &args) -> ValuePtr {
+                if (args.empty()) {
+                    if (keys.size() == 1) {
+                        return widget->Get(keys[0]);
+                    }
+                    auto res = std::make_shared<ObjectValue>();
+                    for (const auto &key: keys) {
+                        std::string outKey = (key.length() > 1 && key[0] == '_') ? key.substr(1) : key;
+                        res->Set(outKey, widget->Get(key));
+                    }
+                    return res;
+                }
+                // 对象属性赋值
+                if (args.size() == 1 && args[0]->type == ValueType::OBJECT) {
+                    const auto inputObj = std::static_pointer_cast<ObjectValue>(args[0]);
+                    for (const auto &key: keys) {
+                        std::string inKey = (key.length() > 1 && key[0] == '_') ? key.substr(1) : key;
+                        if (const auto val = inputObj->Get(inKey); val && val->type != ValueType::NULL_TYPE) {
+                            widget->Set(key, val);
+                        }
+                    }
+                } else if (args.size() == keys.size()) {
+                    for (size_t i = 0; i < keys.size(); ++i) {
+                        widget->Set(keys[i], args[i]);
+                    }
+                } else if (args.size() == 1 && keys.size() > 1) {
+                    // padding(0) => padding4个方向
+                    for (const auto &key: keys) {
+                        widget->Set(key, args[0]);
+                    }
+                }
+                return widget;
             }
         );
-        widget->Set("src", srcFn);
+        widget->Set(funcName, accessor);
+    }
+};
+
+class GuiModule {
+    static ValuePtr CreateWidget(const std::shared_ptr<ObjectValue> &winObj, const std::string &type, const std::vector<ValuePtr> &args) {
+        if (args.empty()) return std::make_shared<NullValue>();
+        auto widget = std::make_shared<ObjectValue>();
+        widget->Set("_type", std::make_shared<StringValue>(type));
+        const std::string id = args[0]->ToString();
+        widget->Set("id", args[0]);
+        InjectLayoutMethods(widget);
+        if (type == "form") {
+            InjectContainerMethods(widget);
+            InjectFormMethods(widget);
+            widget->Set("refs", std::make_shared<ObjectValue>());
+        }
+        if (type == "group") {
+            InjectContainerMethods(widget);
+        }
+        if (type == "image") {
+            InjectImageMethods(widget);
+        }
+        return widget;
+    }
+
+
+    static void InjectImageMethods(const std::shared_ptr<ObjectValue> &widget) {
+        GuiModuleKit::AddAccessor(widget, "src", "_src");
     }
 
     static void InjectFormMethods(const std::shared_ptr<ObjectValue> &widget) {
-        std::weak_ptr weak_w = widget;
-        // icon
-        auto const iconFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                if (!args.empty()) {
-                    self->Set("icon", std::make_shared<StringValue>(args[0]->ToString()));
-                }
-                return self;
-            });
-        widget->Set("icon", iconFn);
+        GuiModuleKit::AddAccessor(widget, "icon", "_icon");
     }
 
     static void InjectContainerMethods(const std::shared_ptr<ObjectValue> &widget) {
-        std::weak_ptr weak_w = widget;
-        // center()
         auto const centerFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                self->Set("center", std::make_shared<BoolValue>(true));
-                return self;
+            [widget](const std::vector<ValuePtr> &) -> ValuePtr {
+                widget->Set("_center", std::make_shared<BoolValue>(true));
+                return widget;
             }
         );
         widget->Set("center", centerFn);
 
         // add
         auto const fn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &addArgs) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                const auto childrenVal = self->Get("children");
+            [widget](const std::vector<ValuePtr> &addArgs) -> ValuePtr {
+                const auto childrenVal = widget->Get("children");
                 std::shared_ptr<ArrayValue> children;
                 if (!childrenVal || childrenVal->type == ValueType::NULL_TYPE) {
                     children = std::make_shared<ArrayValue>(std::vector<ValuePtr>{});
-                    self->Set("children", children);
+                    widget->Set("children", children);
                 } else {
                     children = std::static_pointer_cast<ArrayValue>(childrenVal);
                 }
-                const std::string type = self->Get("_type")->ToString();
+                const std::string type = widget->Get("_type")->ToString();
                 if (!addArgs.empty()) {
                     if (addArgs[0]->type == ValueType::ARRAY) {
                         const auto arr = std::static_pointer_cast<ArrayValue>(addArgs[0]);
@@ -166,18 +212,18 @@ class GuiModule {
                         if (type == "form") {
                             for (auto &child: arr->Elements) {
                                 if (child->type == ValueType::OBJECT) {
-                                    CollectRefs(self, std::static_pointer_cast<ObjectValue>(child));
+                                    GuiModuleKit::CollectRefs(widget, std::static_pointer_cast<ObjectValue>(child));
                                 }
                             }
                         }
                     } else if (addArgs[0]->type == ValueType::OBJECT) {
                         children->Elements.push_back(addArgs[0]);
                         if (type == "form") {
-                            CollectRefs(self, std::static_pointer_cast<ObjectValue>(addArgs[0]));
+                            GuiModuleKit::CollectRefs(widget, std::static_pointer_cast<ObjectValue>(addArgs[0]));
                         }
                     }
                 }
-                return self;
+                return widget;
             }
         );
         widget->Set("add", fn);
@@ -185,227 +231,92 @@ class GuiModule {
 
     static void InjectLayoutMethods(const std::shared_ptr<ObjectValue> &widget) {
         // 托底，保证属性健全, 不考虑内存，如果下方覆盖了，则计数归0
-        widget->Set("x", std::make_shared<NumberValue>(0));
-        widget->Set("y", std::make_shared<NumberValue>(0));
-        widget->Set("fontSize", std::make_shared<NumberValue>(16));
-        widget->Set("visible", std::make_shared<BoolValue>(true));
-        widget->Set("disable", std::make_shared<BoolValue>(false));
-        widget->Set("align", std::make_shared<StringValue>("left"));
-        std::weak_ptr weak_w = widget;
-        // pos(x, y)
-        const auto posFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                if (args.empty()) return self;
-                if (args[0]->type == ValueType::OBJECT) {
-                    auto const x = args[0]->Get("x");
-                    if (x && x->type == ValueType::NUMBER) {
-                        self->Set("x", args[0]->Get("x"));
-                    }
-                    auto const y = args[0]->Get("y");
-                    if (y && y->type == ValueType::NUMBER) {
-                        self->Set("y", args[0]->Get("y"));
-                    }
-                } else if (args.size() >= 2 && args[0]->type == ValueType::NUMBER && args[1]->type == ValueType::NUMBER) {
-                    self->Set("x", args[0]);
-                    self->Set("y", args[1]);
-                }
-                return self;
-            }
-        );
-        widget->Set("pos", posFn);
+        widget->Set("_x", std::make_shared<NumberValue>(0));
+        widget->Set("_y", std::make_shared<NumberValue>(0));
+        widget->Set("_fontSize", std::make_shared<NumberValue>(12));
+        widget->Set("_visible", std::make_shared<BoolValue>(true));
+        widget->Set("_disable", std::make_shared<BoolValue>(false));
+        widget->Set("_align", std::make_shared<StringValue>("left"));
+        widget->Set("_text", std::make_shared<StringValue>(""));
 
-        // size(w, h)
-        auto const sizeFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                if (args[0]->type == ValueType::OBJECT) {
-                    if (args[0]->Get("width") && args[0]->Get("width")->type == ValueType::NUMBER) {
-                        self->Set("width", args[0]->Get("width"));
-                    }
-                    if (args[0]->Get("height") && args[0]->Get("height")->type == ValueType::NUMBER) {
-                        self->Set("height", args[0]->Get("height"));
-                    }
-                } else if (args.size() >= 2 && args[0]->type == ValueType::NUMBER && args[1]->type == ValueType::NUMBER) {
-                    self->Set("width", args[0]);
-                    self->Set("height", args[1]);
-                }
-                return self;
-            });
-        widget->Set("size", sizeFn);
-
-        // fontSize
-        auto const fontSizeFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                if (!args.empty() && args[0]->type == ValueType::NUMBER) {
-                    self->Set("fontSize", std::move(std::static_pointer_cast<NumberValue>(args[0])));
-                }
-                return self;
-            });
-        widget->Set("fontSize", fontSizeFn);
-
-        // fontColor
-        auto const fontColorFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                // ArgsColorToObject 有缺省托底
-                self->Set("fontColor", ArgsColorToObject(args));
-                return self;
-            });
-        widget->Set("fontColor", fontColorFn);
-
-        // text
-        auto const textFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                std::string str{};
-                if (!args.empty()) {
-                    str = args[0]->ToString();
-                }
-                self->Set("text", std::make_shared<StringValue>(str));
-                return self;
-            });
-        widget->Set("text", textFn);
-
-        // bgColor
-        auto const bgColorFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                self->Set("bgColor", ArgsColorToObject(args));
-                return self;
-            });
-        widget->Set("bgColor", bgColorFn);
-
-        // border
-        auto const borderFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                if (!args.empty()) {
-                    if (args[0]->type == ValueType::NUMBER) {
-                        self->Set("borderWidth", args[0]);
-                        if (args.size() > 1) {
-                            self->Set("borderColor", ArgsColorToObject(std::vector(args.begin() + 1, args.end())));
-                        }
-                    } else if (args[0]->type == ValueType::OBJECT) {
-                        auto const attrs = std::static_pointer_cast<ObjectValue>(args[0]);
-                        auto const borderWidth = attrs->Get("width");
-                        auto const borderColor = attrs->Get("color");
-                        if (borderWidth->type == ValueType::NUMBER) {
-                            self->Set("borderWidth", borderWidth);
-                        }
-                        self->Set("borderColor", ArgsColorToObject(std::vector{borderColor}));
-                    }
-                }
-                return self;
-            });
-        widget->Set("border", borderFn);
+        GuiModuleKit::AddAccessor(widget, "text", "_text");
+        GuiModuleKit::AddAccessor(widget, "bgColor", "_bgColor");
+        GuiModuleKit::AddAccessor(widget, "visible", "_visible");
+        GuiModuleKit::AddAccessor(widget, "disable", "_disable");
+        GuiModuleKit::AddAccessor(widget, "align", "_align");
+        GuiModuleKit::AddAccessor(widget, "font", "_fontSize", "_fontFamily", "_fontColor", "_fontBlod");
+        GuiModuleKit::AddAccessor(widget, "x", "_x");
+        GuiModuleKit::AddAccessor(widget, "y", "_y");
+        GuiModuleKit::AddAccessor(widget, "width", "_width");
+        GuiModuleKit::AddAccessor(widget, "height", "_height");
+        GuiModuleKit::AddAccessor(widget, "pos", "_x", "_y");
+        GuiModuleKit::AddAccessor(widget, "size", "_width", "_height");
 
         // hidden
         auto const hideFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &) -> ValuePtr {
-                auto const self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                self->Set("visible", std::make_shared<BoolValue>(false));
-                return self;
+            [widget](const std::vector<ValuePtr> &) -> ValuePtr {
+                if (!widget) return std::make_shared<NullValue>();
+                widget->Set("_visible", std::make_shared<BoolValue>(false));
+                return widget;
             });
         widget->Set("hide", hideFn);
 
         // show
         auto const showFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &) -> ValuePtr {
-                auto const self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                self->Set("visible", std::make_shared<BoolValue>(true));
-                return self;
+            [widget](const std::vector<ValuePtr> &) -> ValuePtr {
+                if (!widget) return std::make_shared<NullValue>();
+                widget->Set("_visible", std::make_shared<BoolValue>(true));
+                return widget;
             });
         widget->Set("show", showFn);
 
-        // disable
-        auto const disableFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                auto const disable = std::make_shared<BoolValue>(true);
-                if (!args.empty() && args[0]->type == ValueType::BOOL) {
-                    disable->Value = std::static_pointer_cast<BoolValue>(args[0])->Value;
-                }
-                self->Set("disable", disable);
-                return self;
-            });
-        widget->Set("disable", disableFn);
-
-        // align
-        auto const alignFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
-                if (!args.empty() && args[0]->type == ValueType::STRING) {
-                    auto const alignStr = args[0]->ToString();
-                    if (alignStr == "left" || alignStr == "right" || alignStr == "center") {
-                        self->Set("align", args[0]);
-                    }
-                }
-                return self;
-            });
-        widget->Set("align", alignFn);
-
         // event
         auto const eventFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
+            [widget](const std::vector<ValuePtr> &args) -> ValuePtr {
+                if (!widget) return std::make_shared<NullValue>();
                 if (args.empty() || args.size() < 2) throw RuntimeError("参数错误: widget.on('event', function)");
                 if (args[0]->type != ValueType::STRING || args[1]->type != ValueType::FUNCTION) {
                     throw RuntimeError("参数错误: widget.on('event', function)");
                 }
                 const std::string evtAlias = args[0]->ToString();
-                if (!IsValidEvent(evtAlias)) {
+                if (!GuiModuleKit::IsValidEvent(evtAlias)) {
                     throw RuntimeError("参数错误: " + evtAlias + " 不支持");
                 }
-                self->Set(evtAlias, args[1]);
-                return self;
+                widget->Set(evtAlias, args[1]);
+                return widget;
             });
         widget->Set("on", eventFn);
 
         // padding
         auto const paddingFn = std::make_shared<NativeFunctionValue>(
-            [weak_w](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto self = weak_w.lock();
-                if (!self) return std::make_shared<NullValue>();
+            [widget](const std::vector<ValuePtr> &args) -> ValuePtr {
+                if (!widget) return std::make_shared<NullValue>();
                 if (!args.empty()) {
                     if (args.size() == 2) {
-                        self->Set("padding-top", args[0]);
-                        self->Set("padding-bottom", args[0]);
-                        self->Set("padding-left", args[1]);
-                        self->Set("padding-right", args[1]);
+                        widget->Set("paddingTop", args[0]);
+                        widget->Set("paddingBottom", args[0]);
+                        widget->Set("paddingLeft", args[1]);
+                        widget->Set("paddingRight", args[1]);
                     } else if (args.size() == 4) {
-                        self->Set("padding-top", args[0]);
-                        self->Set("padding-bottom", args[2]);
-                        self->Set("padding-left", args[3]);
-                        self->Set("padding-right", args[1]);
+                        widget->Set("paddingTop", args[0]);
+                        widget->Set("paddingBottom", args[2]);
+                        widget->Set("paddingLeft", args[3]);
+                        widget->Set("paddingRight", args[1]);
                     } else if (args.size() == 1) {
                         if (args[0]->type == ValueType::OBJECT) {
-                            self->Set("padding-top", args[0]->Get("top"));
-                            self->Set("padding-bottom", args[0]->Get("bottom"));
-                            self->Set("padding-left", args[0]->Get("left"));
-                            self->Set("padding-right", args[0]->Get("right"));
+                            widget->Set("paddingTop", args[0]->Get("top"));
+                            widget->Set("paddingBottom", args[0]->Get("bottom"));
+                            widget->Set("paddingLeft", args[0]->Get("left"));
+                            widget->Set("paddingRight", args[0]->Get("right"));
                         } else if (args[0]->type == ValueType::NUMBER) {
-                            self->Set("padding-top", args[0]);
-                            self->Set("padding-bottom", args[0]);
-                            self->Set("padding-left", args[0]);
-                            self->Set("padding-right", args[0]);
+                            widget->Set("paddingTop", args[0]);
+                            widget->Set("paddingBottom", args[0]);
+                            widget->Set("paddingLeft", args[0]);
+                            widget->Set("paddingRight", args[0]);
                         }
                     }
                 }
-                return self;
+                return widget;
             });
         widget->Set("padding", paddingFn);
     }
@@ -449,7 +360,7 @@ class GuiModule {
 
     static void InitMessageLoop(std::shared_ptr<ObjectValue> &o) {
         const auto loopFn = std::make_shared<NativeFunctionValue>(
-            [](const std::vector<ValuePtr> &args) -> ValuePtr {
+            [](const std::vector<ValuePtr> &) -> ValuePtr {
                 GuiRuntime::Run(GlobalForms);
                 GlobalForms.clear();
                 return std::make_shared<NullValue>();
