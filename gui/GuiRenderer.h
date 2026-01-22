@@ -32,6 +32,7 @@
 #include "windows/Panel.h"
 #include "windows/ProgressBar.h"
 #include "windows/Slider.h"
+#include "common/EventKit.h"
 
 class GuiRenderer {
 public:
@@ -56,6 +57,49 @@ public:
     }
 
 private:
+    static void BuildMenuItems(const std::shared_ptr<ArrayValue> &children, void *parentPtr, bool isRoot) {
+        for (const auto &childVal: children->Elements) {
+            if (childVal->type != ValueType::OBJECT) continue;
+            auto const childObj = std::static_pointer_cast<ObjectValue>(childVal);
+            if (std::string type = childObj->Get("_type")->ToString(); type == "separator") {
+                if (isRoot) continue;
+                static_cast<MenuItem *>(parentPtr)->AddSeparator();
+                continue;
+            }
+            std::string text;
+            if (auto const t = childObj->Get("text"); t->type == ValueType::STRING) text = t->ToString();
+            auto subChildrenVal = childObj->Get("children");
+            bool const hasSubChildren = subChildrenVal && subChildrenVal->type == ValueType::ARRAY &&
+                                        !std::static_pointer_cast<ArrayValue>(subChildrenVal)->Elements.empty();
+            MenuItem *newItem = nullptr;
+            if (hasSubChildren) {
+                if (isRoot) {
+                    newItem = static_cast<Menu *>(parentPtr)->AddSubMenu(StringKit::U8ToU16(text));
+                } else {
+                    newItem = static_cast<MenuItem *>(parentPtr)->AddSubMenu(StringKit::U8ToU16(text));
+                }
+                BuildMenuItems(std::static_pointer_cast<ArrayValue>(subChildrenVal), newItem, false);
+            } else {
+                if (isRoot) {
+                    newItem = static_cast<Menu *>(parentPtr)->AddSubMenu(StringKit::U8ToU16(text));
+                } else {
+                    newItem = static_cast<MenuItem *>(parentPtr)->AddItem(StringKit::U8ToU16(text), Shortcut{0, 0});
+                }
+            }
+            if (auto clickFunc = childObj->Get("click"); clickFunc && clickFunc->type == ValueType::FUNCTION) {
+                newItem->OnClick().Bind([clickFunc](const Event &e) {
+                    Interpreter::CallFunction(clickFunc, {EventKit::FromEvent(e)});
+                });
+            }
+            if (auto v = childObj->Get("enabled"); v && v->type == ValueType::BOOL) {
+                newItem->SetEnabled(std::static_pointer_cast<BoolValue>(v)->Value);
+            }
+            if (auto v = childObj->Get("checked"); v && v->type == ValueType::BOOL) {
+                newItem->SetChecked(std::static_pointer_cast<BoolValue>(v)->Value);
+            }
+        }
+    }
+
     static void BindNativeSync(ControlBase *ctrl, std::shared_ptr<ObjectValue> obj) {
         obj->RegisterHooks("_text", [ctrl]() -> ValuePtr {
                                const std::wstring txt = ctrl->Text();
@@ -278,6 +322,14 @@ private:
                 const auto icon = Icon::NewIconFromImageFile(StringKit::U8ToU16(v->ToString()));
                 form->SetIcon(0, icon);
             }
+            if (auto menuVal = obj->Get("_menu"); menuVal && menuVal->type == ValueType::OBJECT) {
+                auto menuObj = std::static_pointer_cast<ObjectValue>(menuVal);
+                auto childrenVal = menuObj->Get("children");
+                if (childrenVal && childrenVal->type == ValueType::ARRAY) {
+                    Menu *nativeMenu = form->NewMenu();
+                    BuildMenuItems(std::static_pointer_cast<ArrayValue>(childrenVal), nativeMenu, true);
+                }
+            }
         }
 
         // 样式属性 (Visible, Disable)
@@ -292,7 +344,8 @@ private:
         auto BindEvent = [&](const std::string &propName, EventManager &cppEvent) {
             if (auto funcVal = obj->Get(propName); funcVal->type == ValueType::FUNCTION) {
                 cppEvent.Bind([funcVal](const Event &e) {
-                    Interpreter::CallFunction(funcVal, {});
+                    ValuePtr eventData = EventKit::FromEvent(e);
+                    Interpreter::CallFunction(funcVal, {eventData});
                 });
             }
         };

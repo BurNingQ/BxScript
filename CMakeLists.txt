@@ -203,6 +203,7 @@ set(SOURCE_FILES
         common/TextureKit.h
         error/RuntimeError.h
         stdlib/TimerModule.h
+        common/EventKit.h
 )
 
 # ==========================================

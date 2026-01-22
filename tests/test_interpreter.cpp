@@ -1091,32 +1091,92 @@ TEST_F(InterpreterTest, MultipleTimers) {
     ASSERT_IS_NUMBER(GetGlobalVar("global_slow"), 1.0);
 }
 
+TEST_F(InterpreterTest, StringAttTest) {
+    std::string code = R"("
+            let if_str = "if";
+            let while_str = "while";
+            let function_str = "function";
+
+            // 2. 测试符号做字符串
+            let open_brace = "{";
+            let close_brace = "}";
+            let brackets = "[";
+            let op = "+";
+
+            // 3. 混合测试
+            function test(arg) {
+                return arg + " ok";
+            }
+
+            // 4. 这里的 if 是关键字，条件里的 if_str 是变量，"if" 是字符串
+            if (if_str == "if") {
+                IO.println("1. Keyword check PASS");
+            }
+
+            // 5. 这里的 [ "]" ] 如果没判断类型，会被解析成空数组
+            let arr = [ "]" ];
+            if (arr.length == 1) {
+                IO.println("2. Symbol check PASS");
+            }
+
+            // 6. 这里的 { key: "}" } 如果没判断类型，会被提前结束对象解析
+            let obj = {
+                key: "}",
+                val: 123
+            };
+            if (obj.val == 123) {
+                IO.println("3. Object check PASS");
+            }
+    ")";
+    Eval(code);
+}
+
 TEST_F(InterpreterTest, GuiBuildStructure) {
     const std::string code = R"(
         import std.Win as win;
         import std.IO as IO;
         import std.JSON as json;
         let f = win.form("mainForm").center().size(600, 800).text("测试窗口").add([
-            win.label("l1").text("用户: ").pos(10, 10).size(100, 40).font({fontColor: {R: 64, G: 158, B: 255}}),
-            win.input("userName").text("请输入用户名").pos(60, 10).size(200, 24).font({fontSize: 12, fontColor: {R: 64, G: 158, B: 255}}),
-            win.label("l2").text("密码: ").pos(10, 50).size(100, 40),
-            win.password("password").pos(60, 55).size(200, 30),
-            win.button("btn1").size(120, 40).pos(60, 95).text("点击我试试").on("click", function(){
+            win.label("l1").text("用户: ").pos(10, 100).size(100, 40).font({fontColor: {R: 64, G: 158, B: 255}}),
+            win.input("userName").text("请输入用户名").pos(60, 100).size(200, 24).font({fontSize: 12, fontColor: {R: 64, G: 158, B: 255}}),
+            win.label("l2").text("密码: ").pos(10, 150).size(100, 40),
+            win.password("password").pos(60, 155).size(200, 30),
+            win.button("btn1").size(120, 40).pos(60, 195).text("点击我试试").on("click", function(){
                 IO.println("event came from button click");
                 win.alert("测试点击");
                 f.refs.btn1.text("代理Setter测试");
             }),
-            win.image("i1").src("C:\\Users\\Administrator\\Desktop\\XH.png").pos(60, 155).size(100, 100).on("mouseup", function(){
+            win.image("i1").src("C:\\Users\\Administrator\\Desktop\\XH.png").pos(60, 255).size(100, 100).on("mouseup", function(){
                 win.alert("鼠标放开", 1)
-            }).on("scroll", function(){
+            }).on("scroll", function(e){
                 IO.println("image scroll");
                 let s = f.refs.i1.size();
-                f.refs.i1.size(s.width + 2, s.height + 2)
-                IO.println(json.stringify(f.refs.i1.size()));
+                if(e.wheel > 0) {
+                    f.refs.i1.size(s.width + 1, s.height + 1)
+                    f.refs.btn1.show();
+                } else {
+                    f.refs.i1.size(s.width - 1, s.height - 1)
+                    f.refs.btn1.hide();
+                }
+                IO.println(json.stringify(e));
             })
         ]).icon("C:\\Users\\Administrator\\Desktop\\logo.ico").on("resize", function(){
             IO.println("resizing");
-        });
+        }).menu([
+            win.item("文件", [
+                win.item("打开", function() { win.alert("Open"); }),
+                win.item("保存", function() { win.alert("Save"); }),
+                win.item("+"),
+                win.item("退出", function() { win.alert("Exit"); })
+            ]),
+            win.item("编辑", [
+                win.item("复制"),
+                win.item("粘贴")
+            ]),
+            win.item("关于", function() {
+                 win.alert("About v1.0");
+            })
+        ])
         win.loop();
     )";
     Eval(code);

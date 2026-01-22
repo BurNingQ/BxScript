@@ -18,9 +18,20 @@ Token Parser::NextToken() {
     if (!this->TokenQueue.empty()) {
         auto token = this->TokenQueue.front();
         this->TokenQueue.pop_front();
+        std::cout << token.ToString() << std::endl;
         return token;
     }
-    return this->lexer.NextToken();
+    auto tk = this->lexer.NextToken();
+    std::cout << tk.ToString() << std::endl;
+    return tk;
+}
+
+inline bool IsSymbol(const Token &tk, const std::string &symbol) {
+    return tk._TokenType.GetEnum() == TokenKind::SYMBOL && tk.TokenValue == symbol;
+}
+
+inline bool IsKeyword(const Token &tk, const std::string &name) {
+    return tk._TokenType.GetEnum() == TokenKind::KEYWORD && tk.TokenValue == name;
 }
 
 void Parser::BackToken(const Token &token) {
@@ -57,7 +68,7 @@ std::unique_ptr<Statement> Parser::ParseImportStatements() {
     body.push_back(tk.TokenValue);
     while (true) {
         tk = this->NextToken();
-        if (tk.TokenValue == ".") {
+        if (IsSymbol(tk, ".")) {
             tk = this->NextToken();
             if (tk._TokenType.GetEnum() != TokenKind::IDENTITY) {
                 Error(tk, "import语句错误");
@@ -67,14 +78,14 @@ std::unique_ptr<Statement> Parser::ParseImportStatements() {
         }
         break;
     }
-    if (tk.TokenValue == "as") {
+    if (IsKeyword(tk, "as")) {
         tk = this->NextToken();
         if (tk._TokenType.GetEnum() != TokenKind::IDENTITY) {
             Error(tk, "import语句错误: as后应该为别名");
         }
         alias = tk.TokenValue;
         tk = this->NextToken();
-        if (tk.TokenValue != ";") {
+        if (!IsSymbol(tk, ";")) {
             Error(tk, "import语句错误: 应该以分号结束");
         }
     } else {
@@ -88,47 +99,47 @@ std::unique_ptr<Statement> Parser::ParseImportStatements() {
 std::unique_ptr<Statement> Parser::ParseStatement() {
     const auto tk = this->NextToken();
     // 此处不BACK,因为没有消耗
-    if (tk.TokenValue == ";") {
+    if (IsSymbol(tk, ";")) {
         return make_unique<EmptyStatement>();
     }
     if (tk._TokenType.GetEnum() == TokenKind::END_OF_FILE) {
         return make_unique<ExpressionStatement>(make_unique<BadExpression>());
     }
     this->BackToken(tk);
-    if (tk.TokenValue == "{") {
+    if (IsSymbol(tk, "{")) {
         return this->ParseBlockStatement();
     }
-    if (tk.TokenValue == "if") {
+    if (IsKeyword(tk, "if")) {
         return this->ParseIfStatement();
     }
-    if (tk.TokenValue == "for") {
+    if (IsKeyword(tk, "for")) {
         return this->ParseForOrForInStatement();
     }
-    if (tk.TokenValue == "while") {
+    if (IsKeyword(tk, "while")) {
         return this->ParseWhileStatement();
     }
-    if (tk.TokenValue == "let") {
+    if (IsKeyword(tk, "let")) {
         return this->ParseVariableStatement();
     }
-    if (tk.TokenValue == "function") {
+    if (IsKeyword(tk, "function")) {
         return this->ParseFunctionStatement();
     }
-    if (tk.TokenValue == "throw") {
+    if (IsKeyword(tk, "throw")) {
         return this->ParseThrowStatement();
     }
-    if (tk.TokenValue == "try") {
+    if (IsKeyword(tk, "try")) {
         return this->ParseTryStatement();
     }
-    if (tk.TokenValue == "import") {
+    if (IsKeyword(tk, "import")) {
         return this->ParseImportStatements();
     }
-    if (tk.TokenValue == "break") {
+    if (IsKeyword(tk, "break")) {
         return this->ParseBreakStatement();
     }
-    if (tk.TokenValue == "continue") {
+    if (IsKeyword(tk, "continue")) {
         return this->ParseContinueStatement();
     }
-    if (tk.TokenValue == "return") {
+    if (IsKeyword(tk, "return")) {
         return this->ParseReturnStatement();
     }
     auto expState = make_unique<ExpressionStatement>(ParseExpression());
@@ -138,13 +149,13 @@ std::unique_ptr<Statement> Parser::ParseStatement() {
 
 std::unique_ptr<Statement> Parser::ParseBlockStatement() {
     auto tk = this->NextToken();
-    if (tk.TokenValue != "{") {
+    if (!IsSymbol(tk, "{")) {
         Error(tk, "此处期望{");
     }
     std::vector<std::unique_ptr<Statement> > statementList{};
     while (true) {
         tk = this->NextToken();
-        if (tk.TokenValue == "}") break;
+        if (IsSymbol(tk, "}")) break;
         this->BackToken(tk);
         statementList.push_back(this->ParseStatement());
     }
@@ -158,12 +169,12 @@ std::unique_ptr<Statement> Parser::ParseIfStatement() {
 
     auto tk = this->NextToken(); // if
     tk = this->NextToken();
-    if (tk.TokenValue != "(") {
+    if (!IsSymbol(tk, "(")) {
         Error(tk, "if语句错误: if后应该为(");
     }
     auto condition = this->ParseExpression();
     tk = this->NextToken();
-    if (tk.TokenValue != ")") {
+    if (!IsSymbol(tk, ")")) {
         Error(tk, "if语句错误: if后应该为)");
     }
     // tk = this->NextToken();
@@ -175,9 +186,9 @@ std::unique_ptr<Statement> Parser::ParseIfStatement() {
     // }
     ok = this->ParseStatement(); // 支持没有花括号
     const auto tk1 = this->NextToken();
-    if (tk1.TokenValue == "else") {
+    if (IsKeyword(tk, "else")) {
         const auto tk2 = this->NextToken();
-        if (tk2.TokenValue == "if") {
+        if (IsKeyword(tk, "if")) {
             this->BackToken(tk2);
             _elseif = this->ParseIfStatement();
         } else {
@@ -200,19 +211,19 @@ std::unique_ptr<Statement> Parser::ParseForOrForInStatement() {
     this->OpenPVM()->InFor = true;
     auto tk = this->NextToken(); // for
     tk = this->NextToken(); // (
-    if (tk.TokenValue != "(") {
+    if (!IsSymbol(tk, "(")) {
         Error(tk, "for语句错误: for后应为(");
     }
     bool isForIn = false;
     std::vector<std::unique_ptr<Expression> > leftExpressions{};
     // 可能是let i = 0; for(;i<10;i++){}, 此处解析for()
     tk = this->NextToken();
-    if (tk.TokenValue != ";") {
-        if (tk.TokenValue == "let") {
+    if (!IsSymbol(tk, ";")) {
+        if (IsKeyword(tk, "let")) {
             // this->BackToken(tk);
             auto vds = this->ParseVariableDeclarationList();
             tk = this->NextToken();
-            if (vds.size() == 1 && tk.TokenValue == "in") {
+            if (vds.size() == 1 && IsKeyword(tk, "in")) {
                 isForIn = true;
                 leftExpressions.push_back(std::move(vds.at(0)));
             } else {
@@ -225,7 +236,7 @@ std::unique_ptr<Statement> Parser::ParseForOrForInStatement() {
             this->BackToken(tk);
             leftExpressions.push_back(this->ParseExpression());
             tk = this->NextToken();
-            if (tk.TokenValue == "in") {
+            if (IsKeyword(tk, "in")) {
                 isForIn = true;
             }
         }
@@ -241,7 +252,7 @@ std::unique_ptr<Statement> Parser::ParseForOrForInStatement() {
         }
         auto inSource = this->ParseExpression();
         tk = this->NextToken();
-        if (tk.TokenValue != ")") {
+        if (!IsSymbol(tk, ")")) {
             Error(tk, "此处期望得到: )");
         }
         // 解析器是否进入for 用来判断是否可以解析break, continue
@@ -249,28 +260,28 @@ std::unique_ptr<Statement> Parser::ParseForOrForInStatement() {
         this->ClosePVM();
         return make_unique<ForInStatement>(std::move(exp), std::move(inSource), std::move(body));
     }
-    if (tk.TokenValue != ";") {
+    if (!IsSymbol(tk, ";")) {
         Error(tk, "此处期望: ;");
     }
     auto initializer = make_unique<SequenceExpression>(std::move(leftExpressions));
     std::unique_ptr<Expression> test{};
     std::unique_ptr<Expression> updater{};
     tk = this->NextToken();
-    if (tk.TokenValue != ";") {
+    if (!IsSymbol(tk, ";")) {
         this->BackToken(tk);
         test = this->ParseExpression();
     }
     tk = this->NextToken();
-    if (tk.TokenValue != ";") {
+    if (!IsSymbol(tk, ";")) {
         Error(tk, "此处期望: ;");
     }
     tk = this->NextToken();
-    if (tk.TokenValue != ")") {
+    if (!IsSymbol(tk, ")")) {
         this->BackToken(tk);
         updater = this->ParseExpression();
     }
     tk = this->NextToken();
-    if (tk.TokenValue != ")") {
+    if (!IsSymbol(tk, ")")) {
         Error(tk, "此处期望: )");
     }
     auto body = this->ParseStatement();
@@ -282,12 +293,12 @@ std::unique_ptr<Statement> Parser::ParseWhileStatement() {
     this->OpenPVM()->InFor = true;
     auto tk = this->NextToken(); // while
     tk = this->NextToken();
-    if (tk.TokenValue != "(") {
+    if (!IsSymbol(tk, "(")) {
         Error(tk, "此处期望: (");
     }
     auto condition = this->ParseExpression();
     tk = this->NextToken();
-    if (tk.TokenValue != ")") {
+    if (!IsSymbol(tk, ")")) {
         Error(tk, "此处期望: )");
     }
     auto body = this->ParseStatement();
@@ -301,12 +312,12 @@ std::unique_ptr<BreakStatement> Parser::ParseBreakStatement() {
     if (!this->VM->InFor) {
         Error(tk, "break应在for语句中");
     }
-    if (tk.TokenValue != "break") {
+    if (!IsKeyword(tk, "break")) {
         Error(tk, "此处期望: break,");
     }
     tk = this->NextToken();
-    if (tk.TokenValue != ";") {
-        if (tk.TokenValue != "}") {
+    if (!IsSymbol(tk, ";")) {
+        if (!IsSymbol(tk, "}")) {
             Error(tk, "break后不应存在其他表达式");
         } else {
             this->BackToken(tk);
@@ -321,12 +332,12 @@ std::unique_ptr<ContinueStatement> Parser::ParseContinueStatement() {
     if (!this->VM->InFor) {
         Error(tk, "continue应在for语句中");
     }
-    if (tk.TokenValue != "continue") {
+    if (!IsKeyword(tk, "continue")) {
         Error(tk, "此处期望: continue");
     }
     tk = this->NextToken();
-    if (tk.TokenValue != ";") {
-        if (tk.TokenValue != "}") {
+    if (!IsSymbol(tk, ";")) {
+        if (!IsSymbol(tk, "}")) {
             Error(tk, "continue后不应存在其他表达式");
         } else {
             this->BackToken(tk);
@@ -340,13 +351,13 @@ std::unique_ptr<ReturnStatement> Parser::ParseReturnStatement() {
     if (!this->VM->InFunc) {
         Error(tk, "return应在function语句中");
     }
-    if (tk.TokenValue != "return") {
+    if (!IsKeyword(tk, "return")) {
         Error(tk, "此处期望: return");
     }
     std::unique_ptr<Expression> arg = nullptr; // 默认为空
     tk = this->NextToken();
-    if (tk.TokenValue == ";" || tk.TokenValue == "}") {
-        if (tk.TokenValue == ";") {
+    if (IsSymbol(tk, ";") || IsSymbol(tk, "}")) {
+        if (IsSymbol(tk, ";")) {
         } else {
             this->BackToken(tk);
         }
@@ -354,8 +365,8 @@ std::unique_ptr<ReturnStatement> Parser::ParseReturnStatement() {
         this->BackToken(tk);
         arg = this->ParseExpression();
         tk = this->NextToken();
-        if (tk.TokenValue == ";") {
-        } else if (tk.TokenValue == "}") {
+        if (IsSymbol(tk, ";")) {
+        } else if (IsSymbol(tk, "}")) {
             this->BackToken(tk);
         } else {
             Error(tk, "return语句应以;或}结束");
@@ -366,7 +377,7 @@ std::unique_ptr<ReturnStatement> Parser::ParseReturnStatement() {
 
 std::unique_ptr<Statement> Parser::ParseVariableStatement() {
     const auto tk = this->NextToken();
-    if (tk.TokenValue != "let") {
+    if (!IsKeyword(tk, "let")) {
         Error(tk, "此处期望: let");
     }
     auto vars = this->ParseVariableDeclarationList();
@@ -383,15 +394,15 @@ std::unique_ptr<Statement> Parser::ParseFunctionStatement() {
 std::unique_ptr<ParameterList> Parser::ParseParameterList() {
     auto params = std::vector<std::unique_ptr<Expression> >();
     auto tk = this->NextToken();
-    if (tk.TokenValue == "(") {
+    if (IsSymbol(tk, "(")) {
         tk = this->NextToken();
-        while (tk.TokenValue != ")") {
+        while (!IsSymbol(tk, ")")) {
             this->BackToken(tk);
             auto exp = this->ParsePrimaryExpression();
             params.push_back(std::move(exp));
             tk = this->NextToken();
-            if (tk.TokenValue != ")") {
-                if (tk.TokenValue != ",") {
+            if (!IsSymbol(tk, ")")) {
+                if (!IsSymbol(tk, ",")) {
                     Error(tk, "参数需以,分割");
                 }
                 tk = this->NextToken();
@@ -405,7 +416,7 @@ std::unique_ptr<ParameterList> Parser::ParseParameterList() {
 
 std::unique_ptr<FunctionLiteral> Parser::ParseFunction(const bool isAnonymous) {
     auto tk = this->NextToken();
-    if (tk.TokenValue != "function") {
+    if (!IsKeyword(tk, "function")) {
         Error(tk, "此处期望: function");
     }
     tk = this->NextToken();
@@ -434,7 +445,7 @@ std::unique_ptr<Statement> Parser::ParseFunctionBlock() {
 
 std::unique_ptr<Statement> Parser::ParseThrowStatement() {
     const auto tk = this->NextToken();
-    if (tk.TokenValue != "throw") {
+    if (!IsKeyword(tk, "throw")) {
         Error(tk, "此处期望: throw");
     }
     auto throwState = make_unique<ThrowStatement>(this->ParseExpression());
@@ -444,7 +455,7 @@ std::unique_ptr<Statement> Parser::ParseThrowStatement() {
 
 std::unique_ptr<Statement> Parser::ParseTryStatement() {
     auto tk = this->NextToken();
-    if (tk.TokenValue != "try") {
+    if (!IsKeyword(tk, "try")) {
         Error(tk, "此处期望: try");
     }
     // 解析try
@@ -453,11 +464,11 @@ std::unique_ptr<Statement> Parser::ParseTryStatement() {
     std::unique_ptr<Statement> catchBody{};
     std::unique_ptr<Statement> finally{};
     tk = this->NextToken();
-    if (tk.TokenValue != "catch") {
+    if (!IsKeyword(tk, "catch")) {
         Error(tk, "此处期望: catch");
     } else {
         tk = this->NextToken();
-        if (tk.TokenValue != "(") {
+        if (!IsSymbol(tk, "(")) {
             Error(tk, "此处期望: (");
         } else {
             tk = this->NextToken();
@@ -468,7 +479,7 @@ std::unique_ptr<Statement> Parser::ParseTryStatement() {
             }
             catchParam = std::move(this->ParseIdentifier());
             tk = this->NextToken();
-            if (tk.TokenValue != ")") {
+            if (!IsSymbol(tk, ")")) {
                 Error(tk, "此处期望: )");
             } else {
                 catchBody = std::move(this->ParseBlockStatement());
@@ -476,7 +487,7 @@ std::unique_ptr<Statement> Parser::ParseTryStatement() {
         }
     }
     tk = this->NextToken();
-    if (tk.TokenValue == "finally") {
+    if (IsKeyword(tk, "finally")) {
         finally = std::move(this->ParseBlockStatement());
     } else {
         this->BackToken(tk);
@@ -488,11 +499,11 @@ std::unique_ptr<Statement> Parser::ParseTryStatement() {
 std::unique_ptr<Expression> Parser::ParseExpression() {
     auto next = this->ParseAssignmentExpression();
     auto tk = this->NextToken();
-    if (tk.TokenValue == ",") {
+    if (IsSymbol(tk, ",")) {
         auto sequence = std::vector<std::unique_ptr<Expression> >{};
         sequence.push_back(std::move(next));
         while (true) {
-            if (tk.TokenValue != ",") {
+            if (!IsSymbol(tk, ",")) {
                 break;
             }
             tk = this->NextToken();
@@ -520,33 +531,33 @@ std::unique_ptr<Expression> Parser::ParsePrimaryExpression() {
     if (tk._TokenType.GetEnum() == TokenKind::INT || tk._TokenType.GetEnum() == TokenKind::FLOAT) {
         return make_unique<NumberLiteral>(tk.TokenValue);
     }
-    if (tk.TokenValue == "{") {
+    if (IsSymbol(tk, "{")) {
         this->BackToken(tk);
         return this->ParseObjectLiteral();
     }
-    if (tk.TokenValue == "[") {
+    if (IsSymbol(tk, "[")) {
         this->BackToken(tk);
         return this->ParseArrayLiteral();
     }
-    if (tk.TokenValue == "(") {
+    if (IsSymbol(tk, "(")) {
         auto exp = this->ParseExpression();
         tk = this->NextToken();
-        if (tk.TokenValue != ")") {
+        if (!IsSymbol(tk, ")")) {
             Error(tk, "此处期望: )");
         }
         return exp;
     }
     if (tk._TokenType.GetEnum() == TokenKind::KEYWORD) {
-        if (tk.TokenValue == "null") {
+        if (IsKeyword(tk, "null")) {
             return make_unique<NullLiteral>("null");
         }
-        if (tk.TokenValue == "true" || tk.TokenValue == "false") {
+        if (IsKeyword(tk, "true") || IsKeyword(tk, "false")) {
             return make_unique<BooleanLiteral>(tk.TokenValue, tk.TokenValue == "true");
         }
-        if (tk.TokenValue == "this") {
+        if (IsKeyword(tk, "this")) {
             return make_unique<ThisExpression>();
         }
-        if (tk.TokenValue == "function") {
+        if (IsKeyword(tk, "function")) {
             this->BackToken(tk);
             return this->ParseFunction(true);
         }
@@ -562,7 +573,7 @@ std::unique_ptr<VariableExpression> Parser::ParseVariableDeclaration() {
     auto literal = tk.TokenValue;
     std::unique_ptr<Expression> initializer = nullptr;
     tk = this->NextToken();
-    if (tk.TokenValue == "=") {
+    if (IsSymbol(tk, "=")) {
         initializer = this->ParseAssignmentExpression();
     } else {
         this->BackToken(tk);
@@ -577,7 +588,7 @@ std::vector<std::unique_ptr<Expression> > Parser::ParseVariableDeclarationList()
         auto exp = this->ParseVariableDeclaration();
         exps.push_back(std::move(exp));
         auto tk = this->NextToken();
-        if (tk.TokenValue != ",") {
+        if (!IsSymbol(tk, ",")) {
             this->BackToken(tk);
             break;
         }
@@ -592,7 +603,7 @@ std::string Parser::ParseObjectPropertyKey() {
 std::unique_ptr<Property> Parser::ParseObjectProperty() {
     auto k = this->ParseObjectPropertyKey();
     const auto tk = this->NextToken();
-    if (tk.TokenValue != ":") {
+    if (!IsSymbol(tk, ":")) {
         Error(tk, "此处期望: :");
     }
     return make_unique<Property>(std::move(k), std::move(this->ParseAssignmentExpression()));
@@ -601,18 +612,18 @@ std::unique_ptr<Property> Parser::ParseObjectProperty() {
 std::unique_ptr<Expression> Parser::ParseObjectLiteral() {
     std::vector<std::unique_ptr<Property> > props{};
     auto tk = this->NextToken();
-    if (tk.TokenValue != "{") {
+    if (!IsSymbol(tk, "{")) {
         Error(tk, "此处期望: {");
     }
     tk = this->NextToken();
-    if (tk.TokenValue != "}") {
+    if (!IsSymbol(tk, "}")) {
         this->BackToken(tk);
-        while (tk.TokenValue != "}") {
+        while (!IsSymbol(tk, "}")) {
             props.push_back(std::move(this->ParseObjectProperty()));
             tk = this->NextToken();
-            if (tk.TokenValue == ",") {
+            if (IsSymbol(tk, ",")) {
                 tk = this->NextToken();
-                if (tk.TokenValue == "}") {
+                if (IsSymbol(tk, "}")) {
                     Error(tk, "此处期望: 标识符");
                 } else {
                     this->BackToken(tk);
@@ -627,8 +638,8 @@ std::unique_ptr<Expression> Parser::ParseArrayLiteral() {
     std::vector<std::unique_ptr<Expression> > exps{};
     auto tk = this->NextToken(); // [
     tk = this->NextToken();
-    while (tk.TokenValue != "]") {
-        if (tk.TokenValue == ",") {
+    while (!IsSymbol(tk, "]")) {
+        if (IsSymbol(tk, ",")) {
             tk = this->NextToken();
             continue;
         }
@@ -636,7 +647,7 @@ std::unique_ptr<Expression> Parser::ParseArrayLiteral() {
         auto exp = this->ParseAssignmentExpression();
         exps.push_back(std::move(exp));
         tk = this->NextToken();
-        if (tk.TokenValue != "," && tk.TokenValue != "]") {
+        if (!IsSymbol(tk, ",") && !IsSymbol(tk, "]")) {
             Error(tk, "此处期望: ,或]");
         }
     }
@@ -646,17 +657,17 @@ std::unique_ptr<Expression> Parser::ParseArrayLiteral() {
 std::vector<std::unique_ptr<Expression> > Parser::ParseArgumentList() {
     std::vector<std::unique_ptr<Expression> > exps{};
     auto tk = this->NextToken();
-    if (tk.TokenValue != "(") {
+    if (!IsSymbol(tk, "(")) {
         Error(tk, "此处期望: (");
     }
     tk = this->NextToken();
-    if (tk.TokenValue != ")") {
+    if (!IsSymbol(tk, ")")) {
         while (true) {
             this->BackToken(tk);
             auto exp = this->ParseAssignmentExpression();
             exps.push_back(std::move(exp));
             tk = this->NextToken();
-            if (tk.TokenValue != ",") {
+            if (!IsSymbol(tk, ",")) {
                 break;
             }
             tk = this->NextToken();
@@ -672,7 +683,7 @@ std::unique_ptr<Expression> Parser::ParseCallExpression(std::unique_ptr<Expressi
 
 std::unique_ptr<Expression> Parser::ParseDotMember(std::unique_ptr<Expression> left) {
     auto tk = this->NextToken();
-    if (tk.TokenValue != ".") {
+    if (!IsSymbol(tk, ".")) {
         Error(tk, "此处期望: .");
     }
     tk = this->NextToken();
@@ -684,12 +695,12 @@ std::unique_ptr<Expression> Parser::ParseDotMember(std::unique_ptr<Expression> l
 
 std::unique_ptr<Expression> Parser::ParseBracketMember(std::unique_ptr<Expression> left) {
     auto tk = this->NextToken();
-    if (tk.TokenValue != "[") {
+    if (!IsSymbol(tk, "[")) {
         Error(tk, "此处期望: [");
     }
     auto m = this->ParseExpression();
     tk = this->NextToken();
-    if (tk.TokenValue != "]") {
+    if (!IsSymbol(tk, "]")) {
         Error(tk, "此处期望: ]");
     }
     return make_unique<BracketExpression>(std::move(left), std::move(m));
@@ -700,11 +711,11 @@ std::unique_ptr<Expression> Parser::ParseLeftHandSideExpressionAllowCall() {
     while (true) {
         auto tk = this->NextToken();
         this->BackToken(tk);
-        if (tk.TokenValue == ".") {
+        if (IsSymbol(tk, ".")) {
             left = this->ParseDotMember(std::move(left));
-        } else if (tk.TokenValue == "[") {
+        } else if (IsSymbol(tk, "[")) {
             left = this->ParseBracketMember(std::move(left));
-        } else if (tk.TokenValue == "(") {
+        } else if (IsSymbol(tk, "(")) {
             left = this->ParseCallExpression(std::move(left));
         } else {
             break;
@@ -716,7 +727,7 @@ std::unique_ptr<Expression> Parser::ParseLeftHandSideExpressionAllowCall() {
 std::unique_ptr<Expression> Parser::ParsePostfixExpression() {
     auto operand = this->ParseLeftHandSideExpressionAllowCall();
     const auto tk = this->NextToken();
-    if (tk.TokenValue == "++" || tk.TokenValue == "--") {
+    if (IsSymbol(tk, "++") || IsSymbol(tk, "--")) {
         if (!dynamic_cast<Identifier *>(operand.get()) &&
             !dynamic_cast<DotExpression *>(operand.get()) &&
             !dynamic_cast<BracketExpression *>(operand.get())) {
@@ -730,10 +741,10 @@ std::unique_ptr<Expression> Parser::ParsePostfixExpression() {
 
 std::unique_ptr<Expression> Parser::ParseUnaryExpression() {
     auto tk = this->NextToken();
-    if (tk.TokenValue == "!" || tk.TokenValue == "+" || tk.TokenValue == "-" || tk.TokenValue == "delete") {
+    if (IsSymbol(tk, "!") || IsSymbol(tk, "+") || IsSymbol(tk, "-") || IsSymbol(tk, "delete")) {
         return make_unique<UnaryExpression>(tk, std::move(this->ParseUnaryExpression()), false);
     }
-    if (tk.TokenValue == "++" || tk.TokenValue == "--") {
+    if (IsSymbol(tk, "++") || IsSymbol(tk, "--")) {
         auto operand = this->ParseUnaryExpression();
         if (!dynamic_cast<Identifier *>(operand.get()) &&
             !dynamic_cast<DotExpression *>(operand.get()) &&
@@ -749,11 +760,11 @@ std::unique_ptr<Expression> Parser::ParseUnaryExpression() {
 std::unique_ptr<Expression> Parser::ParseMultiplicativeExpression() {
     auto left = this->ParseUnaryExpression();
     auto tk = this->NextToken();
-    if (tk.TokenValue == "*" || tk.TokenValue == "/" || tk.TokenValue == "%") {
+    if (IsSymbol(tk, "*") || IsSymbol(tk, "/") || IsSymbol(tk, "%")) {
         while (true) {
             left = make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseUnaryExpression()), false);
             tk = this->NextToken();
-            if (tk.TokenValue != "*" && tk.TokenValue != "/" && tk.TokenValue != "%") {
+            if (!IsSymbol(tk, "*") && !IsSymbol(tk, "/") && !IsSymbol(tk, "%")) {
                 this->BackToken(tk);
                 break;
             }
@@ -767,12 +778,11 @@ std::unique_ptr<Expression> Parser::ParseMultiplicativeExpression() {
 std::unique_ptr<Expression> Parser::ParseAdditiveExpression() {
     auto left = this->ParseMultiplicativeExpression();
     auto tk = this->NextToken();
-    if (tk.TokenValue == "+" || tk.TokenValue == "-") {
+    if (IsSymbol(tk, "+") || IsSymbol(tk, "-")) {
         while (true) {
-            left = make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseMultiplicativeExpression()),
-                                                 false);
+            left = make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseMultiplicativeExpression()), false);
             tk = this->NextToken();
-            if (tk.TokenValue != "+" && tk.TokenValue != "-") {
+            if (!IsSymbol(tk, "+") && !IsSymbol(tk, "-")) {
                 this->BackToken(tk);
                 break;
             }
@@ -786,12 +796,12 @@ std::unique_ptr<Expression> Parser::ParseAdditiveExpression() {
 std::unique_ptr<Expression> Parser::ParseShiftExpression() {
     auto left = this->ParseAdditiveExpression();
     auto tk = this->NextToken();
-    if (tk.TokenValue == "<<" || tk.TokenValue == ">>") {
+    if (IsSymbol(tk, "<<") || IsSymbol(tk, ">>")) {
         while (true) {
             left = make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseAdditiveExpression()),
                                                  false);
             tk = this->NextToken();
-            if (tk.TokenValue != "<<" && tk.TokenValue != ">>") {
+            if (!IsSymbol(tk, "<<") && !IsSymbol(tk, ">>")) {
                 this->BackToken(tk);
                 break;
             }
@@ -805,7 +815,7 @@ std::unique_ptr<Expression> Parser::ParseShiftExpression() {
 std::unique_ptr<Expression> Parser::ParseRelationalExpression() {
     auto left = this->ParseShiftExpression();
     auto tk = this->NextToken();
-    if (tk.TokenValue == "<" || tk.TokenValue == "<=" || tk.TokenValue == ">" || tk.TokenValue == ">=") {
+    if (IsSymbol(tk, "<") || IsSymbol(tk, ">") || IsSymbol(tk, "<=") || IsSymbol(tk, ">=")) {
         return make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseRelationalExpression()), true);
     }
     this->BackToken(tk);
@@ -815,12 +825,11 @@ std::unique_ptr<Expression> Parser::ParseRelationalExpression() {
 std::unique_ptr<Expression> Parser::ParseEqualityExpression() {
     auto left = this->ParseRelationalExpression();
     auto tk = this->NextToken();
-    if (tk.TokenValue == "==" || tk.TokenValue == "!=") {
+    if (IsSymbol(tk, "==") || IsSymbol(tk, "!=")) {
         while (true) {
-            left = make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseRelationalExpression()),
-                                                 true);
+            left = make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseRelationalExpression()), true);
             tk = this->NextToken();
-            if (tk.TokenValue != "!=" && tk.TokenValue != "==") {
+            if (!IsSymbol(tk, "==") && !IsSymbol(tk, "!=")) {
                 this->BackToken(tk);
                 break;
             }
@@ -834,12 +843,11 @@ std::unique_ptr<Expression> Parser::ParseEqualityExpression() {
 std::unique_ptr<Expression> Parser::ParseLogicalAndExpression() {
     auto left = this->ParseEqualityExpression();
     auto tk = this->NextToken();
-    if (tk.TokenValue == "&&") {
+    if (IsSymbol(tk, "&&")) {
         while (true) {
-            left = make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseEqualityExpression()),
-                                                 false);
+            left = make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseEqualityExpression()), false);
             tk = this->NextToken();
-            if (tk.TokenValue != "&&") {
+            if (!IsSymbol(tk, "&&")) {
                 this->BackToken(tk);
                 break;
             }
@@ -853,12 +861,11 @@ std::unique_ptr<Expression> Parser::ParseLogicalAndExpression() {
 std::unique_ptr<Expression> Parser::ParseLogicalOrExpression() {
     auto left = this->ParseLogicalAndExpression();
     auto tk = this->NextToken();
-    if (tk.TokenValue == "||") {
+    if (IsSymbol(tk, "||")) {
         while (true) {
-            left = make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseLogicalAndExpression()),
-                                                 false);
+            left = make_unique<BinaryExpression>(tk, std::move(left), std::move(this->ParseLogicalAndExpression()), false);
             tk = this->NextToken();
-            if (tk.TokenValue != "||") {
+            if (!IsSymbol(tk, "||")) {
                 this->BackToken(tk);
                 break;
             }
@@ -872,14 +879,13 @@ std::unique_ptr<Expression> Parser::ParseLogicalOrExpression() {
 std::unique_ptr<Expression> Parser::ParseConditionExpression() {
     auto left = this->ParseLogicalOrExpression();
     auto tk = this->NextToken();
-    if (tk.TokenValue == "?") {
+    if (IsSymbol(tk, "?")) {
         auto ok = this->ParseAssignmentExpression();
         tk = this->NextToken();
-        if (tk.TokenValue == ":") {
+        if (IsSymbol(tk, ":")) {
             Error(tk, "此处期望: :");
         }
-        return make_unique<ConditionalExpression>(std::move(left), std::move(ok),
-                                                  std::move(this->ParseAssignmentExpression()));
+        return make_unique<ConditionalExpression>(std::move(left), std::move(ok), std::move(this->ParseAssignmentExpression()));
     }
     this->BackToken(tk);
     return std::move(left);
@@ -889,17 +895,17 @@ std::unique_ptr<Expression> Parser::ParseAssignmentExpression() {
     auto left = this->ParseConditionExpression();
     std::string oper{};
     auto tk = this->NextToken();
-    if (tk.TokenValue == "=") {
+    if (IsSymbol(tk, "=")) {
         oper = "=";
-    } else if (tk.TokenValue == "+=") {
+    } else if (IsSymbol(tk, "+=")) {
         oper = "+";
-    } else if (tk.TokenValue == "-=") {
+    } else if (IsSymbol(tk, "-=")) {
         oper = "-";
-    } else if (tk.TokenValue == "*=") {
+    } else if (IsSymbol(tk, "*=")) {
         oper = "*";
-    } else if (tk.TokenValue == "/=") {
+    } else if (IsSymbol(tk, "/=")) {
         oper = "/";
-    } else if (tk.TokenValue == "%=") {
+    } else if (IsSymbol(tk, "%=")) {
         oper = "%";
     } else {
         this->BackToken(tk);

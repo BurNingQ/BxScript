@@ -154,7 +154,7 @@ public:
 };
 
 class GuiModule {
-    static ValuePtr CreateWidget(const std::shared_ptr<ObjectValue> &winObj, const std::string &type, const std::vector<ValuePtr> &args) {
+    static ValuePtr CreateWidget(const std::string &type, const std::vector<ValuePtr> &args) {
         if (args.empty()) return std::make_shared<NullValue>();
         auto widget = std::make_shared<ObjectValue>();
         widget->Set("_type", std::make_shared<StringValue>(type));
@@ -175,16 +175,26 @@ class GuiModule {
         return widget;
     }
 
-
-    static void InjectImageMethods(const std::shared_ptr<ObjectValue> &widget) {
+    static void InjectImageMethods(std::shared_ptr<ObjectValue> &widget) {
         GuiModuleKit::AddAccessor(widget, "src", "_src");
     }
 
-    static void InjectFormMethods(const std::shared_ptr<ObjectValue> &widget) {
+    static void InjectFormMethods(std::shared_ptr<ObjectValue> &widget) {
         GuiModuleKit::AddAccessor(widget, "icon", "_icon");
+        auto const menuFn = std::make_shared<NativeFunctionValue>(
+            [widget](const std::vector<ValuePtr> &args) -> ValuePtr {
+                if (!args.empty() && args[0]->type == ValueType::ARRAY) {
+                    auto const menuBar = std::make_shared<ObjectValue>();
+                    menuBar->Set("_type", std::make_shared<StringValue>("menubar"));
+                    menuBar->Set("children", args[0]);
+                    widget->Set("_menu", menuBar);
+                }
+                return widget;
+            });
+        widget->Set("menu", menuFn);
     }
 
-    static void InjectContainerMethods(const std::shared_ptr<ObjectValue> &widget) {
+    static void InjectContainerMethods(std::shared_ptr<ObjectValue> &widget) {
         auto const centerFn = std::make_shared<NativeFunctionValue>(
             [widget](const std::vector<ValuePtr> &) -> ValuePtr {
                 widget->Set("_center", std::make_shared<BoolValue>(true));
@@ -229,7 +239,7 @@ class GuiModule {
         widget->Set("add", fn);
     }
 
-    static void InjectLayoutMethods(const std::shared_ptr<ObjectValue> &widget) {
+    static void InjectLayoutMethods(std::shared_ptr<ObjectValue> &widget) {
         // 托底，保证属性健全, 不考虑内存，如果下方覆盖了，则计数归0
         widget->Set("_x", std::make_shared<NumberValue>(0));
         widget->Set("_y", std::make_shared<NumberValue>(0));
@@ -321,10 +331,36 @@ class GuiModule {
         widget->Set("padding", paddingFn);
     }
 
+    static void InitItem(std::shared_ptr<ObjectValue> &o) {
+        auto const itemFn = std::make_shared<NativeFunctionValue>(
+            [](const std::vector<ValuePtr> &args) -> ValuePtr {
+                auto item = std::make_shared<ObjectValue>();
+                if (args.empty()) return item;
+                std::string text = args[0]->ToString();
+                if (text == "-") {
+                    item->Set("_type", std::make_shared<StringValue>("separator"));
+                    return item;
+                }
+                item->Set("_type", std::make_shared<StringValue>("menuitem"));
+                item->Set("text", std::make_shared<StringValue>(text));
+                if (args.size() > 1) {
+                    auto &second = args[1];
+                    if (second->type == ValueType::ARRAY) {
+                        item->Set("children", second);
+                    } else if (second->type == ValueType::FUNCTION) {
+                        item->Set("click", second);
+                    }
+                }
+                return item;
+            }
+        );
+        o->Set("item", itemFn);
+    }
+
     static void InitForm(std::shared_ptr<ObjectValue> &o) {
         const auto fn = std::make_shared<NativeFunctionValue>(
-            [o](const std::vector<ValuePtr> &args) -> ValuePtr {
-                auto form = CreateWidget(o, "form", args);
+            [](const std::vector<ValuePtr> &args) -> ValuePtr {
+                auto form = CreateWidget("form", args);
                 GlobalForms.push_back(form);
                 return form;
             }
@@ -333,12 +369,10 @@ class GuiModule {
     }
 
     static void InitControls(std::shared_ptr<ObjectValue> &o) {
-        auto makeFactory = [o](const std::string &type) {
-            std::weak_ptr weak_o = o;
+        auto makeFactory = [](const std::string &type) {
             return std::make_shared<NativeFunctionValue>(
-                [weak_o, type](const std::vector<ValuePtr> &args) -> ValuePtr {
-                    const auto self = weak_o.lock();
-                    return CreateWidget(self, type, args);
+                [type](const std::vector<ValuePtr> &args) -> ValuePtr {
+                    return CreateWidget(type, args);
                 }
             );
         };
@@ -390,6 +424,7 @@ public:
     static ValuePtr CreateGuiModule() {
         auto win = std::make_shared<ObjectValue>();
         InitForm(win);
+        InitItem(win);
         InitControls(win);
         InitAlert(win);
         InitMessageLoop(win);
