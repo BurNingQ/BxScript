@@ -25,7 +25,7 @@ Form *Form::NewCustom(Controller *parent, int exStyle, unsigned int dwStyle) {
         exStyle = WS_EX_CONTROLPARENT | WS_EX_APPWINDOW;
     }
     if (dwStyle == 0) {
-        dwStyle = WS_OVERLAPPEDWINDOW;
+        dwStyle = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
     }
     const HWND parentHwnd = parent ? static_cast<HWND>(parent->Handle()) : nullptr;
     fm->SetHandle(CreateWindowExW(exStyle, L"BxForm", L"", dwStyle,
@@ -49,7 +49,7 @@ Form *Form::New(Controller *parent) {
     fm->SetIsForm(true);
 
     constexpr DWORD exStyle = WS_EX_CONTROLPARENT | WS_EX_APPWINDOW | WS_EX_CLIENTEDGE;
-    constexpr DWORD dwStyle = WS_OVERLAPPEDWINDOW;
+    constexpr DWORD dwStyle = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
 
     const HWND parentHwnd = parent ? static_cast<HWND>(parent->Handle()) : nullptr;
     fm->SetHandle(CreateWindowExW(exStyle, L"BxForm", L"", dwStyle,
@@ -187,6 +187,66 @@ void Form::EnableTopMost(bool b) const {
     SetWindowPos(static_cast<HWND>(m_hwnd), b ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 }
 
+void Form::SetTrayIcon(const std::wstring &iconPath, const std::wstring &tooltip) {
+    NOTIFYICONDATAW nid = {};
+    nid.cbSize = sizeof(nid);
+    nid.hWnd = static_cast<HWND>(m_hwnd);
+    nid.uID = 1; // ID
+    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    nid.uCallbackMessage = WM_TRAYICON;
+
+    if (!iconPath.empty()) {
+        HANDLE hIcon = LoadImageW(nullptr, iconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+        if (hIcon) {
+            nid.hIcon = static_cast<HICON>(hIcon);
+            trayIconHandle = hIcon;
+        } else {
+            nid.hIcon = reinterpret_cast<HICON>(SendMessage(static_cast<HWND>(m_hwnd), WM_GETICON, ICON_BIG, 0));
+        }
+    }
+
+    if (!tooltip.empty()) {
+        wcsncpy(nid.szTip, tooltip.c_str(), 127);
+    } else {
+        wcsncpy(nid.szTip, L"BxScript App", 127);
+    }
+
+    if (hasTray) {
+        Shell_NotifyIconW(NIM_MODIFY, &nid);
+    } else {
+        Shell_NotifyIconW(NIM_ADD, &nid);
+        hasTray = true;
+    }
+}
+
+void Form::RemoveTrayIcon() {
+    if (!hasTray) return;
+    NOTIFYICONDATAW nid = {};
+    nid.cbSize = sizeof(nid);
+    nid.hWnd = static_cast<HWND>(m_hwnd);
+    nid.uID = 1;
+    Shell_NotifyIconW(NIM_DELETE, &nid);
+    hasTray = false;
+    if (trayIconHandle) {
+        DestroyIcon(static_cast<HICON>(trayIconHandle));
+        trayIconHandle = nullptr;
+    }
+}
+
+void Form::ShowTrayBalloon(const std::wstring &title, const std::wstring &msg) const {
+    if (!hasTray) return;
+    NOTIFYICONDATAW nid = {};
+    nid.cbSize = sizeof(nid);
+    nid.hWnd = static_cast<HWND>(m_hwnd);
+    nid.uID = 1;
+    nid.uFlags = NIF_INFO;
+    wcsncpy(nid.szInfo, msg.c_str(), 255);
+    wcsncpy(nid.szInfoTitle, title.c_str(), 63);
+    nid.dwInfoFlags = NIIF_INFO;
+    Shell_NotifyIconW(NIM_MODIFY, &nid);
+}
+
+
 uintptr_t Form::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
     switch (msg) {
         case WM_COMMAND:
@@ -195,6 +255,14 @@ uintptr_t Form::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
                 if (actionsByID.count(actionID)) {
                     actionsByID[actionID]->onClick.Fire(Event(this, nullptr));
                 }
+            }
+            break;
+        case WM_TRAYICON:
+            if (lparam == WM_LBUTTONUP || lparam == WM_RBUTTONUP) {
+                this->Show();
+                this->Restore();
+                SetForegroundWindow(static_cast<HWND>(m_hwnd));
+                onTrayClick.Fire(Event(this, nullptr));
             }
             break;
         case WM_KEYDOWN: {
@@ -212,6 +280,7 @@ uintptr_t Form::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
         case WM_CLOSE:
             break;
         case WM_DESTROY:
+            RemoveTrayIcon();
             App::Exit(0);
             return 0;
         case WM_SIZE:

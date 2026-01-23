@@ -32,6 +32,8 @@ ListView *ListView::NewListView(Controller *parent) {
     auto *lv = new ListView();
     unsigned int style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | LVS_REPORT | LVS_EDITLABELS | LVS_SHOWSELALWAYS;
     lv->InitControl(L"SysListView32", parent, 0, style);
+    lv->EnableDoubleBuffer(true);
+    lv->EnableFullRowSelect(true);
     lv->SetFont(DefaultFont);
     lv->SetSize(200, 400);
     lv->SetTheme(L"Explorer");
@@ -43,6 +45,14 @@ void ListView::setItemState(int i, unsigned int state, unsigned int mask) const 
     item.state = state;
     item.stateMask = mask;
     User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_SETITEMSTATE, static_cast<WPARAM>(i), reinterpret_cast<LPARAM>(&item));
+}
+
+bool ListView::DeleteAllColumns() {
+    while (User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_DELETECOLUMN, 0, 0)) {
+        cols--;
+    }
+    if (cols < 0) cols = 0;
+    return true;
 }
 
 void ListView::EnableSingleSelect(bool enable) const { SetStyle(m_hwnd, enable, LVS_SINGLESEL); }
@@ -168,15 +178,15 @@ bool ListView::UpdateItem(ListItem *item) {
 }
 
 void ListView::insertLvColumn(void *lvColumn, int iCol) const {
-    User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_INSERTCOLUMN, static_cast<WPARAM>(iCol), reinterpret_cast<LPARAM>(lvColumn));
+    User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_INSERTCOLUMNW, static_cast<WPARAM>(iCol), reinterpret_cast<LPARAM>(lvColumn));
 }
 
 void ListView::insertLvItem(void *lvItem) const {
-    User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_INSERTITEM, 0, reinterpret_cast<LPARAM>(lvItem));
+    User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_INSERTITEMW, 0, reinterpret_cast<LPARAM>(lvItem));
 }
 
 void ListView::setLvItem(void *lvItem) const {
-    User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_SETITEM, 0, reinterpret_cast<LPARAM>(lvItem));
+    User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_SETITEMW, 0, reinterpret_cast<LPARAM>(lvItem));
 }
 
 bool ListView::DeleteAllItems() {
@@ -262,7 +272,7 @@ uintptr_t ListView::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam
         NMHDR *nm = reinterpret_cast<NMHDR *>(lparam);
         switch (nm->code) {
             case LVN_ENDLABELEDITW: {
-                NMLVDISPINFOW* nmdi = reinterpret_cast<NMLVDISPINFOW *>(lparam);
+                NMLVDISPINFOW *nmdi = reinterpret_cast<NMLVDISPINFOW *>(lparam);
                 if (nmdi->item.pszText != nullptr) {
                     if (handle2Item.count(nmdi->item.lParam)) {
                         ListItem *item = handle2Item[nmdi->item.lParam];

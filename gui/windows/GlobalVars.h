@@ -32,4 +32,6 @@ inline Font *DefaultFont = nullptr;
 
 intptr_t __stdcall GeneralWndProc(void *hwnd, unsigned int msg, uintptr_t wparam, uintptr_t lparam);
 
+#define WM_TRAYICON (WM_USER + 1002)
+
 #endif

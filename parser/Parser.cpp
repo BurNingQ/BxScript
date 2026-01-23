@@ -18,11 +18,9 @@ Token Parser::NextToken() {
     if (!this->TokenQueue.empty()) {
         auto token = this->TokenQueue.front();
         this->TokenQueue.pop_front();
-        std::cout << token.ToString() << std::endl;
         return token;
     }
     auto tk = this->lexer.NextToken();
-    std::cout << tk.ToString() << std::endl;
     return tk;
 }
 
@@ -186,9 +184,9 @@ std::unique_ptr<Statement> Parser::ParseIfStatement() {
     // }
     ok = this->ParseStatement(); // 支持没有花括号
     const auto tk1 = this->NextToken();
-    if (IsKeyword(tk, "else")) {
+    if (IsKeyword(tk1, "else")) {
         const auto tk2 = this->NextToken();
-        if (IsKeyword(tk, "if")) {
+        if (IsKeyword(tk2, "if")) {
             this->BackToken(tk2);
             _elseif = this->ParseIfStatement();
         } else {

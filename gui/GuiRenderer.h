@@ -81,7 +81,7 @@ private:
                 BuildMenuItems(std::static_pointer_cast<ArrayValue>(subChildrenVal), newItem, false);
             } else {
                 if (isRoot) {
-                    newItem = static_cast<Menu *>(parentPtr)->AddSubMenu(StringKit::U8ToU16(text));
+                    newItem = static_cast<Menu *>(parentPtr)->AddItem(StringKit::U8ToU16(text), Shortcut{0, 0});
                 } else {
                     newItem = static_cast<MenuItem *>(parentPtr)->AddItem(StringKit::U8ToU16(text), Shortcut{0, 0});
                 }
@@ -181,6 +181,64 @@ private:
                                    dynamic_cast<ImageView *>(ctrl)->DrawImageFile(StringKit::U8ToU16(src));
                                }
                            });
+        obj->RegisterHooks("_heads", nullptr, [ctrl](const ValuePtr &v) {
+            if (v->type != ValueType::ARRAY) return;
+            auto arr = std::static_pointer_cast<ArrayValue>(v);
+
+            if (auto lv = dynamic_cast<ListView *>(ctrl)) {
+                lv->DeleteAllColumns();
+                int colIdx = 0;
+                for (auto &head: arr->Elements) {
+                    std::wstring title{};
+                    int width = 100;
+                    if (head->type == ValueType::STRING) {
+                        title = StringKit::U8ToU16(head->ToString());
+                    } else if (head->type == ValueType::OBJECT) {
+                        const auto headObj = std::static_pointer_cast<ObjectValue>(head);
+                        if (const auto t = headObj->Get("text"); t && t->type == ValueType::STRING) {
+                            title = StringKit::U8ToU16(t->ToString());
+                        }
+                        if (auto w = headObj->Get("width"); w && w->type == ValueType::NUMBER) {
+                            width = static_cast<int>(std::static_pointer_cast<NumberValue>(w)->Value);
+                        }
+                    }
+                    lv->AddColumn(title, width);
+                    colIdx++;
+                }
+                if (colIdx > 0) lv->StretchLastColumn();
+            }
+        });
+
+        obj->RegisterHooks("_items", nullptr, [ctrl, obj](const ValuePtr &v) {
+            if (v->type != ValueType::ARRAY) return;
+            const auto arr = std::static_pointer_cast<ArrayValue>(v);
+            if (const auto cb = dynamic_cast<ComboBox *>(ctrl)) {
+                cb->DeleteAllItems();
+                for (const auto &item: arr->Elements) {
+                    cb->AddItem(StringKit::U8ToU16(item->ToString()));
+                }
+                if (!arr->Elements.empty()) cb->SetSelectedItem(0);
+            }
+            if (const auto lv = dynamic_cast<ListView *>(ctrl)) {
+                lv->DeleteAllItems();
+                if (int colCount = lv->GetColumnCount(); colCount == 0) {
+                    lv->AddColumn(L"列表", -1);
+                    colCount = 1;
+                }
+                int id = 0;
+                for (auto &itemVal: arr->Elements) {
+                    if (itemVal->type == ValueType::ARRAY) {
+                        const auto rowArr = std::static_pointer_cast<ArrayValue>(itemVal);
+                        std::vector<std::wstring> cols;
+                        for (const auto &c: rowArr->Elements) {
+                            cols.push_back(StringKit::U8ToU16(c->ToString()));
+                        }
+                        const auto listItem = new StringListItem(id++, cols, false);
+                        lv->AddItem(listItem);
+                    }
+                }
+            }
+        });
     }
 
     static ControlBase *BuildRecursive(const ValuePtr &node, ControlBase *parent) {
@@ -328,6 +386,20 @@ private:
                 if (childrenVal && childrenVal->type == ValueType::ARRAY) {
                     Menu *nativeMenu = form->NewMenu();
                     BuildMenuItems(std::static_pointer_cast<ArrayValue>(childrenVal), nativeMenu, true);
+                    nativeMenu->Show();
+                }
+            }
+            if (auto trayVal = obj->Get("_trayConf"); trayVal && trayVal->type == ValueType::OBJECT) {
+                auto conf = std::static_pointer_cast<ObjectValue>(trayVal);
+                std::string iconPath = "";
+                std::string tip = "";
+                if (auto v = conf->Get("icon"); v->type == ValueType::STRING) iconPath = v->ToString();
+                if (auto v = conf->Get("tip"); v->type == ValueType::STRING) tip = v->ToString();
+                form->SetTrayIcon(StringKit::U8ToU16(iconPath), StringKit::U8ToU16(tip));
+                if (auto v = conf->Get("click"); v->type == ValueType::FUNCTION) {
+                    form->OnTrayClick().Bind([v](const Event &e) {
+                        Interpreter::CallFunction(v, {});
+                    });
                 }
             }
         }
@@ -378,12 +450,8 @@ private:
             BindEvent("change", lv->OnItemChanged());
         }
 
-
-        // 控件特有属性处理
-        // 图片源 (src)
         if (const auto img = dynamic_cast<ImageView *>(ctrl)) {
             if (const auto v = obj->Get("_src"); v->type == ValueType::STRING) {
-                // 简单判断是网络图片还是本地图片
                 if (std::string src = v->ToString(); src.rfind("http", 0) == 0) {
                     img->DrawImageUrl(StringKit::U8ToU16(src));
                 } else {
@@ -392,18 +460,74 @@ private:
             }
         }
 
-        // 进度条/滑块 (min, max, value)
         if (const auto v = obj->Get("_value"); v->type == ValueType::NUMBER) {
             const int val = static_cast<int>(std::static_pointer_cast<NumberValue>(v)->Value);
             if (const auto slider = dynamic_cast<Slider *>(ctrl)) slider->SetValue(val);
             else if (const auto pbar = dynamic_cast<ProgressBar *>(ctrl)) pbar->SetValue(val);
         }
 
-        // 复选框/单选框 (checked)
         if (const auto v = obj->Get("_checked"); v->type == ValueType::BOOL) {
             const bool checked = std::static_pointer_cast<BoolValue>(v)->Value;
             if (const auto btn = dynamic_cast<Button *>(ctrl)) {
                 btn->SetChecked(checked);
+            }
+        }
+
+        if (auto lv = dynamic_cast<ListView *>(ctrl)) {
+            if (auto headsVal = obj->Get("_heads"); headsVal && headsVal->type == ValueType::ARRAY) {
+                auto arr = std::static_pointer_cast<ArrayValue>(headsVal);
+                int colIdx = 0;
+                for (auto& head : arr->Elements) {
+                    std::wstring title;
+                    int width = 100;
+                    if (head->type == ValueType::STRING) {
+                        title = StringKit::U8ToU16(head->ToString());
+                    }
+                    else if (head->type == ValueType::OBJECT) {
+                        auto headObj = std::static_pointer_cast<ObjectValue>(head);
+                        if (auto t = headObj->Get("text"); t && t->type == ValueType::STRING) {
+                            title = StringKit::U8ToU16(t->ToString());
+                        }
+                        if (auto w = headObj->Get("width"); w && w->type == ValueType::NUMBER) {
+                            width = static_cast<int>(std::static_pointer_cast<NumberValue>(w)->Value);
+                        }
+                    }
+                    lv->AddColumn(title, width);
+                    colIdx++;
+                }
+                if (colIdx > 0) lv->StretchLastColumn();
+            }
+
+            if (auto itemsVal = obj->Get("_items"); itemsVal && itemsVal->type == ValueType::ARRAY) {
+                auto arr = std::static_pointer_cast<ArrayValue>(itemsVal);
+                if (lv->GetColumnCount() == 0) {
+                    lv->AddColumn(L"列表", -1);
+                }
+                int id = 0;
+                for (auto &itemVal: arr->Elements) {
+                    if (itemVal->type == ValueType::ARRAY) {
+                        auto rowArr = std::static_pointer_cast<ArrayValue>(itemVal);
+                        std::vector<std::wstring> cols;
+                        for (const auto &c: rowArr->Elements) {
+                            cols.push_back(StringKit::U8ToU16(c->ToString()));
+                        }
+                        auto listItem = new StringListItem(id++, cols, false);
+                        lv->AddItem(listItem);
+                    } else {
+                        auto listItem = new StringListItem(id++, StringKit::U8ToU16(itemVal->ToString()), false);
+                        lv->AddItem(listItem);
+                    }
+                }
+            }
+        }
+
+        if (auto cb = dynamic_cast<ComboBox *>(ctrl)) {
+            if (auto itemsVal = obj->Get("_items"); itemsVal && itemsVal->type == ValueType::ARRAY) {
+                auto arr = std::static_pointer_cast<ArrayValue>(itemsVal);
+                for (auto &item: arr->Elements) {
+                    cb->AddItem(StringKit::U8ToU16(item->ToString()));
+                }
+                if (!arr->Elements.empty()) cb->SetSelectedItem(0);
             }
         }
 

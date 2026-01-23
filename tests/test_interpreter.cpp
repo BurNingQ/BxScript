@@ -1092,7 +1092,8 @@ TEST_F(InterpreterTest, MultipleTimers) {
 }
 
 TEST_F(InterpreterTest, StringAttTest) {
-    std::string code = R"("
+    std::string code = R"bx(
+            import std.IO as IO;
             let if_str = "if";
             let while_str = "while";
             let function_str = "function";
@@ -1127,7 +1128,14 @@ TEST_F(InterpreterTest, StringAttTest) {
             if (obj.val == 123) {
                 IO.println("3. Object check PASS");
             }
-    ")";
+            // 7. 函数调用里传右括号字符串
+            let res = test(")");
+            if (res == ") ok") {
+                IO.println("4. Call check PASS");
+            }
+
+            IO.println("🎉 Congratulations! Parser Refactoring Complete!");
+    )bx";
     Eval(code);
 }
 
@@ -1136,47 +1144,51 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
         import std.Win as win;
         import std.IO as IO;
         import std.JSON as json;
-        let f = win.form("mainForm").center().size(600, 800).text("测试窗口").add([
+        import std.Dlg as Dlg;
+        let f = win.form("mainForm").center().size(800, 800).text("测试窗口").add([
             win.label("l1").text("用户: ").pos(10, 100).size(100, 40).font({fontColor: {R: 64, G: 158, B: 255}}),
             win.input("userName").text("请输入用户名").pos(60, 100).size(200, 24).font({fontSize: 12, fontColor: {R: 64, G: 158, B: 255}}),
             win.label("l2").text("密码: ").pos(10, 150).size(100, 40),
             win.password("password").pos(60, 155).size(200, 30),
             win.button("btn1").size(120, 40).pos(60, 195).text("点击我试试").on("click", function(){
                 IO.println("event came from button click");
-                win.alert("测试点击");
+                f.refs.mylist.items([["行1列1", "行1列2", "行1列3"],["行2列1", "行2列2", "行2列3"],["行3列1", "行3列2", "行3列3"]]);
+                Dlg.alert("测试点击");
                 f.refs.btn1.text("代理Setter测试");
             }),
             win.image("i1").src("C:\\Users\\Administrator\\Desktop\\XH.png").pos(60, 255).size(100, 100).on("mouseup", function(){
-                win.alert("鼠标放开", 1)
+                Dlg.alert("鼠标放开", 1)
             }).on("scroll", function(e){
-                IO.println("image scroll");
                 let s = f.refs.i1.size();
                 if(e.wheel > 0) {
-                    f.refs.i1.size(s.width + 1, s.height + 1)
-                    f.refs.btn1.show();
+                    f.refs.i1.size(s.width + 1, s.height + 1);
+                    IO.println("Image Bigger");
                 } else {
-                    f.refs.i1.size(s.width - 1, s.height - 1)
-                    f.refs.btn1.hide();
+                    f.refs.i1.size(s.width - 1, s.height - 1);
+                    IO.println("Image Smaller");
                 }
                 IO.println(json.stringify(e));
-            })
+            }),
+            win.list("mylist").size(400, 300).pos(280, 100)
+                .heads([{text: "ID", width: 100},{text: "姓名", width: 120},"备注"])
+                .items(["Apple", "Banana", "Orange"])
         ]).icon("C:\\Users\\Administrator\\Desktop\\logo.ico").on("resize", function(){
             IO.println("resizing");
         }).menu([
             win.item("文件", [
-                win.item("打开", function() { win.alert("Open"); }),
-                win.item("保存", function() { win.alert("Save"); }),
-                win.item("+"),
-                win.item("退出", function() { win.alert("Exit"); })
+                win.item("打开", function() { Dlg.alert("Open"); }),
+                win.item("保存", function() { Dlg.alert("Save"); }),
+                win.item("-"),
+                win.item("退出", function() { Dlg.alert("Exit"); })
             ]),
             win.item("编辑", [
                 win.item("复制"),
                 win.item("粘贴")
             ]),
             win.item("关于", function() {
-                 win.alert("About v1.0");
+                 Dlg.alert("About v1.0");
             })
-        ])
+        ]).bgColor({R: 255, G: 0, B: 0});
         win.loop();
     )";
     Eval(code);

@@ -204,13 +204,15 @@ set(SOURCE_FILES
         error/RuntimeError.h
         stdlib/TimerModule.h
         common/EventKit.h
+        stdlib/DlgModule.h
 )
 
 # ==========================================
 # 主程序 BxScript
 # ==========================================
 # 在这里就把 PLATFORM_SOURCES (app.rc) 加进去
-add_executable(BxScript ${SOURCE_FILES} ${PLATFORM_SOURCES})
+add_executable(BxScript ${SOURCE_FILES} ${PLATFORM_SOURCES}
+        stdlib/DlgModule.h)
 
 target_include_directories(BxScript PRIVATE ${PROJECT_SOURCE_DIR})
 

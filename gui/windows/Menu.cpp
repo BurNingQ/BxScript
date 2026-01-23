@@ -127,6 +127,10 @@ MenuItem *Menu::AddSubMenu(const std::wstring &text) const {
     return addMenuItem(hMenu, hSubMenu, text, Shortcut{0, 0}, nullptr, false);
 }
 
+MenuItem *Menu::AddItem(const std::wstring &text, Shortcut shortcut) const {
+    return addMenuItem(hMenu, nullptr, text, shortcut, nullptr, false);
+}
+
 void updateRadioGroups() {
     if (!initialised) return;
 
@@ -177,6 +181,7 @@ void updateRadioGroups() {
 }
 
 void MenuItem::AddSeparator() const { addMenuItem(hSubMenu, nullptr, L"-", Shortcut{0, 0}, nullptr, false); }
+
 MenuItem *MenuItem::AddItem(const std::wstring &text, Shortcut shortcut) const { return addMenuItem(hSubMenu, nullptr, text, shortcut, nullptr, false); }
 
 MenuItem *MenuItem::AddItemCheckable(const std::wstring &text, Shortcut shortcut) const {

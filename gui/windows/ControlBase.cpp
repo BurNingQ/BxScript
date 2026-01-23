@@ -94,8 +94,11 @@ void ControlBase::Pos(int &x, int &y) {
 }
 
 ControlBase *ControlBase::SetPos(int x, int y) {
-    // 逻辑根据 GetMonitorInfo 实现位置偏移，这里简化
-    User32::W32_SetWindowPos(static_cast<HWND>(m_hwnd), nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    unsigned int dpiX, dpiY;
+    GetWindowDPI(dpiX, dpiY);
+    int scaledX = ScaleWithDPI(x, dpiX);
+    int scaledY = ScaleWithDPI(y, dpiY);
+    User32::W32_SetWindowPos(static_cast<HWND>(m_hwnd), nullptr, scaledX, scaledY, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
     return this;
 }
 
@@ -162,6 +165,9 @@ ControlBase *ControlBase::SetBackgroundColor(Color c) {
 }
 
 void *ControlBase::HandleCtlColor(void *hdc, unsigned int uMsg) const {
+    if (uMsg == WM_CTLCOLORSTATIC) {
+        return static_cast<HBRUSH>(Gdi32::W32_GetStockObject(HOLLOW_BRUSH));
+    }
     const auto hDC = static_cast<HDC>(hdc);
     if (defineFontColor) {
         Gdi32::W32_SetTextColor(hDC, fontColor.Value());

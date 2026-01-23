@@ -22,14 +22,19 @@
 class StringListItem : public ListItem, public ListItemChecker {
 public:
     int ID;
-    std::wstring Data;
+    std::vector<std::wstring> Data{};
     bool Check;
 
     StringListItem(const int id, std::wstring data, const bool check)
+        : ID(id), Check(check) {
+        Data.push_back(std::move(data));
+    }
+
+    StringListItem(const int id, std::vector<std::wstring> data, const bool check)
         : ID(id), Data(std::move(data)), Check(check) {
     }
 
-    std::vector<std::wstring> Text() override { return {Data}; }
+    std::vector<std::wstring> Text() override { return Data; }
     bool Checked() override { return Check; }
     void SetChecked(bool checked) override { Check = checked; }
     int ImageIndex() override { return 0; }
@@ -59,6 +64,10 @@ public:
     ListView() = default;
 
     virtual ~ListView() = default;
+
+    int GetColumnCount() const { return cols; }
+
+    bool DeleteAllColumns();
 
     static ListView *NewListBox(Controller *parent);
 

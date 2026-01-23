@@ -172,6 +172,9 @@ class GuiModule {
         if (type == "image") {
             InjectImageMethods(widget);
         }
+        if (type == "list" || type == "select") {
+            InjectListMethods(widget);
+        }
         return widget;
     }
 
@@ -192,6 +195,14 @@ class GuiModule {
                 return widget;
             });
         widget->Set("menu", menuFn);
+        auto const trayFn = std::make_shared<NativeFunctionValue>(
+            [widget](const std::vector<ValuePtr> &args) -> ValuePtr {
+                if (args.empty() || args[0]->type != ValueType::OBJECT) return widget;
+                auto conf = std::static_pointer_cast<ObjectValue>(args[0]);
+                widget->Set("_trayConf", conf);
+                return widget;
+            });
+        widget->Set("tray", trayFn);
     }
 
     static void InjectContainerMethods(std::shared_ptr<ObjectValue> &widget) {
@@ -248,6 +259,7 @@ class GuiModule {
         widget->Set("_disable", std::make_shared<BoolValue>(false));
         widget->Set("_align", std::make_shared<StringValue>("left"));
         widget->Set("_text", std::make_shared<StringValue>(""));
+        widget->Set("_bgColor", std::make_shared<NullValue>());
 
         GuiModuleKit::AddAccessor(widget, "text", "_text");
         GuiModuleKit::AddAccessor(widget, "bgColor", "_bgColor");
@@ -403,21 +415,11 @@ class GuiModule {
         o->Set("loop", loopFn);
     }
 
-    static void InitAlert(std::shared_ptr<ObjectValue> &o) {
-        const auto alertFn = std::make_shared<NativeFunctionValue>(
-            [](const std::vector<ValuePtr> &args) -> ValuePtr {
-                std::wstring msg{L"BxScript提示"};
-                std::wstring title{L"BxScript提示"};
-                if (!args.empty()) {
-                    msg = StringKit::U8ToU16(args[0]->ToString());
-                }
-                if (!args.empty() && args.size() > 1) {
-                    title = StringKit::U8ToU16(args[0]->ToString());
-                }
-                CommonDlgs::MsgBoxInfo(nullptr, msg, title);
-                return std::make_shared<NullValue>();
-            });
-        o->Set("alert", alertFn);
+    static void InjectListMethods(const std::shared_ptr<ObjectValue> &widget) {
+        widget->Set("_items", std::make_shared<ArrayValue>(std::vector<ValuePtr>{}));
+        widget->Set("_heads", std::make_shared<ArrayValue>(std::vector<ValuePtr>{}));
+        GuiModuleKit::AddAccessor(widget, "items", "_items");
+        GuiModuleKit::AddAccessor(widget, "heads", "_heads");
     }
 
 public:
@@ -426,7 +428,6 @@ public:
         InitForm(win);
         InitItem(win);
         InitControls(win);
-        InitAlert(win);
         InitMessageLoop(win);
         return win;
     }

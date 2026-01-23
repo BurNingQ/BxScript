@@ -36,6 +36,8 @@ public:
     void Show() const;
 
     MenuItem *AddSubMenu(const std::wstring &text) const;
+
+    MenuItem *AddItem(const std::wstring &text, Shortcut shortcut = {0, 0}) const;
 };
 
 class MenuItem {

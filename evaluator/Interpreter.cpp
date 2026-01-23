@@ -17,6 +17,7 @@
 
 #include "error/RuntimeError.h"
 #include "stdlib/CryptModule.h"
+#include "stdlib/DlgModule.h"
 #include "stdlib/GuiModule.h"
 #include "stdlib/IOModule.h"
 #include "stdlib/JsonModule.h"
@@ -87,6 +88,7 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_
                 else if (moduleName == "OS") module = OsModule::CreateOSModule();
                 else if (moduleName == "Win") module = GuiModule::CreateGuiModule();
                 else if (moduleName == "Timer") module = TimerModule::CreateTimerModule();
+                else if (moduleName == "Dlg") module = DlgModule::CreateDlgModule();
                 if (module) {
                     CppStdCache[moduleName] = module;
                     env->DeclareVar(importStmt->AliasName, module);

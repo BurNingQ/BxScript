@@ -28,12 +28,15 @@ public:
 class Form final : public ControlBase {
     LayoutManager *m_layoutMng = nullptr;
 
-    // Fullscreen / Unfullscreen state
     bool m_isFullscreen = false;
     unsigned int m_previousWindowStyle = 0;
     unsigned int m_previousWindowExStyle = 0;
     // WINDOWPLACEMENT 大小通常为 44 字节
     uint8_t m_previousWindowPlacement[44]{};
+
+    bool hasTray = false;
+    void* trayIconHandle = nullptr; // HICON
+    EventManager onTrayClick;
 
 public:
     Form() = default;
@@ -81,6 +84,12 @@ public:
 
     // Override WndProc from ControlBase
     virtual uintptr_t WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) override;
+
+    void SetTrayIcon(const std::wstring& iconPath, const std::wstring& tooltip);
+    void RemoveTrayIcon();
+    void ShowTrayBalloon(const std::wstring& title, const std::wstring& msg) const;
+
+    EventManager& OnTrayClick() { return onTrayClick; }
 };
 
 #endif // BXSCRIPT_FORM_H
