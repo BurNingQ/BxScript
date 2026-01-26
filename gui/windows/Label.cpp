@@ -17,7 +17,6 @@
 
 Label *Label::Create(Controller *parent) {
     const auto lb = new Label();
-    // WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP
     lb->InitControl(L"STATIC", parent, 0, WS_CHILD | WS_VISIBLE | SS_LEFTNOWORDWRAP);
     lb->SetFont(DefaultFont);
     lb->SetText(L"Label");

@@ -39,12 +39,14 @@
 #ifndef BXSCRIPT_GUIMODULE_H
 #define BXSCRIPT_GUIMODULE_H
 
+#include <algorithm>
 #include <unordered_set>
 
 #include "../evaluator/Value.h"
 #include "common/ColorKit.h"
 #include "common/StringKit.h"
 #include "gui/GuiRuntime.h"
+#include "gui/windows/App.h"
 #include "gui/windows/CommonDlgs.h"
 
 static std::unordered_set<std::string> stdEvents{
@@ -422,6 +424,20 @@ class GuiModule {
         GuiModuleKit::AddAccessor(widget, "heads", "_heads");
     }
 
+    static void InitExit(std::shared_ptr<ObjectValue> &o) {
+        auto const exitFn = std::make_shared<NativeFunctionValue>(
+            [](const std::vector<ValuePtr> &args) -> ValuePtr {
+                int code = 0;
+                if (!args.empty() && args[0]->type == ValueType::NUMBER) {
+                    code = static_cast<int>(std::static_pointer_cast<NumberValue>(args[0])->Value);
+                }
+                GlobalForms.clear();
+                App::Exit(code);
+                return std::make_shared<NullValue>();
+            });
+        o->Set("exit", exitFn);
+    }
+
 public:
     static ValuePtr CreateGuiModule() {
         auto win = std::make_shared<ObjectValue>();
@@ -429,6 +445,7 @@ public:
         InitItem(win);
         InitControls(win);
         InitMessageLoop(win);
+        InitExit(win);
         return win;
     }
 

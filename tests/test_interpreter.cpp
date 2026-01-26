@@ -1176,10 +1176,13 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
             IO.println("resizing");
         }).menu([
             win.item("文件", [
-                win.item("打开", function() { Dlg.alert("Open"); }),
+                win.item("打开", function() {
+                    let file = Dlg.open("请选择需要打开的文件");
+                    Dlg.alert("Opened " + file);
+                }),
                 win.item("保存", function() { Dlg.alert("Save"); }),
                 win.item("-"),
-                win.item("退出", function() { Dlg.alert("Exit"); })
+                win.item("退出", function() { win.exit(); })
             ]),
             win.item("编辑", [
                 win.item("复制"),
@@ -1188,7 +1191,7 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
             win.item("关于", function() {
                  Dlg.alert("About v1.0");
             })
-        ]).bgColor({R: 255, G: 0, B: 0});
+        ]);
         win.loop();
     )";
     Eval(code);

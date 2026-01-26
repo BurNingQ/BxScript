@@ -319,6 +319,17 @@ uintptr_t Form::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
             }
             break;
         }
+        case WM_ERASEBKGND: {
+            if (this->defineBackgroundColor && this->formBrush) {
+                HDC hdc = reinterpret_cast<HDC>(wparam);
+                RECT rc;
+                GetClientRect(static_cast<HWND>(m_hwnd), &rc);
+                FillRect(hdc, &rc, static_cast<HBRUSH>(this->formBrush));
+                return 1;
+            }
+            break;
+            break;
+        }
         default: ;
     }
     return DefWindowProcW(static_cast<HWND>(m_hwnd), msg, wparam, lparam);

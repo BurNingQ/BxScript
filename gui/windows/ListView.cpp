@@ -4,11 +4,7 @@
  * @date     2026/1/12
  * @license  MIT License
  *
- * @warning  USAGE DISCLAIMER / 免责声明
- * BxScript 仅供技术研究与合法开发。严禁用于灰产、黑客攻击等任何非法用途。
- * 开发者 BurNingLi 不承担因违规使用产生的任何法律责任。
- *
- * @brief    ListView
+ * @brief    ListView (Clean Double-Buffered Version)
  */
 #include "ListView.h"
 #include <windows.h>
@@ -18,27 +14,51 @@
 #include "EventData.h"
 #include "Utils.h"
 
-ListView *ListView::NewListBox(Controller *parent) {
-    auto *lv = new ListView();
-    unsigned int style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | LVS_REPORT | LVS_EDITLABELS | LVS_SHOWSELALWAYS | LVS_NOCOLUMNHEADER;
-    lv->InitControl(L"SysListView32", parent, 0, style);
-    lv->SetFont(DefaultFont);
-    lv->SetSize(200, 400);
-    lv->SetTheme(L"Explorer");
-    return lv;
-}
+// 宏定义补全
+#ifndef LVM_INSERTCOLUMNW
+#define LVM_INSERTCOLUMNW (LVM_FIRST + 97)
+#endif
+#ifndef LVM_INSERTITEMW
+#define LVM_INSERTITEMW (LVM_FIRST + 77)
+#endif
+#ifndef LVM_SETITEMW
+#define LVM_SETITEMW (LVM_FIRST + 76)
+#endif
+#ifndef LVM_SETBKCOLOR
+#define LVM_SETBKCOLOR (LVM_FIRST + 1)
+#endif
+#ifndef LVM_SETTEXTBKCOLOR
+#define LVM_SETTEXTBKCOLOR (LVM_FIRST + 38)
+#endif
+
+// ============================================================================
+// 工厂方法
+// ============================================================================
 
 ListView *ListView::NewListView(Controller *parent) {
     auto *lv = new ListView();
-    unsigned int style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | LVS_REPORT | LVS_EDITLABELS | LVS_SHOWSELALWAYS;
+    unsigned int style = WS_CHILD | WS_VISIBLE | WS_TABSTOP | LVS_REPORT | LVS_EDITLABELS | LVS_SHOWSELALWAYS | WS_CLIPSIBLINGS;
     lv->InitControl(L"SysListView32", parent, 0, style);
     lv->EnableDoubleBuffer(true);
+    DWORD sysColor = GetSysColor(COLOR_WINDOW);
+    User32::W32_SendMessage(static_cast<HWND>(lv->Handle()), LVM_SETBKCOLOR, 0, sysColor);
+    User32::W32_SendMessage(static_cast<HWND>(lv->Handle()), LVM_SETTEXTBKCOLOR, 0, sysColor);
     lv->EnableFullRowSelect(true);
     lv->SetFont(DefaultFont);
     lv->SetSize(200, 400);
     lv->SetTheme(L"Explorer");
     return lv;
 }
+
+ListView *ListView::NewListBox(Controller *parent) {
+    auto *lv = NewListView(parent);
+    SetStyle(lv->Handle(), true, LVS_NOCOLUMNHEADER);
+    return lv;
+}
+
+// ============================================================================
+// 辅助方法
+// ============================================================================
 
 void ListView::setItemState(int i, unsigned int state, unsigned int mask) const {
     LVITEMW item = {0};
@@ -138,7 +158,11 @@ void ListView::InsertItem(ListItem *item, int index) {
     auto text = item->Text();
     LVITEMW li = {0};
     li.mask = LVIF_TEXT | LVIF_PARAM;
-    li.pszText = const_cast<LPWSTR>(text[0].c_str());
+    if (text.empty()) {
+        li.pszText = const_cast<LPWSTR>(L"");
+    } else {
+        li.pszText = const_cast<LPWSTR>(text[0].c_str());
+    }
     li.iItem = index;
 
     lastIndex++;
@@ -164,7 +188,8 @@ bool ListView::UpdateItem(ListItem *item) {
     auto text = item->Text();
     LVITEMW li = {0};
     li.mask = LVIF_TEXT | LVIF_PARAM;
-    li.pszText = const_cast<LPWSTR>(text[0].c_str());
+    if (text.empty()) li.pszText = const_cast<LPWSTR>(L"");
+    else li.pszText = const_cast<LPWSTR>(text[0].c_str());
     li.lParam = lparam;
     li.iItem = index;
     setLvItem(&li);
@@ -267,17 +292,21 @@ int ListView::SelectedIndex() const {
 
 void ListView::SetSelectedIndex(int i) const { setItemState(i, LVIS_SELECTED, LVIS_SELECTED); }
 
+// ============================================================================
+// 消息处理
+// ============================================================================
+
 uintptr_t ListView::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
     if (msg == WM_NOTIFY) {
-        NMHDR *nm = reinterpret_cast<NMHDR *>(lparam);
+        auto *nm = reinterpret_cast<NMHDR *>(lparam);
         switch (nm->code) {
             case LVN_ENDLABELEDITW: {
-                NMLVDISPINFOW *nmdi = reinterpret_cast<NMLVDISPINFOW *>(lparam);
+                auto *nmdi = reinterpret_cast<NMLVDISPINFOW *>(lparam);
                 if (nmdi->item.pszText != nullptr) {
                     if (handle2Item.count(nmdi->item.lParam)) {
                         ListItem *item = handle2Item[nmdi->item.lParam];
                         LabelEditEventData data;
-                        data.Item = item; // This needs to be compatible with EventData.h types
+                        data.Item = item;
                         data.Text = nmdi->item.pszText;
                         onEndLabelEdit.Fire(Event(this, data));
                     }
@@ -295,16 +324,16 @@ uintptr_t ListView::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam
                 User32::W32_SendMessage((HWND) m_hwnd, LVM_HITTEST, 0, (LPARAM) &hti);
                 if (hti.flags == LVHT_ONITEMSTATEICON) {
                     ListItem *item = findItemByIndex(hti.iItem);
-                    auto checker = dynamic_cast<ListItemChecker *>(item);
-                    if (checker) {
-                        bool checked = !checker->Checked();
-                        checker->SetChecked(checked);
-                        onCheckChanged.Fire(Event(this, item));
-                        User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_UPDATE, static_cast<WPARAM>(hti.iItem), 0);
+                    if (item) {
+                        auto checker = dynamic_cast<ListItemChecker *>(item);
+                        if (checker) {
+                            bool checked = !checker->Checked();
+                            checker->SetChecked(checked);
+                            onCheckChanged.Fire(Event(this, item));
+                            User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_UPDATE, static_cast<WPARAM>(hti.iItem), 0);
+                        }
                     }
                 }
-                hti.pt = ac->ptAction;
-                User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_SUBITEMHITTEST, 0, reinterpret_cast<LPARAM>(&hti));
                 onClick.Fire(Event(this, (int) hti.iSubItem));
                 break;
             }
@@ -312,16 +341,20 @@ uintptr_t ListView::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam
                 auto nmkey = reinterpret_cast<NMLVKEYDOWN *>(lparam);
                 if (nmkey->wVKey == VK_SPACE && CheckBoxes()) {
                     ListItem *item = SelectedItem();
-                    auto checker = dynamic_cast<ListItemChecker *>(item);
-                    if (checker) {
-                        const bool checked = !checker->Checked();
-                        checker->SetChecked(checked);
-                        onCheckChanged.Fire(Event(this, item));
-                        User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_UPDATE, static_cast<WPARAM>(findIndexByItem(item)), 0);
+                    if (item) {
+                        auto checker = dynamic_cast<ListItemChecker *>(item);
+                        if (checker) {
+                            const bool checked = !checker->Checked();
+                            checker->SetChecked(checked);
+                            onCheckChanged.Fire(Event(this, item));
+                            User32::W32_SendMessage(static_cast<HWND>(m_hwnd), LVM_UPDATE, static_cast<WPARAM>(findIndexByItem(item)), 0);
+                        }
                     }
                 }
                 onKeyDown.Fire(Event(this, (int) nmkey->wVKey));
-                User32::W32_SendMessage(static_cast<HWND>(parentHwnd->Handle()), WM_KEYDOWN, nmkey->wVKey, 0);
+                if (parentHwnd) {
+                    User32::W32_SendMessage(static_cast<HWND>(parentHwnd->Handle()), WM_KEYDOWN, nmkey->wVKey, 0);
+                }
                 break;
             }
             case LVN_ITEMCHANGING: {

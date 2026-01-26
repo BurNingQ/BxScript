@@ -53,6 +53,7 @@ void ImageView::DrawImage(Bitmap *bmp) {
 }
 
 uintptr_t ImageView::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
+    const auto hwnd = static_cast<HWND>(m_hwnd);
     switch (msg) {
         case WM_SIZE:
         case WM_SIZING:
@@ -60,18 +61,20 @@ uintptr_t ImageView::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lpara
             break;
 
         case WM_ERASEBKGND:
-            return 1;
-
-        case WM_PAINT:
+            break;
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            const auto hdc = BeginPaint(hwnd, &ps);
             if (m_bmp != nullptr) {
-                Canvas *canvas = Canvas::FromHwnd(m_hwnd);
-                if (this->Width() <= 0 || this->Height() <= 0) {
-                    this->SetSize(m_bmp->GetWidth(), m_bmp->GetHeight());
-                }
-                canvas->DrawBitmap(m_bmp, 0, 0, this->Width(), this->Height());
+                Canvas *canvas = Canvas::FromHDC(hdc);
+                RECT rc;
+                GetClientRect(hwnd, &rc);
+                canvas->DrawBitmap(m_bmp, 0, 0, rc.right, rc.bottom);
                 delete canvas;
             }
-            break;
+            EndPaint(hwnd, &ps);
+            return 0;
+        }
         default: ;
     }
 

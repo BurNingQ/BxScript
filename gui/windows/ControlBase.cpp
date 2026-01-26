@@ -86,14 +86,14 @@ void ControlBase::Pos(int &x, int &y) {
     x = rc.left;
     y = rc.top;
     if (!isForm && parentHwnd) {
-        POINT pt = {(LONG) rc.left, (LONG) rc.top};
+        POINT pt = {rc.left, rc.top};
         ScreenToClient(static_cast<HWND>(parentHwnd->Handle()), &pt);
         x = pt.x;
         y = pt.y;
     }
 }
 
-ControlBase *ControlBase::SetPos(int x, int y) {
+ControlBase *ControlBase::SetPos(const int x, const int y) {
     unsigned int dpiX, dpiY;
     GetWindowDPI(dpiX, dpiY);
     int scaledX = ScaleWithDPI(x, dpiX);
@@ -165,9 +165,9 @@ ControlBase *ControlBase::SetBackgroundColor(Color c) {
 }
 
 void *ControlBase::HandleCtlColor(void *hdc, unsigned int uMsg) const {
-    if (uMsg == WM_CTLCOLORSTATIC) {
-        return static_cast<HBRUSH>(Gdi32::W32_GetStockObject(HOLLOW_BRUSH));
-    }
+    // if (uMsg == WM_CTLCOLORSTATIC) {
+    //     return static_cast<HBRUSH>(Gdi32::W32_GetStockObject(HOLLOW_BRUSH));
+    // }
     const auto hDC = static_cast<HDC>(hdc);
     if (defineFontColor) {
         Gdi32::W32_SetTextColor(hDC, fontColor.Value());
@@ -184,9 +184,6 @@ void *ControlBase::HandleCtlColor(void *hdc, unsigned int uMsg) const {
     }
     if (defineBackgroundColor) {
         return formBrush;
-    }
-    if (uMsg == WM_CTLCOLORSTATIC) {
-        return static_cast<HBRUSH>(Gdi32::W32_GetStockObject(HOLLOW_BRUSH));
     }
     return nullptr;
 }
