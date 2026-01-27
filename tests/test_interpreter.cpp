@@ -1146,9 +1146,15 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
         import std.JSON as json;
         import std.Dlg as Dlg;
         let f = win.form("mainForm").center().size(800, 800).text("测试窗口").add([
-            win.label("l1").text("用户: ").pos(10, 100).size(100, 40).font({fontColor: {R: 64, G: 158, B: 255}}),
+            win.button("btnMax").size(120, 40).pos(60, 10).text("最大化").on("click", function(){
+                f.doMax();
+            }),
+            win.button("btnMin").size(120, 40).pos(190, 10).text("最小化").on("click", function(){
+                f.doMin();
+            }),
+            win.label("l1").text("用户: ").pos(10, 100).size(40, 40).font({fontColor: {R: 64, G: 158, B: 255}}),
             win.input("userName").text("请输入用户名").pos(60, 100).size(200, 24).font({fontSize: 12, fontColor: {R: 64, G: 158, B: 255}}),
-            win.label("l2").text("密码: ").pos(10, 150).size(100, 40),
+            win.label("l2").text("密码: ").pos(10, 150).size(40, 40),
             win.password("password").pos(60, 155).size(200, 30),
             win.button("btn1").size(120, 40).pos(60, 195).text("点击我试试").on("click", function(){
                 IO.println("event came from button click");
@@ -1182,7 +1188,7 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
                 }),
                 win.item("保存", function() { Dlg.alert("Save"); }),
                 win.item("-"),
-                win.item("退出", function() { win.exit(); })
+                win.item("退出", function() { win.doExit(); })
             ]),
             win.item("编辑", [
                 win.item("复制"),
@@ -1192,6 +1198,43 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
                  Dlg.alert("About v1.0");
             })
         ]);
+        win.loop();
+    )";
+    Eval(code);
+    ASSERT_EQ(GuiModule::GlobalForms.size(), 0);
+}
+
+TEST_F(InterpreterTest, WebViewBuildStructure) {
+    const std::string code = R"(
+        import std.Win as win;
+        win.webview().transparent(true).html("<style>
+        html, body {
+            background: transparent !important;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* 防止出现多余的白边滚动条 */
+        }
+        body {
+            background: transparent !important;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: white;
+            font-family: sans-serif;
+        }
+        .card {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+    </style>
+    <div class='card'>
+        <h1>BxScript 透明窗口</h1>
+        <p>你能看到背后的桌面吗？</p>
+    </div>");
         win.loop();
     )";
     Eval(code);

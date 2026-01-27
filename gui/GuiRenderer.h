@@ -51,6 +51,7 @@ public:
         ControlBase *rootCtrl = BuildRecursive(dataTree, nullptr);
         if (rootCtrl != nullptr) {
             if (const auto form = dynamic_cast<Form *>(rootCtrl)) {
+                Sync::ReMountFormNativeFn(rootCtrl, std::static_pointer_cast<ObjectValue>(dataTree));
                 Roots.push_back(form);
                 form->Show();
             }
@@ -59,6 +60,22 @@ public:
 
 private:
     struct Sync {
+        static void ReMountFormNativeFn(ControlBase *ctrl, std::shared_ptr<ObjectValue> obj) {
+            auto form = dynamic_cast<Form *>(ctrl);
+            obj->Set("doMin", std::make_shared<NativeFunctionValue>([form](...) {
+                form->Minimise();
+                return std::make_shared<NullValue>();
+            }));
+            obj->Set("doMax", std::make_shared<NativeFunctionValue>([form](...) {
+                form->Maximise();
+                return std::make_shared<NullValue>();
+            }));
+            obj->Set("doCap", std::make_shared<NativeFunctionValue>([form](...) {
+                doCap(form->Handle());
+                return std::make_shared<NullValue>();
+            }));
+        }
+
         static void Bind(ControlBase *ctrl, const std::shared_ptr<ObjectValue> &obj, const std::string &key, const PropSetter &setter,
                          const PropGetter &getter = nullptr) {
             if (const auto v = obj->Get(key); v && v->type != ValueType::NULL_TYPE) {

@@ -158,3 +158,25 @@ int ScaleToDefaultDPI(int pixels, unsigned int dpi) {
     return (pixels * 96 + static_cast<int>(dpi) / 2) / static_cast<int>(dpi);
     // return (pixels * 96) / static_cast<int>(dpi);
 }
+
+void doMax(void *hwnd) {
+    auto const xHwnd = static_cast<HWND>(hwnd);
+    if (IsZoomed(xHwnd)) {
+        PostMessageW(xHwnd, WM_SYSCOMMAND, SC_RESTORE, 0);
+    } else {
+        PostMessageW(xHwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
+    }
+}
+
+void doMin(void *hwnd) {
+    auto const xHwnd = static_cast<HWND>(hwnd);
+    PostMessageW(xHwnd, WM_SYSCOMMAND,SC_MINIMIZE, 0);
+}
+
+void doCap(void *hwnd) {
+    auto const xHwnd = static_cast<HWND>(hwnd);
+    if (!IsZoomed(xHwnd)) {
+        ReleaseCapture();
+        PostMessageW(xHwnd, WM_NCLBUTTONDOWN,HTCAPTION, 0);
+    }
+}

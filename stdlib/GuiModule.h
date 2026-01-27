@@ -48,6 +48,7 @@
 #include "gui/GuiRuntime.h"
 #include "gui/windows/App.h"
 #include "gui/windows/CommonDlgs.h"
+#include "webview/webview.h"
 
 static std::unordered_set<std::string> stdEvents{
     "click", "change", "mouseover", "mouseleave",
@@ -205,6 +206,21 @@ class GuiModule {
                 return widget;
             });
         widget->Set("tray", trayFn);
+        auto const doMinFn = std::make_shared<NativeFunctionValue>(
+            [](const std::vector<ValuePtr> &) -> ValuePtr {
+                throw RuntimeError("函数还未挂载或挂载失败");
+            });
+        widget->Set("doMin", doMinFn);
+        auto const doMaxFn = std::make_shared<NativeFunctionValue>(
+            [](const std::vector<ValuePtr> &) -> ValuePtr {
+                throw RuntimeError("函数还未挂载或挂载失败");
+            });
+        widget->Set("doMax", doMaxFn);
+        auto const doCapFn = std::make_shared<NativeFunctionValue>(
+            [](const std::vector<ValuePtr> &) -> ValuePtr {
+                throw RuntimeError("函数还未挂载或挂载失败");
+            });
+        widget->Set("doCap", doCapFn);
     }
 
     static void InjectContainerMethods(std::shared_ptr<ObjectValue> &widget) {
@@ -382,7 +398,24 @@ class GuiModule {
         o->Set("form", fn);
     }
 
-    static void InitControls(std::shared_ptr<ObjectValue> &o) {
+    static void InitWebView(std::shared_ptr<ObjectValue> &o) {
+        const auto webViewFn = std::make_shared<NativeFunctionValue>(
+            [](const std::vector<ValuePtr> &) -> ValuePtr {
+                auto const ow = std::make_shared<ObjectValue>();
+                GuiModuleKit::AddAccessor(ow, "title", "_title");
+                GuiModuleKit::AddAccessor(ow, "html", "_html");
+                GuiModuleKit::AddAccessor(ow, "transparent", "_transparent");
+                GuiModuleKit::AddAccessor(ow, "debug", "_debug");
+                GuiModuleKit::AddAccessor(ow, "width", "_width");
+                GuiModuleKit::AddAccessor(ow, "height", "_height");
+                GuiModuleKit::AddAccessor(ow, "size", "_width", "_height");
+                WebViewConfig = ow;
+                return ow;
+            });
+        o->Set("webview", webViewFn);
+    }
+
+    static void InitControls(const std::shared_ptr<ObjectValue> &o) {
         auto makeFactory = [](const std::string &type) {
             return std::make_shared<NativeFunctionValue>(
                 [type](const std::vector<ValuePtr> &args) -> ValuePtr {
@@ -409,8 +442,12 @@ class GuiModule {
     static void InitMessageLoop(std::shared_ptr<ObjectValue> &o) {
         const auto loopFn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &) -> ValuePtr {
-                GuiRuntime::Run(GlobalForms);
-                GlobalForms.clear();
+                if (!WebViewConfig && GlobalForms.size() > 0) {
+                    GuiRuntime::Run(GlobalForms);
+                    GlobalForms.clear();
+                } else {
+                    GuiRuntime::RunWebView(WebViewConfig);
+                }
                 return std::make_shared<NullValue>();
             }
         );
@@ -435,13 +472,14 @@ class GuiModule {
                 App::Exit(code);
                 return std::make_shared<NullValue>();
             });
-        o->Set("exit", exitFn);
+        o->Set("doExit", exitFn);
     }
 
 public:
     static ValuePtr CreateGuiModule() {
         auto win = std::make_shared<ObjectValue>();
         InitForm(win);
+        InitWebView(win);
         InitItem(win);
         InitControls(win);
         InitMessageLoop(win);
@@ -450,6 +488,7 @@ public:
     }
 
     inline static std::vector<ValuePtr> GlobalForms{};
+    inline static std::shared_ptr<ObjectValue> WebViewConfig{};
 };
 
 #endif //BXSCRIPT_GUIMODULE_H

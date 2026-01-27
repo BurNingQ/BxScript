@@ -12,6 +12,7 @@
  */
 #include "GuiRuntime.h"
 #include "GuiRenderer.h"
+#include "WebViewRenderer.h"
 #include "windows/App.h"
 
 void GuiRuntime::Run(const std::vector<ValuePtr> &rootValues) {
@@ -20,6 +21,11 @@ void GuiRuntime::Run(const std::vector<ValuePtr> &rootValues) {
     for (const auto &val: rootValues) {
         GuiRenderer::Render(val);
     }
+    MainLoop();
+}
+
+void GuiRuntime::RunWebView(const std::shared_ptr<ObjectValue> &cfg) {
+    WebViewRenderer::Run(cfg);
     MainLoop();
 }
 

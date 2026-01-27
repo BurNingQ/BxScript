@@ -24,6 +24,7 @@ public:
      */
     static void Run(const std::vector<ValuePtr> &rootValues);
 
+    static void RunWebView(const std::shared_ptr<ObjectValue> &cfg);
 private:
     /**
      * 混合消息循环 (Hybrid Message Loop)

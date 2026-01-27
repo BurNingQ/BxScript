@@ -1,3 +1,4 @@
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 cmake_minimum_required(VERSION 3.20)
 project(BxScript)
 
@@ -134,7 +135,7 @@ if (WIN32)
             wininet opengl32 comctl32 comdlg32
             gdi32 gdiplus user32 kernel32
             ole32 oleaut32 shell32 shlwapi
-            uxtheme winmm)
+            uxtheme winmm dwmapi)
 
 elseif (APPLE)
     message(STATUS "Configuring for macOS...")
@@ -205,14 +206,14 @@ set(SOURCE_FILES
         stdlib/TimerModule.h
         common/EventKit.h
         stdlib/DlgModule.h
+        gui/WebViewRenderer.h
 )
 
 # ==========================================
 # 主程序 BxScript
 # ==========================================
 # 在这里就把 PLATFORM_SOURCES (app.rc) 加进去
-add_executable(BxScript ${SOURCE_FILES} ${PLATFORM_SOURCES}
-        stdlib/DlgModule.h)
+add_executable(BxScript ${SOURCE_FILES} ${PLATFORM_SOURCES})
 
 target_include_directories(BxScript PRIVATE ${PROJECT_SOURCE_DIR})
 
@@ -234,6 +235,16 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 # ==========================================
+# 5.1 WebView 引入
+# ==========================================
+FetchContent_Declare(
+        webview
+        GIT_REPOSITORY https://github.com/webview/webview
+        GIT_TAG 0.12.0)
+FetchContent_MakeAvailable(webview)
+target_link_libraries(BxScript PRIVATE webview::core)
+
+# ==========================================
 # 6. 测试程序 test_parser
 # ==========================================
 # 从列表移除 main.cpp
@@ -248,7 +259,7 @@ add_executable(test_parser
 )
 
 target_include_directories(test_parser PRIVATE ${PROJECT_SOURCE_DIR})
-target_link_libraries(test_parser PRIVATE gtest_main)
+target_link_libraries(test_parser PRIVATE gtest_main webview::core)
 
 if (PLATFORM_LIBS)
     target_link_libraries(test_parser PRIVATE ${PLATFORM_LIBS})

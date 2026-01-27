@@ -41,4 +41,10 @@ int ScaleWithDPI(int pixels, unsigned int dpi);
 
 int ScaleToDefaultDPI(int pixels, unsigned int dpi);
 
+void doMax(void *hwnd);
+
+void doMin(void *hwnd);
+
+void doCap(void *hwnd);
+
 #endif
