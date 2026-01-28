@@ -188,33 +188,25 @@ void Form::EnableTopMost(bool b) const {
 }
 
 void Form::SetTrayIcon(const std::wstring &iconPath, const std::wstring &tooltip) {
-    NOTIFYICONDATAW nid = {};
-    nid.cbSize = sizeof(nid);
-    nid.hWnd = static_cast<HWND>(m_hwnd);
-    nid.uID = 1; // ID
-    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    nid.uCallbackMessage = WM_TRAYICON;
-
-    if (!iconPath.empty()) {
-        HANDLE hIcon = LoadImageW(nullptr, iconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
-        if (hIcon) {
-            nid.hIcon = static_cast<HICON>(hIcon);
-            trayIconHandle = hIcon;
-        } else {
-            nid.hIcon = reinterpret_cast<HICON>(SendMessage(static_cast<HWND>(m_hwnd), WM_GETICON, ICON_BIG, 0));
-        }
-    }
-
-    if (!tooltip.empty()) {
-        wcsncpy(nid.szTip, tooltip.c_str(), 127);
-    } else {
-        wcsncpy(nid.szTip, L"BxScript App", 127);
-    }
-
-    if (hasTray) {
-        Shell_NotifyIconW(NIM_MODIFY, &nid);
-    } else {
-        Shell_NotifyIconW(NIM_ADD, &nid);
+    // NOTIFYICONDATAW nid = {};
+    // nid.cbSize = sizeof(nid);
+    // nid.hWnd = static_cast<HWND>(m_hwnd);
+    // nid.uID = 1;
+    // nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    // nid.uCallbackMessage = WM_TRAYICON;
+    // if (!iconPath.empty()) {
+    //     HANDLE hIcon = LoadImageW(nullptr, iconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+    //     if (hIcon) {
+    //         nid.hIcon = static_cast<HICON>(hIcon);
+    //         trayIconHandle = hIcon;
+    //     } else {
+    //         nid.hIcon = reinterpret_cast<HICON>(SendMessage(static_cast<HWND>(m_hwnd), WM_GETICON, ICON_BIG, 0));
+    //     }
+    // }
+    // wcsncpy(nid.szTip, !tooltip.empty() ? tooltip.c_str() : L"BxScript App", 127);
+    // Shell_NotifyIconW(hasTray ? NIM_MODIFY : NIM_ADD, &nid);
+    doTray(static_cast<HWND>(m_hwnd), iconPath, tooltip, trayIconHandle, hasTray);
+    if (!hasTray) {
         hasTray = true;
     }
 }

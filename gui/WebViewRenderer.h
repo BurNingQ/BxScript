@@ -20,41 +20,56 @@
 #include "windows.h"
 #include <dwmapi.h>
 
-
 class WebViewRenderer {
     inline static std::unique_ptr<webview::webview> instance = nullptr;
 
 public:
     static void Run(std::shared_ptr<ObjectValue> o) {
         const std::string title = o->Get("_title") && o->Get("_title")->type != ValueType::NULL_TYPE
-                                ? o->Get("_title")->ToString()
-                                : "BxScriptWebView";
+                                      ? o->Get("_title")->ToString()
+                                      : "BxScriptWebView";
         const int width = o->Get("_width") && o->Get("_width")->type == ValueType::NUMBER
-                        ? static_cast<int>(std::static_pointer_cast<NumberValue>(o->Get("_width"))->Value)
-                        : 800;
+                              ? static_cast<int>(std::static_pointer_cast<NumberValue>(o->Get("_width"))->Value)
+                              : 800;
         const int height = o->Get("_height") && o->Get("_height")->type == ValueType::NUMBER
-                         ? static_cast<int>(std::static_pointer_cast<NumberValue>(o->Get("_height"))->Value)
-                         : 600;
+                               ? static_cast<int>(std::static_pointer_cast<NumberValue>(o->Get("_height"))->Value)
+                               : 600;
         const std::string html = o->Get("_html") && o->Get("_html")->type != ValueType::NULL_TYPE
-                               ? o->Get("_html")->ToString()
-                               : "<H1 style='text-align:center'>bxscript webview demo</H1>";
+                                     ? o->Get("_html")->ToString()
+                                     : "<H1 style='text-align:center'>bxscript webview demo</H1>";
         bool debug = o->Get("_debug") && o->Get("_debug")->type == ValueType::BOOL
                          ? static_cast<int>(std::static_pointer_cast<BoolValue>(o->Get("_debug"))->Value)
                          : false;
         const bool transparent = o->Get("_transparent") && o->Get("_transparent")->type == ValueType::BOOL
-                               ? static_cast<int>(std::static_pointer_cast<BoolValue>(o->Get("_transparent"))->Value)
-                               : false;
-        instance = std::make_unique<webview::webview>(debug, nullptr);
+                                     ? static_cast<int>(std::static_pointer_cast<BoolValue>(o->Get("_transparent"))->Value)
+                                     : false;
+        instance = std::make_unique<webview::webview>(debug, nullptr, transparent);
+        instance->bind("BxScript_WebViewLoaded", [](std::string, std::string, void *) -> std::string {
+            SetLayeredWindowAttributes(static_cast<HWND>(instance->window().value()), 0, 255, LWA_ALPHA);
+            RedrawWindow(static_cast<HWND>(instance->window().value()), NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_UPDATENOW);
+            SetForegroundWindow(static_cast<HWND>(instance->window().value()));
+            return "";
+        }, nullptr);
+        std::string bootJs = R"(
+            if (!document.body.style.backgroundColor) document.body.style.backgroundColor = 'transparent';
+            window.addEventListener('DOMContentLoaded', () => {
+                setTimeout(() => {
+                     window.BxScript_WebViewLoaded();
+                }, 10);
+            });
+        )";
+        instance->init(bootJs);
         instance->set_title(title);
         instance->set_size(width, height, WEBVIEW_HINT_NONE);
         instance->set_html(html);
         if (transparent) {
-            setBackgroundColor(static_cast<HWND>(instance->window().value()), static_cast<ICoreWebView2Controller *>(instance->browser_controller().value()), transparent);
+            setBackgroundColor(static_cast<HWND>(instance->window().value()),
+                               static_cast<ICoreWebView2Controller *>(instance->browser_controller().value()), transparent);
         }
         setCenter(static_cast<HWND>(instance->window().value()));
     }
 
-    static void setCenter(HWND hwnd) {
+    static void setCenter(const HWND hwnd) {
         WINDOWINFO wi = {sizeof(WINDOWINFO)};
         GetWindowInfo(hwnd, &wi);
         const bool frameless = (wi.dwStyle & WS_POPUP) != 0;
@@ -79,15 +94,15 @@ public:
         SetWindowPos(hwnd, HWND_TOP, windowX, windowY, winWidth, winHeight, SWP_NOSIZE);
     }
 
-    static void setBackgroundColor(HWND hwnd, ICoreWebView2Controller *icc, bool isTransparent) {
+    static void setBackgroundColor(const HWND hwnd, ICoreWebView2Controller *icc, bool isTransparent) {
         if (!isTransparent) return;
-        LONG style = GetWindowLong(hwnd, GWL_STYLE);
+        const LONG style = GetWindowLong(hwnd, GWL_STYLE);
         SetWindowLong(hwnd, GWL_STYLE, (style & ~WS_CAPTION & ~WS_THICKFRAME) | WS_POPUP);
-        MARGINS margins = {-1};
+        constexpr MARGINS margins = {-1};
         DwmExtendFrameIntoClientArea(hwnd, &margins);
         ICoreWebView2Controller2 *pController2 = nullptr;
         if (SUCCEEDED(icc->QueryInterface(IID_ICoreWebView2Controller2, reinterpret_cast<void **>(&pController2)))) {
-            COREWEBVIEW2_COLOR transparentColor = {0, 0, 0, 0};
+            constexpr COREWEBVIEW2_COLOR transparentColor = {0, 0, 0, 0};
             pController2->put_DefaultBackgroundColor(transparentColor);
             pController2->Release();
         }

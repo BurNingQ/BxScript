@@ -180,3 +180,24 @@ void doCap(void *hwnd) {
         PostMessageW(xHwnd, WM_NCLBUTTONDOWN,HTCAPTION, 0);
     }
 }
+
+void doTray(void *hwnd, const std::wstring &iconPath, const std::wstring &tooltip, void* trayIconHandle, bool hasTray) {
+    auto const xHwnd = static_cast<HWND>(hwnd);
+    NOTIFYICONDATAW nid = {};
+    nid.cbSize = sizeof(nid);
+    nid.hWnd = xHwnd;
+    nid.uID = 1;
+    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    nid.uCallbackMessage = WM_TRAYICON;
+    if (!iconPath.empty()) {
+        HANDLE hIcon = LoadImageW(nullptr, iconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE);
+        if (hIcon) {
+            nid.hIcon = static_cast<HICON>(hIcon);
+            trayIconHandle = hIcon;
+        } else {
+            nid.hIcon = reinterpret_cast<HICON>(SendMessage(xHwnd, WM_GETICON, ICON_BIG, 0));
+        }
+    }
+    wcsncpy(nid.szTip, !tooltip.empty() ? tooltip.c_str() : L"BxScript App", 127);
+    Shell_NotifyIconW(hasTray ? NIM_MODIFY : NIM_ADD, &nid);
+}

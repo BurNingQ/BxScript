@@ -1207,34 +1207,56 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
 TEST_F(InterpreterTest, WebViewBuildStructure) {
     const std::string code = R"(
         import std.Win as win;
-        win.webview().transparent(true).html("<style>
-        html, body {
-            background: transparent !important;
-            margin: 0;
-            padding: 0;
-            overflow: hidden; /* 防止出现多余的白边滚动条 */
-        }
-        body {
-            background: transparent !important;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: white;
-            font-family: sans-serif;
-        }
-        .card {
-            background: rgba(0, 0, 0, 0.7);
-            padding: 20px;
-            border-radius: 15px;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-    </style>
-    <div class='card'>
-        <h1>BxScript 透明窗口</h1>
-        <p>你能看到背后的桌面吗？</p>
-    </div>");
+        win.webview().transparent().debug(true).html("<style>
+            html, body {
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+            }
+            body {
+                margin: 0;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                color: white;
+                font-family: sans-serif;
+            }
+            .card {
+                background: rgba(255, 255, 255, 0.7);
+                padding: 20px;
+                border-radius: 15px;
+                border: 1px solid rgba(255,255,255,0.2);
+                animation: float 3s ease-in-out infinite;
+            }
+            .btn {
+                width: 100%;
+                padding: 15px;
+                margin: 10px 0;
+                background: linear-gradient(45deg, #667eea, #764ba2);
+                border: none;
+                border-radius: 10px;
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                position: relative;
+            }
+            p {text-align: center}
+            @keyframes float {
+                0%, 100% { transform: translateY(0px); }
+                50% { transform: translateY(-20px); }
+            }
+        </style>
+        <script>window.BxScript_WebViewLoaded()</script>
+        <div class='card'>
+            <h1>BxScript 透明窗口</h1>
+            <p>你能看到背后的桌面吗？</p>
+            <button class='btn'>退　出</button>
+            <button class='btn'>最小化</button>
+            <button class='btn'>弹　框</button>
+        </div>").doTray("C:\\Users\\Administrator\\Desktop\\logo.ico", "测试气泡");
         win.loop();
     )";
     Eval(code);

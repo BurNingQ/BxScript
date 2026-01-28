@@ -25,6 +25,7 @@ void GuiRuntime::Run(const std::vector<ValuePtr> &rootValues) {
 }
 
 void GuiRuntime::RunWebView(const std::shared_ptr<ObjectValue> &cfg) {
+    App::Init();
     WebViewRenderer::Run(cfg);
     MainLoop();
 }

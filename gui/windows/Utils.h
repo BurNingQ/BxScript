@@ -47,4 +47,6 @@ void doMin(void *hwnd);
 
 void doCap(void *hwnd);
 
+void doTray(void *hwnd, const std::wstring &iconPath, const std::wstring &tooltip, void *trayIconHandle, bool hasTray);
+
 #endif

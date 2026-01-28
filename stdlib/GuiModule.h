@@ -201,7 +201,7 @@ class GuiModule {
         auto const trayFn = std::make_shared<NativeFunctionValue>(
             [widget](const std::vector<ValuePtr> &args) -> ValuePtr {
                 if (args.empty() || args[0]->type != ValueType::OBJECT) return widget;
-                auto conf = std::static_pointer_cast<ObjectValue>(args[0]);
+                const auto conf = std::static_pointer_cast<ObjectValue>(args[0]);
                 widget->Set("_trayConf", conf);
                 return widget;
             });
@@ -326,39 +326,6 @@ class GuiModule {
                 return widget;
             });
         widget->Set("on", eventFn);
-
-        // padding
-        auto const paddingFn = std::make_shared<NativeFunctionValue>(
-            [widget](const std::vector<ValuePtr> &args) -> ValuePtr {
-                if (!widget) return std::make_shared<NullValue>();
-                if (!args.empty()) {
-                    if (args.size() == 2) {
-                        widget->Set("paddingTop", args[0]);
-                        widget->Set("paddingBottom", args[0]);
-                        widget->Set("paddingLeft", args[1]);
-                        widget->Set("paddingRight", args[1]);
-                    } else if (args.size() == 4) {
-                        widget->Set("paddingTop", args[0]);
-                        widget->Set("paddingBottom", args[2]);
-                        widget->Set("paddingLeft", args[3]);
-                        widget->Set("paddingRight", args[1]);
-                    } else if (args.size() == 1) {
-                        if (args[0]->type == ValueType::OBJECT) {
-                            widget->Set("paddingTop", args[0]->Get("top"));
-                            widget->Set("paddingBottom", args[0]->Get("bottom"));
-                            widget->Set("paddingLeft", args[0]->Get("left"));
-                            widget->Set("paddingRight", args[0]->Get("right"));
-                        } else if (args[0]->type == ValueType::NUMBER) {
-                            widget->Set("paddingTop", args[0]);
-                            widget->Set("paddingBottom", args[0]);
-                            widget->Set("paddingLeft", args[0]);
-                            widget->Set("paddingRight", args[0]);
-                        }
-                    }
-                }
-                return widget;
-            });
-        widget->Set("padding", paddingFn);
     }
 
     static void InitItem(std::shared_ptr<ObjectValue> &o) {
@@ -404,11 +371,41 @@ class GuiModule {
                 auto const ow = std::make_shared<ObjectValue>();
                 GuiModuleKit::AddAccessor(ow, "title", "_title");
                 GuiModuleKit::AddAccessor(ow, "html", "_html");
-                GuiModuleKit::AddAccessor(ow, "transparent", "_transparent");
                 GuiModuleKit::AddAccessor(ow, "debug", "_debug");
                 GuiModuleKit::AddAccessor(ow, "width", "_width");
                 GuiModuleKit::AddAccessor(ow, "height", "_height");
                 GuiModuleKit::AddAccessor(ow, "size", "_width", "_height");
+
+                auto const transparentFn = std::make_shared<NativeFunctionValue>(
+                    [ow](const std::vector<ValuePtr> &) -> ValuePtr {
+                        ow->Set("_transparent", std::make_shared<BoolValue>(true));
+                        return ow;
+                    });
+                ow->Set("transparent", transparentFn);
+
+                auto const trayFn = std::make_shared<NativeFunctionValue>(
+                    [ow](const std::vector<ValuePtr> &args) -> ValuePtr {
+                        if (args.empty() || args[0]->type != ValueType::OBJECT) return ow;
+                        const auto conf = std::static_pointer_cast<ObjectValue>(args[0]);
+                        ow->Set("_trayConf", conf);
+                        return ow;
+                    });
+                ow->Set("doTray", trayFn);
+                auto const doMinFn = std::make_shared<NativeFunctionValue>(
+                    [](const std::vector<ValuePtr> &) -> ValuePtr {
+                        throw RuntimeError("函数还未挂载或挂载失败");
+                    });
+                ow->Set("doMin", doMinFn);
+                auto const doMaxFn = std::make_shared<NativeFunctionValue>(
+                    [](const std::vector<ValuePtr> &) -> ValuePtr {
+                        throw RuntimeError("函数还未挂载或挂载失败");
+                    });
+                ow->Set("doMax", doMaxFn);
+                auto const doCapFn = std::make_shared<NativeFunctionValue>(
+                    [](const std::vector<ValuePtr> &) -> ValuePtr {
+                        throw RuntimeError("函数还未挂载或挂载失败");
+                    });
+                ow->Set("doCap", doCapFn);
                 WebViewConfig = ow;
                 return ow;
             });

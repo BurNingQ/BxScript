@@ -62,17 +62,17 @@ private:
     struct Sync {
         static void ReMountFormNativeFn(ControlBase *ctrl, std::shared_ptr<ObjectValue> obj) {
             auto form = dynamic_cast<Form *>(ctrl);
-            obj->Set("doMin", std::make_shared<NativeFunctionValue>([form](...) {
+            obj->Set("doMin", std::make_shared<NativeFunctionValue>([obj, form](...) {
                 form->Minimise();
-                return std::make_shared<NullValue>();
+                return obj;
             }));
-            obj->Set("doMax", std::make_shared<NativeFunctionValue>([form](...) {
+            obj->Set("doMax", std::make_shared<NativeFunctionValue>([obj, form](...) {
                 form->Maximise();
-                return std::make_shared<NullValue>();
+                return obj;
             }));
-            obj->Set("doCap", std::make_shared<NativeFunctionValue>([form](...) {
+            obj->Set("doCap", std::make_shared<NativeFunctionValue>([obj, form](...) {
                 doCap(form->Handle());
-                return std::make_shared<NullValue>();
+                return obj;
             }));
         }
 
