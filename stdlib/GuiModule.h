@@ -371,10 +371,23 @@ class GuiModule {
                 auto const ow = std::make_shared<ObjectValue>();
                 GuiModuleKit::AddAccessor(ow, "title", "_title");
                 GuiModuleKit::AddAccessor(ow, "html", "_html");
-                GuiModuleKit::AddAccessor(ow, "debug", "_debug");
                 GuiModuleKit::AddAccessor(ow, "width", "_width");
                 GuiModuleKit::AddAccessor(ow, "height", "_height");
                 GuiModuleKit::AddAccessor(ow, "size", "_width", "_height");
+
+                auto const bindFn = std::make_shared<NativeFunctionValue>(
+                    [ow](const std::vector<ValuePtr> &args) -> ValuePtr {
+                        auto const methods = ow->Get("_methods") && ow->Get("_methods")->type != ValueType::NULL_TYPE ? ow->Get("_methods") : std::make_shared<ObjectValue>();
+                        if (args.empty() || args.size() < 2) throw RuntimeError("参数错误: widget.bind('event', function)");
+                        if (args[0]->type != ValueType::STRING || args[1]->type != ValueType::FUNCTION) {
+                            throw RuntimeError("参数错误: widget.bind('event', function)");
+                        }
+                        const std::string evtAlias = args[0]->ToString();
+                        methods->Set(evtAlias, args[1]);
+                        ow->Set("_methods", methods);
+                        return ow;
+                    });
+                ow->Set("bind", bindFn);
 
                 auto const transparentFn = std::make_shared<NativeFunctionValue>(
                     [ow](const std::vector<ValuePtr> &) -> ValuePtr {
@@ -382,6 +395,13 @@ class GuiModule {
                         return ow;
                     });
                 ow->Set("transparent", transparentFn);
+
+                auto const debugFn = std::make_shared<NativeFunctionValue>(
+                    [ow](const std::vector<ValuePtr> &) -> ValuePtr {
+                        ow->Set("_debug", std::make_shared<BoolValue>(true));
+                        return ow;
+                    });
+                ow->Set("debug", debugFn);
 
                 auto const trayFn = std::make_shared<NativeFunctionValue>(
                     [ow](const std::vector<ValuePtr> &args) -> ValuePtr {

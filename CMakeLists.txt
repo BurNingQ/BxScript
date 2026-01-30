@@ -139,7 +139,7 @@ if (WIN32)
 
 elseif (APPLE)
     message(STATUS "Configuring for macOS...")
-    # list(APPEND PLATFORM_LIBS "-framework Cocoa")
+     list(APPEND PLATFORM_LIBS "-framework Cocoa")
 elseif (UNIX)
     message(STATUS "Configuring for Linux...")
     # list(APPEND PLATFORM_LIBS m X11)
@@ -207,6 +207,9 @@ set(SOURCE_FILES
         common/EventKit.h
         stdlib/DlgModule.h
         gui/WebViewRenderer.h
+        stdlib/ScreenModule.h
+        stdlib/MouseModule.h
+        stdlib/KeyBoardModule.h
 )
 
 # ==========================================

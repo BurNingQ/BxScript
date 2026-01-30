@@ -20,8 +20,24 @@
 #include "windows.h"
 #include <dwmapi.h>
 
+
 class WebViewRenderer {
     inline static std::unique_ptr<webview::webview> instance = nullptr;
+
+    static void ReMountNativeFn(std::shared_ptr<ObjectValue> obj, const HWND hwnd) {
+        obj->Set("doMin", std::make_shared<NativeFunctionValue>([hwnd,obj](const std::vector<ValuePtr> &) {
+            doMin(hwnd);
+            return obj;
+        }));
+        obj->Set("doMax", std::make_shared<NativeFunctionValue>([hwnd,obj](const std::vector<ValuePtr> &) {
+            doMax(hwnd);
+            return obj;
+        }));
+        obj->Set("doCap", std::make_shared<NativeFunctionValue>([hwnd,obj](const std::vector<ValuePtr> &) {
+            doCap(hwnd);
+            return obj;
+        }));
+    }
 
 public:
     static void Run(std::shared_ptr<ObjectValue> o) {
@@ -43,22 +59,19 @@ public:
         const bool transparent = o->Get("_transparent") && o->Get("_transparent")->type == ValueType::BOOL
                                      ? static_cast<int>(std::static_pointer_cast<BoolValue>(o->Get("_transparent"))->Value)
                                      : false;
-        instance = std::make_unique<webview::webview>(debug, nullptr, transparent);
-        instance->bind("BxScript_WebViewLoaded", [](std::string, std::string, void *) -> std::string {
-            SetLayeredWindowAttributes(static_cast<HWND>(instance->window().value()), 0, 255, LWA_ALPHA);
-            RedrawWindow(static_cast<HWND>(instance->window().value()), NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_UPDATENOW);
-            SetForegroundWindow(static_cast<HWND>(instance->window().value()));
-            return "";
-        }, nullptr);
-        std::string bootJs = R"(
-            if (!document.body.style.backgroundColor) document.body.style.backgroundColor = 'transparent';
-            window.addEventListener('DOMContentLoaded', () => {
-                setTimeout(() => {
-                     window.BxScript_WebViewLoaded();
-                }, 10);
-            });
-        )";
-        instance->init(bootJs);
+        const auto methods = o->Get("_methods");
+        instance = std::make_unique<webview::webview>(debug, nullptr);
+        if (methods->type == ValueType::OBJECT) {
+            const auto objMethods = std::static_pointer_cast<ObjectValue>(o->Get("_methods"));
+            for (const auto &[k,v]: objMethods->Properties) {
+                if (v->type == ValueType::FUNCTION) {
+                    instance->bind(k, [v](const std::string &arg)-> std::string {
+                        const auto r = Interpreter::CallFunction(v, {std::make_shared<StringValue>(arg)});
+                        return r->ToString();
+                    });
+                }
+            }
+        }
         instance->set_title(title);
         instance->set_size(width, height, WEBVIEW_HINT_NONE);
         instance->set_html(html);
@@ -67,9 +80,10 @@ public:
                                static_cast<ICoreWebView2Controller *>(instance->browser_controller().value()), transparent);
         }
         setCenter(static_cast<HWND>(instance->window().value()));
+        ReMountNativeFn(o, static_cast<HWND>(instance->window().value()));
     }
 
-    static void setCenter(const HWND hwnd) {
+    static void setCenter(HWND hwnd) {
         WINDOWINFO wi = {sizeof(WINDOWINFO)};
         GetWindowInfo(hwnd, &wi);
         const bool frameless = (wi.dwStyle & WS_POPUP) != 0;
@@ -94,19 +108,20 @@ public:
         SetWindowPos(hwnd, HWND_TOP, windowX, windowY, winWidth, winHeight, SWP_NOSIZE);
     }
 
-    static void setBackgroundColor(const HWND hwnd, ICoreWebView2Controller *icc, bool isTransparent) {
+    static void setBackgroundColor(HWND hwnd, ICoreWebView2Controller *icc, bool isTransparent) {
         if (!isTransparent) return;
-        const LONG style = GetWindowLong(hwnd, GWL_STYLE);
+        LONG style = GetWindowLong(hwnd, GWL_STYLE);
         SetWindowLong(hwnd, GWL_STYLE, (style & ~WS_CAPTION & ~WS_THICKFRAME) | WS_POPUP);
-        constexpr MARGINS margins = {-1};
+        MARGINS margins = {-1};
         DwmExtendFrameIntoClientArea(hwnd, &margins);
         ICoreWebView2Controller2 *pController2 = nullptr;
         if (SUCCEEDED(icc->QueryInterface(IID_ICoreWebView2Controller2, reinterpret_cast<void **>(&pController2)))) {
-            constexpr COREWEBVIEW2_COLOR transparentColor = {0, 0, 0, 0};
+            COREWEBVIEW2_COLOR transparentColor = {0, 0, 0, 0};
             pController2->put_DefaultBackgroundColor(transparentColor);
             pController2->Release();
         }
         SetClassLongPtr(hwnd, GCLP_HBRBACKGROUND, reinterpret_cast<LONG_PTR>(GetStockObject(NULL_BRUSH)));
+        // 强制重绘
         ShowWindow(hwnd, SW_MINIMIZE);
         ShowWindow(hwnd, SW_RESTORE);
     }

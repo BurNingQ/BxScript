@@ -1207,18 +1207,17 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
 TEST_F(InterpreterTest, WebViewBuildStructure) {
     const std::string code = R"(
         import std.Win as win;
-        win.webview().transparent().debug(true).html("<style>
+        let wb = win.webview().size(350, 800).transparent().debug(true).html("<style>
             html, body {
                 margin: 0;
                 padding: 0;
                 overflow: hidden;
+                background: transparent;
+                width: 100%;
+                height: 100%;
             }
             body {
                 margin: 0;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
                 color: white;
                 font-family: sans-serif;
             }
@@ -1246,17 +1245,19 @@ TEST_F(InterpreterTest, WebViewBuildStructure) {
             p {text-align: center}
             @keyframes float {
                 0%, 100% { transform: translateY(0px); }
-                50% { transform: translateY(-20px); }
+                50% { transform: translateY(20px); }
             }
         </style>
-        <script>window.BxScript_WebViewLoaded()</script>
         <div class='card'>
             <h1>BxScript 透明窗口</h1>
             <p>你能看到背后的桌面吗？</p>
             <button class='btn'>退　出</button>
             <button class='btn'>最小化</button>
             <button class='btn'>弹　框</button>
-        </div>").doTray("C:\\Users\\Administrator\\Desktop\\logo.ico", "测试气泡");
+            <button class='btn' onmousemove='move()'>拖　动</button>
+        </div>").bind("move", function(){
+            wb.doCap();
+        }).doTray("C:\\Users\\Administrator\\Desktop\\logo.ico", "测试气泡");
         win.loop();
     )";
     Eval(code);

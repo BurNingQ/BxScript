@@ -15,7 +15,6 @@
 #include "evaluator/Logger.h"
 #include "evaluator/Value.h"
 
-
 class OsModule {
     static void InitExec(std::shared_ptr<ObjectValue> &o) {
         auto const fn = std::make_shared<NativeFunctionValue>(
