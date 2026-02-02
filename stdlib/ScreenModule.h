@@ -10,8 +10,8 @@
  *
  * @brief    MouseModule
  */
-#ifndef BXSCRIPT_MOUSEMODULE_H
-#define BXSCRIPT_MOUSEMODULE_H
+#ifndef BXSCRIPT_SCREENMODULE_H
+#define BXSCRIPT_SCREENMODULE_H
 #include <memory>
 
 #include "evaluator/Value.h"
@@ -109,4 +109,4 @@ public:
 };
 
 
-#endif //BXSCRIPT_MOUSEMODULE_H
+#endif //BXSCRIPT_SCREENMODULE_H

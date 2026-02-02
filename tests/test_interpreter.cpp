@@ -1251,12 +1251,14 @@ TEST_F(InterpreterTest, WebViewBuildStructure) {
         <div class='card'>
             <h1>BxScript 透明窗口</h1>
             <p>你能看到背后的桌面吗？</p>
-            <button class='btn'>退　出</button>
+            <button class='btn' onclick='BxScriptExit()'>退　出</button>
             <button class='btn'>最小化</button>
             <button class='btn'>弹　框</button>
             <button class='btn' onmousemove='move()'>拖　动</button>
         </div>").bind("move", function(){
             wb.doCap();
+        }).bind("BxScriptExit", function(){
+            wb.doExit();
         }).doTray("C:\\Users\\Administrator\\Desktop\\logo.ico", "测试气泡");
         win.loop();
     )";

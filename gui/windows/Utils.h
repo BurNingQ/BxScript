@@ -15,7 +15,12 @@
 
 #include <string>
 #include <cstdint>
+#include <memory>
+#include <thread>
+
 #include "Controller.h"
+#include "evaluator/Value.h"
+#include "internal/User32.h"
 
 void internalTrackMouseEvent(void *hwnd);
 
@@ -48,5 +53,42 @@ void doMin(void *hwnd);
 void doCap(void *hwnd);
 
 void doTray(void *hwnd, const std::wstring &iconPath, const std::wstring &tooltip, void *trayIconHandle, bool hasTray);
+
+struct Mouse {
+    static void move(int x, int y) {
+        User32::W32_SendMouseEvent(x, y, MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE);
+    }
+
+    static void click(int x, int y) {
+        move(x, y);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        down(x, y, "left");
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        up(x, y, "left");
+    }
+
+    static void up(int x, int y, std::string tag) {
+        DWORD flag = MOUSEEVENTF_LEFTUP;
+        if (tag == "right") flag = MOUSEEVENTF_RIGHTUP;
+        else if (tag == "middle") flag = MOUSEEVENTF_MIDDLEUP;
+        User32::W32_SendMouseEvent(x, y, flag);
+    }
+
+    static void down(int x, int y, const std::string &tag) {
+        DWORD flag = MOUSEEVENTF_RIGHTDOWN;
+        if (tag == "right") flag = MOUSEEVENTF_RIGHTDOWN;
+        else if (tag == "middle") flag = MOUSEEVENTF_MIDDLEDOWN;
+        User32::W32_SendMouseEvent(x, y, flag);
+    }
+
+    static void scroll(int delta = -120) {
+        User32::W32_SendMouseEvent(0, 0,MOUSEEVENTF_WHEEL, delta);
+    }
+
+    static std::pair<int, int> pos() {
+        auto [x, y] = User32::W32_GetMouseCursorPos();
+        return std::make_pair(x, y);
+    }
+};
 
 #endif

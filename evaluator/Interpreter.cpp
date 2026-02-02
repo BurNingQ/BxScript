@@ -21,9 +21,11 @@
 #include "stdlib/GuiModule.h"
 #include "stdlib/IOModule.h"
 #include "stdlib/JsonModule.h"
+#include "stdlib/MouseModule.h"
 #include "stdlib/NetModule.h"
 #include "stdlib/OsModule.h"
 #include "stdlib/RegexModule.h"
+#include "stdlib/ScreenModule.h"
 #include "stdlib/ThreadModule.h"
 #include "stdlib/TimerModule.h"
 
@@ -89,6 +91,8 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_
                 else if (moduleName == "Win") module = GuiModule::CreateGuiModule();
                 else if (moduleName == "Timer") module = TimerModule::CreateTimerModule();
                 else if (moduleName == "Dlg") module = DlgModule::CreateDlgModule();
+                else if (moduleName == "Screen") module = ScreenModule::CreateScreenModule();
+                else if (moduleName == "Mouse") module = MouseModule::CreateMouseModule();
                 if (module) {
                     CppStdCache[moduleName] = module;
                     env->DeclareVar(importStmt->AliasName, module);

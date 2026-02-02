@@ -13,13 +13,13 @@
 #ifndef BXSCRIPT_USER32_H
 #define BXSCRIPT_USER32_H
 
+#include <cmath>
 #include <windows.h>
 #include <string>
 
 #include "gui/windows/Button.h"
 
 class User32 {
-    // 内部动态加载器：专门处理 Win10+ 的 User32 API，保证 Win7 不崩溃
     struct DynamicLoader {
         HMODULE hModule = nullptr;
 
@@ -45,6 +45,38 @@ class User32 {
     }
 
 public:
+
+    static int GetScreenWidth() { return GetSystemMetrics(SM_CXSCREEN); }
+
+    static int GetScreenHeight() { return GetSystemMetrics(SM_CYSCREEN); }
+
+    static int ToDx(int x) {
+        return static_cast<int>(std::ceil(x * (65535.0 / GetScreenWidth())));
+    }
+
+    static int ToDy(int y) {
+        return static_cast<int>(std::ceil(y * (65535.0 / GetScreenHeight())));
+    }
+
+    static void W32_SendMouseEvent(int x, int y, DWORD dwFlags, int mouseData = 0) {
+        INPUT input = {0};
+        input.type = INPUT_MOUSE;
+        input.mi.dx = ToDx(x);
+        input.mi.dy = ToDy(y);
+        input.mi.mouseData = mouseData;
+        input.mi.dwFlags = dwFlags;
+        if (!(dwFlags & MOUSEEVENTF_WHEEL)) {
+            input.mi.dwFlags |= MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
+        }
+        SendInput(1, &input, sizeof(INPUT));
+    }
+
+    static POINT W32_GetMouseCursorPos() {
+        POINT pt;
+        ::GetCursorPos(&pt);
+        return pt;
+    }
+
     // =========================================================================================
     // Group 1: 窗口类与创建 (Window Class & Creation)
     // =========================================================================================

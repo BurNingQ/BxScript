@@ -1,12 +1,15 @@
 # BxScript 🚀
 
 [![C++ Standard](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B17)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D6.svg)](https://www.microsoft.com/windows)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**BxScript** 是一个基于 C++17 开发的、轻量级、图灵完备的嵌入式脚本语言解释器。
+> **BxScript** 是一个基于 C++17 开发的、轻量级、专注于 **桌面应用开发** 的嵌入式脚本语言解释器。
 
-它的语法设计深受 JavaScript 启发，旨在为 C++ 应用程序提供灵活的脚本扩展能力。它不依赖庞大的第三方虚拟机（如 V8），而是采用 **递归下降解析 (Recursive Descent Parsing)** 和 **Tree-Walk 解释器** 架构，代码结构清晰，内存管理健壮，易于学习和深度定制。
+> MacOS与Linux部分暂未兼容
+
+> 它的语法设计深受 JavaScript 启发，但在底层深度集成了 Windows 原生 API。通过 BxScript，你可以使用极简的脚本代码构建高性能的 Win32 GUI 应用程序，或是编写系统自动化脚本。它内置了事件循环机制，无需庞大的第三方运行时（如 Electron 或 V8），即可获得现代化的开发体验。
 
 ---
 
@@ -24,24 +27,134 @@
 
 ## ✨ 核心特性 (Features)
 
-*   **图灵完备**：完整支持变量、条件判断 (`if/else`)、循环 (`for/while`)、跳转控制 (`break/continue/return`)。
-*   **函数一等公民**：支持函数声明、匿名函数、**闭包 (Closure)**、高阶函数以及递归调用。
-*   **健壮的内存管理**：底层基于 C++ 智能指针 (`std::shared_ptr` + `std::weak_ptr`) 的引用计数机制，自动管理对象生命周期，有效防止内存泄漏。
-*   **强大的字符串处理**：底层采用 **UTF-8 + UTF-32 双模存储**，完美支持中文/Emoji 的索引访问 (`str[i]`) 与切片操作，无需第三方 ICU 库。
-*   **完善的类型系统**：
-    *   `Number` (双精度浮点，支持 `toFixed` 等方法)
-    *   `String` (支持 `length`, `indexOf`, `substring` 等原生方法)
-    *   `Array` (支持动态扩容，内置 `push`/`pop`/`length`)
-    *   `Object` (键值对字典)
-*   **模块化系统**：支持 `import` 语句加载标准库或相对路径下的脚本模块，内置 AST 缓存机制防止重复解析。
-*   **异常处理**：支持 `try-catch-throw` 机制，甚至可以捕获解释器底层抛出的错误。
-*   **C++ 原生互操作**：极易扩展的 `NativeFunction` 接口，允许用 C++ 编写高性能函数供脚本直接调用。
+*   **声明式原生 GUI** 🖥️：
+    *   **原生性能**：内置轻量级 Win32 封装库，无需编写繁琐的 C++ 模板代码。
+    *   **流式构建**：支持**声明式 UI 构建**，通过链式调用和对象嵌套快速搭建复杂界面。
+    *   **现代化特性**：支持高分屏 (DPI Aware)、系统托盘、菜单栏、透明窗体等特性。
+*   **WebView2 深度集成** 🌐：
+    *   **混合开发**：基于 Edge (Chromium) 内核，支持构建现代化的 Hybrid 应用。
+    *   **双向绑定**：实现脚本与网页的高效通信 (Binding)，让 C++ 的系统能力赋能 Web 前端。
+*   **异步事件循环 (Event Loop)** ⚡：
+    *   **非阻塞设计**：内置微任务/宏任务调度系统，原生支持 `setTimeout`, `setInterval`。
+    *   **流畅体验**：网络请求 (`Net`)、文件 IO 等耗时操作均在后台线程执行，回调在主线程触发，保证 UI 界面**永不卡顿**。
+*   **全功能标准库** 📦：
+    *   **Net**: 封装 WinINet，支持 HTTP/HTTPS 请求 (GET, POST, Multipart)，无需额外依赖 curl。
+    *   **Crypt**: 内置 MD5, SHA256, HMAC, Base64, CRC32 等常用加密算法。
+    *   **System**: 提供鼠标/键盘模拟 (`Mouse`, `Keyboard` 模块)、屏幕信息获取、进程管理等自动化能力。
+
+---
+
+## 🖥️ 声明式 GUI 构建 (Declarative GUI)
+
+BxScript 使得构建 Windows 桌面应用变得异常简单。你不再需要处理消息循环、句柄或回调函数指针，只需描述你的界面。
+
+### 示例代码
+
+```javascript
+// 1. 创建一个主窗口
+let app = win.form("apps").size(800, 600)
+    .center()         // 屏幕居中
+    .icon("app.ico"); // 设置图标
+
+// 2. 创建一个按钮，链式设置属性
+let btn = win.button("btn1").text("Click Me")
+    .pos(220, 150)
+    .size(160, 40)
+    .font({size: 14});
+
+// 3. 绑定点击事件 (支持闭包)
+btn.on("click", function() {
+    win.alert("你好，这是原生弹窗！");
+    // 动态修改控件属性
+    btn.text("已点击");
+});
+
+// 4. 将控件添加到窗口
+app.add(btn);
+
+// 5. 入消息循环
+win.loop();
+```
+
+### 运行效果预览
+
+![GUI Demo](https://via.placeholder.com/600x400.png?text=BxScript+Win32+GUI+Demo)
+*(此处为占位图，实际运行将显示原生 Windows 窗口)*
+
+---
+
+## 🌐 WebView2 集成 (Hybrid App)
+
+BxScript 内置了对 WebView2 的支持，允许你使用 HTML/CSS/JS 编写界面，同时调用底层的系统能力。
+
+```javascript
+// 创建一个 WebView 窗口
+let web = win.webview()
+    .size(1024, 768)
+    .title("WebView Bridge Demo")
+    .html(`
+        <h1>Hello from WebView</h1>
+        <button onclick="callNative()">Call BxScript</button>
+        <script>
+            async function callNative() {
+                // 直接调用 BxScript 中绑定的函数
+                let res = await window.nativeFunc("Data from Web");
+                alert("Native response: " + res);
+            }
+        </script>
+    `);
+
+// 绑定原生函数供网页调用
+web.bind("nativeFunc", function(arg) {
+    print("网页发来数据: " + arg);
+    // 执行系统级操作，例如计算文件哈希
+    return Crypt.md5(arg);
+});
+
+win.loop();
+```
+
+---
+
+## ⚙️ 系统自动化与网络 (Automation & Net)
+
+BxScript 非常适合编写系统自动化脚本，内置的非阻塞网络库让它可以轻松处理数据上报。
+
+```javascript
+import std.Mouse as mouse;
+import std.Screen as screen;
+import std.Net as http;
+
+// 1. 模拟自动化操作
+let w = screen.width();
+let h = screen.height();
+// 移动到屏幕中心并点击
+mouse.move(w / 2, h / 2);
+mouse.click();
+
+print("开始发送网络请求...");
+
+// 2. 异步发送 GET 请求，不会卡住界面
+http.get("https://httpbin.org/get", function(res) {
+    if (res.status == 200) {
+        let json = JSON.parse(res.body);
+        print("IP来源: " + json.origin);
+    } else {
+        print("请求失败: " + res.error);
+    }
+});
+
+print("请求已发送 (程序继续运行...)");
+```
+
+---
 
 ## 🛠️ 构建与运行 (Build & Run)
 
 ### 环境要求
-*   C++17 编译器 (GCC/Clang/MSVC)
-*   CMake 3.10+
+*   **Windows 10/11** (因深度依赖 Win32 API)
+*   C++17 编译器 (MSVC 2019+ 或 MinGW64)
+*   CMake 3.20+
 
 ### 编译步骤
 
@@ -49,125 +162,35 @@
 mkdir cmake-build-release
 cd cmake-build-release
 cmake ..
-cmake --build .
+cmake --build . --config Release
 ```
 
 ### 运行脚本
-你可以通过命令行运行脚本文件：
+
 ```bash
-./BxScript main.bx
-```
-或者进入 REPL (交互式模式) 直接输入代码：
-```bash
+# 运行脚本文件
+./BxScript app.bx
+
+# 进入交互式模式 (REPL)
 ./BxScript
->> let a = 1 + 2;
->> print(a);
-3
+>> import std.Math;
+>> print(Math.random());
 ```
 
-### 📖 语法示例 (Examples)
-#### 1. 基础与控制流
-```javascript
-let sum = 0;
-for (let i = 0; i < 10; i++) {
-    if (i % 2 == 0) {
-        continue;
-    }
-    sum = sum + i;
-}
-// 支持 += 等复合运算
-sum += 100;
-```
-#### 2. 闭包与高阶函数
-```javascript
-function makeAdder(x) {
-    return function(y) {
-        return x + y;
-    };
-}
-
-let add5 = makeAdder(5);
-print(add5(10)); // 输出 15
-```
-
-#### 3. 数组与原生方法
-```javascript
-let arr = [];
-arr.push("Hello");
-arr.push("World");
-
-print(arr.length); // 2
-print(arr[0] + " " + arr[1]); // Hello World
-```
-#### 4. 中文与字符串处理
-```javascript
-let s = "你好世界";
-print(s[0]); // 输出: "你" (底层自动处理 UTF-8)
-print(s.indexOf("世")); // 输出: 2
-```
-
-#### 5. 模块导入
-```javascript
-// 自动搜索 ./lib/math.bx 或相对路径
-import std.math as m; 
-
-let r = m.add(10, 20);
-```
+---
 
 ## 🗺️ 未来规划 (Roadmap)
-### BxScript 正在积极演进中，未来的开发重心将集中在 桌面应用开发能力上。
-#### GUI 框架集成 (重点) 🖥️
-计划接入轻量级原生 GUI 方案（如封装 Win32 API 或 Nuklear）。
-目标是实现声明式布局，让开发者能通过极简的代码构建桌面应用：
-```javascript
-// 愿景代码：声明式 UI 构建
-let win = gui.create("MyApp", 800, 600);
-win.add(gui.button("点击我", 100, 50, function() {
-    gui.msgbox("你好！");
-}));
 
-win.add(gui.input("请输入...", 200, 30));
-win.show();
-```
+*   **UI 组件库扩充**: 增加 TreeView, TabControl, RichEdit 等高级控件。
+*   **布局系统增强**: 引入 Flexbox 或 Grid 布局引擎，替代绝对定位。
+*   **内存管理优化**: 引入简单的标记-清除 (Mark-and-Sweep) GC，解决循环引用问题。
+*   **包管理器**: 建立类似 npm 的简单的包管理机制，方便分发脚本库。
 
-#### 标准库扩展 📦
-文件 I/O (File.read, File.write)。
-网络请求 (Http.get, Http.post)。
-JSON 解析支持。
-
-#### 性能优化 ⚡
-进一步优化 AST 遍历性能。
-(远期) 探索字节码虚拟机 (Bytecode VM) 架构。
+---
 
 ## 🤝 贡献 (Contributing)
-欢迎提交 Issue 或 Pull Request！如果你对解释器原理、C++ 架构设计或 GUI 绑定感兴趣，请随时参与讨论。
-
-## 👥 成员名单 (Team & Acknowledgements)
-本项目由AI助手协作完成。
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/BurNingQ">
-        <img src="https://github.com/BurNingQ.png?size=100" width="100px;" alt="BurNingLi"/>
-        <br />
-        <sub><b>BurNingLi</b></sub>
-      </a>
-      <br />
-      🚀 <b>Creator & Lead Developer</b><br/>
-      (架构设计 / 核心实现 / 项目维护)
-    </td>
-    <td align="center">
-      <a href="https://deepmind.google/technologies/gemini/">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/8/8a/Google_Gemini_logo.svg" width="100px;" alt="Gemini"/>
-        <br />
-        <sub><b>Google Gemini 3</b></sub>
-      </a>
-      <br />
-      🤖 <b>AI Copilot & Tech Consultant</b><br/>
-      (协助降低 Executor 实现难度 / C++ 技术指导与最佳实践)
-    </td>
-  </tr>
-</table>
+欢迎提交 Issue 或 Pull Request！
+本项目由 **BurNingLi** 与 **Gemini3Pro** 共同开发，同时也感谢 **Google Gemini** 在 Win32 API 移植与重构过程中提供的 AI 辅助支持。
 
 ## 📄 开源协议 (License)
 本项目采用 MIT License 开源。
