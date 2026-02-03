@@ -1,47 +1,95 @@
-#### 1. 基础与控制流
-```javascript
-let sum = 0;
-for (let i = 0; i < 10; i++) {
-    if (i % 2 == 0) {
-        continue;
-    }
-    sum = sum + i;
-}
-// 支持 += 等复合运算
-sum += 100;
+# ⚡ 快速开始
+
+欢迎使用 BxScript！这是一个轻量级的嵌入式脚本语言。本指南将帮助你快速搭建环境并运行你的第一行代码。
+
+## 🛠️ 构建与安装
+
+### 环境要求
+*   **Windows 10/11** (推荐) 或 Linux/macOS (部分 GUI 功能受限)
+*   C++17 编译器 (MSVC 2019+, GCC 8+, Clang 10+)
+*   CMake 3.20+
+
+### 编译步骤
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/BurNingQ/BxScript.git
+cd BxScript
+
+# 2. 创建构建目录
+mkdir cmake-build-release
+cd cmake-build-release
+
+# 3. 编译 (Release模式)
+cmake ..
+cmake --build . --config Release
 ```
-#### 2. 闭包与高阶函数
+
+## 🚀 运行代码
+
+### 交互式模式 (REPL)
+直接运行 `BxScript` 可执行文件进入交互模式：
+
+```bash
+./BxScript
+BxScript v1.0.0
+Type 'exit' or 'quit' to leave.
+>> let a = 10;
+>> let b = 20;
+>> a + b;
+30
+```
+
+### 运行脚本文件
+创建一个名为 `hello.bx` 的文件：
+
 ```javascript
-function makeAdder(x) {
-    return function(y) {
-        return x + y;
+// hello.bx
+import std.IO as IO;
+
+IO.println("Hello, BxScript!");
+
+for (let i = 0; i < 5; i++) {
+    IO.print(i + " ");
+}
+```
+
+通过命令行运行：
+```bash
+./BxScript hello.bx
+```
+
+## 📖 基础语法速览
+
+### 变量与控制流
+```javascript
+import std.IO as IO;
+let count = 0;
+while (count < 10) {
+    count++;
+    if (count % 2 == 0) continue;
+    IO.print(count); // 输出奇数
+}
+```
+
+### 函数与闭包
+```javascript
+import std.IO as IO;
+function createGreeter(name) {
+    return function() {
+        return "Hello, " + name;
     };
 }
 
-let add5 = makeAdder(5);
-print(add5(10)); // 输出 15
+let greetWorld = createGreeter("World");
+IO.print(greetWorld()); // "Hello, World"
 ```
 
-#### 3. 数组与原生方法
+### 模块导入
 ```javascript
-let arr = [];
-arr.push("Hello");
-arr.push("World");
+import std.IO as IO;
+import std.Math as Math; // 导入标准库
+import std.Json as J; // 导入并重命名
 
-print(arr.length); // 2
-print(arr[0] + " " + arr[1]); // Hello World
-```
-#### 4. 中文与字符串处理
-```javascript
-let s = "你好世界";
-print(s[0]); // 输出: "你" (底层自动处理 UTF-8)
-print(s.indexOf("世")); // 输出: 2
-```
-
-#### 5. 模块导入
-```javascript
-// 自动搜索 ./lib/math.bx 或相对路径
-import std.math as m; 
-
-let r = m.add(10, 20);
+IO.print(Math.random());
 ```

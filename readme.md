@@ -189,6 +189,11 @@ cmake --build . --config Release
 ---
 
 ## 🤝 贡献 (Contributing)
+| Gemini 3 Pro  |
+|---------------|
+| 👨🏻‍🎓 执行器导师 |
+| ‍🎓 最佳C++导师   |
+| 🎅 WIN32导师    |
 欢迎提交 Issue 或 Pull Request！
 本项目由 **BurNingLi** 与 **Gemini3Pro** 共同开发，同时也感谢 **Google Gemini** 在 Win32 API 移植与重构过程中提供的 AI 辅助支持。
 

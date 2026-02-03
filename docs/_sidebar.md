@@ -1,7 +1,18 @@
 * [首页](/)
-* [快速入门](guide.md)
-* [API 参考]
-    * [内置对象 (String/Array/Object/Bool/Number/Function)](builtins.md)
-    * [标准库 (std)](stdlib.md)
-* [高级话题]
-    * [C++ 集成指南](embedding.md)
+* [💥 快速开始](guide.md)
+* [🔧 其他介绍](other.md)
+* [📦 标准库 (Standard Library)]
+  * [IO (输入输出)](stdlib/io.md)
+  * [Math (数学)](stdlib/math.md)
+  * [Net (网络)](stdlib/net.md)
+  * [JSON (数据处理)](stdlib/json.md)
+  * [Crypt (加密/哈希)](stdlib/crypt.md)
+  * [OS (系统操作)](stdlib/os.md)
+  * [Date (日期时间)](stdlib/date.md)
+  * [Thread (多线程)](stdlib/thread.md)
+  * [Timer (定时器)](stdlib/timer.md)
+  * [Regex (正则表达式)](stdlib/regex.md)
+  * [System (屏幕/鼠标)](stdlib/system.md)
+  * [UI (界面与弹窗)](stdlib/ui.md)
+* [🛠️ 高级话题]
+  * [C++ 集成指南](embedding.md)
