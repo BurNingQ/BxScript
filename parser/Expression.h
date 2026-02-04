@@ -35,6 +35,13 @@ public:
     virtual ~Declaration() = default;
 };
 
+class DeferStatement : public Statement {
+public:
+    explicit DeferStatement(std::unique_ptr<Statement> stmt) : Execution(std::move(stmt)) {
+    }
+    std::unique_ptr<Statement> Execution;
+};
+
 class ArrayLiteral : public Expression {
 public:
     explicit ArrayLiteral(std::vector<std::unique_ptr<Expression> > v) : Value(std::move(v)) {

@@ -88,6 +88,8 @@ public:
         throw std::runtime_error(message);
     }
 
+    std::unique_ptr<Statement> ParseDeferStatement();
+
     std::unique_ptr<Statement> ParseImportStatements();
 
     std::unique_ptr<Statement> ParseBlockStatement();

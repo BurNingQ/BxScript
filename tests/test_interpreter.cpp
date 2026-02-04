@@ -287,6 +287,19 @@ TEST_F(InterpreterTest, Closure) {
     ASSERT_IS_NUMBER(Eval(code), 15.0);
 }
 
+TEST_F(InterpreterTest, IIFEFunc) {
+    // 闭包测试
+    std::string code = R"(
+        import std.IO as IO;
+        let a = 0;
+        (function(){
+            IO.println("running");
+            a = 1;
+        })()
+    )";
+    ASSERT_IS_NUMBER(Eval(code), 1.0);
+}
+
 TEST_F(InterpreterTest, TryCatch) {
     std::string code = R"(
         let res = 0;
@@ -1264,6 +1277,45 @@ TEST_F(InterpreterTest, WebViewBuildStructure) {
     )";
     Eval(code);
     ASSERT_EQ(GuiModule::GlobalForms.size(), 0);
+}
+
+TEST_F(InterpreterTest, DeferExecutionOrder) {
+    std::string code = R"(
+        let result = "";
+        function runTest() {
+            result = result + "1";
+            defer result = result + "4";
+            defer result = result + "3";
+            result = result + "2";
+            return;
+        }
+        runTest();
+    )";
+
+    Eval(code);
+    auto res = GetGlobalVar("result");
+    ASSERT_IS_STRING(res, "1234");
+}
+
+TEST_F(InterpreterTest, DeferOnThrow) {
+    std::string code = R"(
+        let flag = 0;
+        import std.IO as io;
+        function riskyTask() {
+            defer (function(){
+                io.println("defer run")
+                flag = 1;
+            })();
+            throw "Oops";
+        }
+        try {
+            riskyTask();
+        } catch (e) {
+        }
+    )";
+    Eval(code);
+    auto res = GetGlobalVar("flag");
+    ASSERT_IS_NUMBER(res, 1.0);
 }
 
 int main(int argc, char **argv) {

@@ -20,18 +20,40 @@
 #include "parser/Expression.h"
 #include "Environment.h"
 #include "common/ModuleHelper.h"
+#include "error/RuntimeError.h"
 #include "parser/Parser.h"
 
 class Interpreter {
+    // defer
+    class DeferGuard {
+        std::shared_ptr<Environment> env;
+
+    public:
+        explicit DeferGuard(std::shared_ptr<Environment> e) : env(std::move(e)) {
+        }
+
+        ~DeferGuard() {
+            if (!env->defers.empty()) {
+                for (auto it = env->defers.rbegin(); it != env->defers.rend(); ++it) {
+                    try {
+                        Execute(*it, env);
+                    } catch (RuntimeError &e) {
+                        std::cerr << "[运行错误] defer异常: " + e.Message << std::endl;
+                    }
+                }
+            }
+        }
+    };
+
 public:
     static std::unordered_map<std::string, ValuePtr> ModuleCache;
     static std::unordered_map<std::string, std::shared_ptr<Program> > ModuleAST;
     static std::vector<std::shared_ptr<Program> > ASTRegistry;
     static std::unordered_map<std::string, ValuePtr> CppStdCache;
-    static thread_local const Expression* CurrentNode;
+    static thread_local const Expression *CurrentNode;
 
     // 环境预热
-    static void SetupEnvironment(const std::shared_ptr<Environment>& env);
+    static void SetupEnvironment(const std::shared_ptr<Environment> &env);
 
     // 公用函数执行
     static ValuePtr CallFunction(const ValuePtr &callee, const std::vector<ValuePtr> &args);
@@ -50,11 +72,11 @@ public:
     }
 
     // 执行代码 -> 二级
-    static ValuePtr EvaluateProgram(const Program &program, const std::shared_ptr<Environment>& env);
+    static ValuePtr EvaluateProgram(const Program &program, const std::shared_ptr<Environment> &env);
 
 private:
     // Statement 执行层 (Execute): 负责逻辑控制、变量声明、代码块
-    static ValuePtr Execute(Statement *stmt, const std::shared_ptr<Environment>& env);
+    static ValuePtr Execute(Statement *stmt, const std::shared_ptr<Environment> &env);
 
     // Expression 求值层 (Evaluate): 负责数据计算、赋值、成员访问
     static ValuePtr Evaluate(Expression *expr, std::shared_ptr<Environment> env);

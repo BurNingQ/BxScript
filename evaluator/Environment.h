@@ -14,11 +14,14 @@
 #ifndef BXSCRIPT_ENVIRONMENT_H
 #define BXSCRIPT_ENVIRONMENT_H
 #include "Value.h"
+#include "../parser/Expression.h"
 
 class Environment : public std::enable_shared_from_this<Environment> {
 public:
     std::shared_ptr<Environment> parent;
     std::unordered_map<std::string, ValuePtr> variables;
+    std::vector<Statement *> defers;
+    bool isFunctionBoundary = false;
 
     explicit Environment(std::shared_ptr<Environment> p = nullptr) : parent(std::move(p)) {
     }

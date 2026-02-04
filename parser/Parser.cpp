@@ -54,6 +54,18 @@ Program Parser::ParserSourceCode(const std::string &code) {
     return pro;
 }
 
+std::unique_ptr<Statement> Parser::ParseDeferStatement() {
+    auto const tk = NextToken(); // defer
+    auto stmt = this->ParseStatement();
+    if (auto* exprStmt = dynamic_cast<ExpressionStatement*>(stmt.get())) {
+        if (dynamic_cast<CallExpression*>(exprStmt->Expression.get())) {
+            return make_unique<DeferStatement>(std::move(stmt));
+        }
+    }
+    Error(tk, "语法错误: 'defer' 关键字后面必须紧跟一个函数调用 (例如: defer close())");
+    return make_unique<DeferStatement>(std::move(stmt));
+}
+
 // import win.ui as ui;
 std::unique_ptr<Statement> Parser::ParseImportStatements() {
     auto tk = this->NextToken(); // 此处tk = import
@@ -139,6 +151,9 @@ std::unique_ptr<Statement> Parser::ParseStatement() {
     }
     if (IsKeyword(tk, "return")) {
         return this->ParseReturnStatement();
+    }
+    if (IsKeyword(tk, "defer")) {
+        return this->ParseDeferStatement();
     }
     auto expState = make_unique<ExpressionStatement>(ParseExpression());
     this->Semicolon();

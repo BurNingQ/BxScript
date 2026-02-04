@@ -55,12 +55,15 @@ ValuePtr Interpreter::CallFunction(const ValuePtr &callee, const std::vector<Val
     if (callee->type == ValueType::FUNCTION) {
         const auto fn = std::static_pointer_cast<FunctionValue>(callee);
         const auto scope = std::make_shared<Environment>(fn->Closure);
+        scope->isFunctionBoundary = true;
         for (size_t i = 0; i < fn->Declaration->Parameters->Parameters.size(); ++i) {
             const auto paramId = dynamic_cast<Identifier *>(fn->Declaration->Parameters->Parameters[i].get());
             std::string paramName = paramId->Name;
             const ValuePtr argVal = (i < args.size()) ? args[i] : std::make_shared<NullValue>();
             scope->DeclareVar(paramName, argVal);
         }
+        // defer 绑定
+        DeferGuard guard(scope);
         ValuePtr result = Execute(fn->Declaration->Body.get(), scope);
         if (result->type == ValueType::RETURN) {
             return std::static_pointer_cast<ReturnValue>(result)->Value;
@@ -128,6 +131,15 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_
 ValuePtr Interpreter::Execute(Statement *stmt, const std::shared_ptr<Environment> &env) {
     // 空语句
     if (dynamic_cast<EmptyStatement *>(stmt)) {
+        return std::make_shared<NullValue>();
+    }
+    // defer
+    if (const auto *deferStmt = dynamic_cast<DeferStatement *>(stmt)) {
+        auto targetEnv = env;
+        while (targetEnv->parent != nullptr && !targetEnv->isFunctionBoundary) {
+            targetEnv = targetEnv->parent;
+        }
+        targetEnv->defers.push_back(deferStmt->Execution.get());
         return std::make_shared<NullValue>();
     }
     // 变量处理
