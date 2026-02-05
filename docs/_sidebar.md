@@ -1,6 +1,7 @@
 * [首页](/)
 * [💥 快速开始](guide.md)
 * [🔧 其他介绍](other.md)
+* [📌 内置说明](builtins.md)
 * [📦 标准库 (Standard Library)]
   * [IO (输入输出)](stdlib/io.md)
   * [Math (数学)](stdlib/math.md)

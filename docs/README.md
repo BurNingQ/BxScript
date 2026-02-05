@@ -66,7 +66,7 @@ let btn = win.button("btn1").text("Click Me")
 btn.on("click", function() {
     win.alert("你好，这是原生弹窗！");
     // 动态修改控件属性
-    btn.text("已点击");
+    app.refs.btn1.text("已点击");
 });
 
 // 4. 将控件添加到窗口
@@ -78,8 +78,7 @@ win.loop();
 
 ### 运行效果预览
 
-![GUI Demo](https://via.placeholder.com/600x400.png?text=BxScript+Win32+GUI+Demo)
-*(此处为占位图，实际运行将显示原生 Windows 窗口)*
+![GUI Demo](img/gui_demo.png)
 
 ---
 
