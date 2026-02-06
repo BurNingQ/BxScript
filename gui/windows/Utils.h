@@ -52,7 +52,11 @@ void doMin(void *hwnd);
 
 void doCap(void *hwnd);
 
-void doTray(void *hwnd, const std::wstring &iconPath, const std::wstring &tooltip, void *trayIconHandle, bool hasTray);
+void doExit(void *hwnd);
+
+void doTray(void *hwnd, const std::wstring &iconPath, const std::wstring &tooltip, void *&trayIconHandle, bool &hasTray);
+
+void removeTray(void *hwnd, void *&trayIconHandle, bool &hasTray);
 
 struct Mouse {
     static void move(int x, int y) {

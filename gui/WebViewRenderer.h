@@ -20,9 +20,13 @@
 #include "windows.h"
 #include <dwmapi.h>
 
+#include "windows/Utils.h"
+
 
 class WebViewRenderer {
     inline static std::unique_ptr<webview::webview> instance = nullptr;
+    inline static void *trayHandle = nullptr;
+    inline static bool hasTray = false;
 
     static void ReMountNativeFn(std::shared_ptr<ObjectValue> obj, const HWND hwnd) {
         obj->Set("doMin", std::make_shared<NativeFunctionValue>([hwnd,obj](const std::vector<ValuePtr> &) {
@@ -35,6 +39,13 @@ class WebViewRenderer {
         }));
         obj->Set("doCap", std::make_shared<NativeFunctionValue>([hwnd,obj](const std::vector<ValuePtr> &) {
             doCap(hwnd);
+            return obj;
+        }));
+        obj->Set("doExit", std::make_shared<NativeFunctionValue>([hwnd,obj](const std::vector<ValuePtr> &) {
+            if (hasTray) {
+                removeTray(hwnd, trayHandle, hasTray);
+            }
+            doExit(hwnd);
             return obj;
         }));
     }
@@ -61,6 +72,7 @@ public:
                                      : false;
         const auto methods = o->Get("_methods");
         instance = std::make_unique<webview::webview>(debug, nullptr);
+        const auto hwnd = static_cast<HWND>(instance->window().value());
         if (methods->type == ValueType::OBJECT) {
             const auto objMethods = std::static_pointer_cast<ObjectValue>(o->Get("_methods"));
             for (const auto &[k,v]: objMethods->Properties) {
@@ -76,11 +88,21 @@ public:
         instance->set_size(width, height, WEBVIEW_HINT_NONE);
         instance->set_html(html);
         if (transparent) {
-            setBackgroundColor(static_cast<HWND>(instance->window().value()),
-                               static_cast<ICoreWebView2Controller *>(instance->browser_controller().value()), transparent);
+            setBackgroundColor(hwnd, static_cast<ICoreWebView2Controller *>(instance->browser_controller().value()), transparent);
         }
-        setCenter(static_cast<HWND>(instance->window().value()));
-        ReMountNativeFn(o, static_cast<HWND>(instance->window().value()));
+        setTray(o, hwnd);
+        setCenter(hwnd);
+        ReMountNativeFn(o, hwnd);
+    }
+
+    static void setTray(const std::shared_ptr<ObjectValue> o, const HWND hwnd) {
+        if (const auto trayVal = o->Get("_trayConf"); trayVal && trayVal->type == ValueType::OBJECT) {
+            const auto conf = std::static_pointer_cast<ObjectValue>(trayVal);
+            std::string iconPath, tip;
+            if (const auto v = conf->Get("icon"); v->type == ValueType::STRING) iconPath = v->ToString();
+            if (const auto v = conf->Get("tip"); v->type == ValueType::STRING) tip = v->ToString();
+            doTray(hwnd, StringKit::U8ToU16(iconPath), StringKit::U8ToU16(tip), trayHandle, hasTray);
+        }
     }
 
     static void setCenter(HWND hwnd) {

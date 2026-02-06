@@ -205,7 +205,7 @@ class GuiModule {
                 widget->Set("_trayConf", conf);
                 return widget;
             });
-        widget->Set("tray", trayFn);
+        widget->Set("doTray", trayFn);
         auto const doMinFn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &) -> ValuePtr {
                 throw RuntimeError("函数还未挂载或挂载失败");
@@ -377,7 +377,9 @@ class GuiModule {
 
                 auto const bindFn = std::make_shared<NativeFunctionValue>(
                     [ow](const std::vector<ValuePtr> &args) -> ValuePtr {
-                        auto const methods = ow->Get("_methods") && ow->Get("_methods")->type != ValueType::NULL_TYPE ? ow->Get("_methods") : std::make_shared<ObjectValue>();
+                        auto const methods = ow->Get("_methods") && ow->Get("_methods")->type != ValueType::NULL_TYPE
+                                                 ? ow->Get("_methods")
+                                                 : std::make_shared<ObjectValue>();
                         if (args.empty() || args.size() < 2) throw RuntimeError("参数错误: widget.bind('event', function)");
                         if (args[0]->type != ValueType::STRING || args[1]->type != ValueType::FUNCTION) {
                             throw RuntimeError("参数错误: widget.bind('event', function)");
@@ -405,9 +407,17 @@ class GuiModule {
 
                 auto const trayFn = std::make_shared<NativeFunctionValue>(
                     [ow](const std::vector<ValuePtr> &args) -> ValuePtr {
-                        if (args.empty() || args[0]->type != ValueType::OBJECT) return ow;
-                        const auto conf = std::static_pointer_cast<ObjectValue>(args[0]);
-                        ow->Set("_trayConf", conf);
+                        if (args.empty()) return ow;
+                        if (args.size() > 1) {
+                            if (args[0]->type == ValueType::OBJECT) {
+                                const auto conf = std::static_pointer_cast<ObjectValue>(args[0]);
+                                ow->Set("_trayConf", conf);
+                            }
+                            const auto conf = std::make_shared<ObjectValue>();
+                            conf->Set("icon", args[0]);
+                            conf->Set("tip", args[1]);
+                            ow->Set("_trayConf", conf);
+                        }
                         return ow;
                     });
                 ow->Set("doTray", trayFn);

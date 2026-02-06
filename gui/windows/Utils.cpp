@@ -12,6 +12,8 @@
  */
 #include "Utils.h"
 #include <windows.h>
+
+#include "App.h"
 #include "GlobalVars.h"
 #include "Controller.h"
 #include "Rect.h"
@@ -173,6 +175,10 @@ void doMin(void *hwnd) {
     PostMessageW(xHwnd, WM_SYSCOMMAND,SC_MINIMIZE, 0);
 }
 
+void doExit(void *hwnd) {
+    App::Exit(0);
+}
+
 void doCap(void *hwnd) {
     auto const xHwnd = static_cast<HWND>(hwnd);
     if (!IsZoomed(xHwnd)) {
@@ -181,7 +187,7 @@ void doCap(void *hwnd) {
     }
 }
 
-void doTray(void *hwnd, const std::wstring &iconPath, const std::wstring &tooltip, void* trayIconHandle, bool hasTray) {
+void doTray(void *hwnd, const std::wstring &iconPath, const std::wstring &tooltip, void *&trayIconHandle, bool &hasTray) {
     auto const xHwnd = static_cast<HWND>(hwnd);
     NOTIFYICONDATAW nid = {};
     nid.cbSize = sizeof(nid);
@@ -200,4 +206,17 @@ void doTray(void *hwnd, const std::wstring &iconPath, const std::wstring &toolti
     }
     wcsncpy(nid.szTip, !tooltip.empty() ? tooltip.c_str() : L"BxScript App", 127);
     Shell_NotifyIconW(hasTray ? NIM_MODIFY : NIM_ADD, &nid);
+}
+
+void removeTray(void *hwnd, void *&trayIconHandle, bool &hasTray) {
+    NOTIFYICONDATAW nid = {};
+    nid.cbSize = sizeof(nid);
+    nid.hWnd = static_cast<HWND>(hwnd);
+    nid.uID = 1;
+    Shell_NotifyIconW(NIM_DELETE, &nid);
+    hasTray = false;
+    if (trayIconHandle) {
+        DestroyIcon(static_cast<HICON>(trayIconHandle));
+        trayIconHandle = nullptr;
+    }
 }
