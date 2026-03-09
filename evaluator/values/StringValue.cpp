@@ -115,8 +115,7 @@ ValuePtr StringValue::InitBuiltins() {
             std::string resultUtf8;
             for (const auto &arg: args) {
                 if (arg->type != ValueType::NUMBER) continue;
-                resultUtf8 += StringKit::Char32ToUtf8(
-                    static_cast<char32_t>(std::static_pointer_cast<NumberValue>(arg)->Value));
+                resultUtf8 += StringKit::Char32ToUtf8(static_cast<char32_t>(std::static_pointer_cast<NumberValue>(arg)->Value));
             }
             return std::make_shared<StringValue>(resultUtf8);
         }

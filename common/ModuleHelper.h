@@ -19,46 +19,36 @@
 #include <sstream>
 #include <vector>
 
+#include "VFS.h"
+
 namespace fs = std::filesystem;
 
 class ModuleHelper {
 public:
     static std::string ReadFile(const std::string &path) {
-        std::ifstream file(path);
-        if (!file.is_open()) {
-            throw std::runtime_error("无法打开模块文件: " + path);
-        }
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        return buffer.str();
+        return VFS::ReadFile(path);
     }
 
     static fs::path GetExecutableDir() {
-        return fs::current_path();
+        return VFS::DevRoot;
     }
 
     // 解析 import std.zz.dd -> 真实路径
     static std::string ResolvePath(const std::vector<std::string> &parts) {
         if (parts.empty()) return "";
-        fs::path basePath;
-        // std库
+        fs::path relativePath;
         if (parts[0] == "std") {
-            basePath = GetExecutableDir() / "lib";
+            relativePath = "lib";
             for (size_t i = 1; i < parts.size(); ++i) {
-                basePath /= parts[i];
+                relativePath /= parts[i];
             }
         } else {
-            // 非标库
-            basePath = fs::current_path();
             for (const auto &part: parts) {
-                basePath /= part;
+                relativePath /= part;
             }
         }
-        basePath.replace_extension(".bx");
-        if (!fs::exists(basePath)) {
-            throw std::runtime_error("找不到模块文件: " + basePath.string());
-        }
-        return fs::absolute(basePath).string();
+        relativePath.replace_extension(".bx");
+        return relativePath.string();
     }
 };
 

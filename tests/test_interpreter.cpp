@@ -12,6 +12,9 @@
 #include "../evaluator/EventLoop.h"
 #include "../stdlib/GuiModule.h"
 #include "gui/GuiRuntime.h"
+extern "C" {
+    #include "libs/zip/miniz.h"
+}
 
 #define ASSERT_IS_NUMBER(valPtr, expected) \
     do { \
@@ -426,12 +429,16 @@ TEST_F(InterpreterTest, StringFromCharCode) {
 
 TEST_F(InterpreterTest, StringPrototype) {
     auto res = Eval(R"(
-           String.prototype.hello = function(){
-                return this + " hello";
-           }
-           "BurNing".hello();
+           String.prototype.padWidthZero = function(){
+	            let a = this;
+	            while(this.length < 10){
+		            a = "0" + a;
+	            }
+	            return a+"";
+            };
+           "5".padWidthZero()
     )");
-    ASSERT_IS_STRING(res, "BurNing hello");
+    ASSERT_IS_STRING(res, "0000000005");
 }
 
 TEST_F(InterpreterTest, StringStatic) {
@@ -1240,6 +1247,7 @@ TEST_F(InterpreterTest, WebViewBuildStructure) {
                 border-radius: 15px;
                 border: 1px solid rgba(255,255,255,0.2);
                 animation: float 3s ease-in-out infinite;
+                text-align:center;
             }
             .btn {
                 width: 100%;
@@ -1316,6 +1324,10 @@ TEST_F(InterpreterTest, DeferOnThrow) {
     Eval(code);
     auto res = GetGlobalVar("flag");
     ASSERT_IS_NUMBER(res, 1.0);
+}
+
+TEST_F(InterpreterTest, IoZip) {
+    printf("Miniz version: %s\n", MZ_VERSION);
 }
 
 int main(int argc, char **argv) {

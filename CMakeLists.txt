@@ -195,6 +195,8 @@ set(SOURCE_FILES
         libs/sha256/sha256.cpp
         libs/sha256/sha256.h
         libs/hmac.h
+        libs/zip/miniz.h
+        libs/zip/miniz.c
         stdlib/GuiModule.h
         gui/GuiRenderer.h
         gui/GuiRuntime.cpp
@@ -210,6 +212,8 @@ set(SOURCE_FILES
         stdlib/ScreenModule.h
         stdlib/MouseModule.h
         stdlib/KeyBoardModule.h
+        common/VFS.cpp
+        common/VFS.h
 )
 
 # ==========================================

@@ -51,7 +51,7 @@ class WebViewRenderer {
     }
 
 public:
-    static void Run(std::shared_ptr<ObjectValue> o) {
+    static void Run(const std::shared_ptr<ObjectValue>& o) {
         const std::string title = o->Get("_title") && o->Get("_title")->type != ValueType::NULL_TYPE
                                       ? o->Get("_title")->ToString()
                                       : "BxScriptWebView";
