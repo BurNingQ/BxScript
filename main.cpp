@@ -11,6 +11,7 @@
 #include "gui/GuiRuntime.h"
 #include "stdlib/GuiModule.h"
 #include "common/VFS.h"
+#include "libs/json.hpp"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -85,10 +86,31 @@ void RunFile(const std::string &path) {
         const std::string source = VFS::ReadFile(path);
         Interpreter::Run(source);
     } catch (const std::exception &e) {
-        std::string msg = "Execution Failed [" + path + "]: " + e.what();
+        const std::string msg = "Execution Failed [" + path + "]: " + e.what();
         PrintError(msg);
 #ifdef _WIN32
-        MessageBoxA(nullptr, msg.c_str(), "BxScript Runtime Error", MB_OK | MB_ICONERROR);
+        CommonDlgs::MsgBoxError(nullptr, StringKit::U8ToU16(msg), L"BxScript Runtime");
+#endif
+        exit(1);
+    }
+}
+
+std::string ReadIndexFile() {
+    try {
+        const std::string source = VFS::ReadFile("config.json");
+        if (auto j = nlohmann::json::parse(source); j.is_object()) {
+            if (const auto type = j.find("project_main"); type != j.end() && j.is_string()) {
+                return j.get<std::string>();
+            }
+        } else {
+#ifdef _WIN32
+            CommonDlgs::MsgBoxError(nullptr, L"清单文件丢失", L"BxScript Runtime");
+#endif
+        }
+        return "src/index.bx";
+    } catch (std::exception &e) {
+#ifdef _WIN32
+        CommonDlgs::MsgBoxError(nullptr, L"清单文件丢失", L"BxScript Runtime");
 #endif
         exit(1);
     }
@@ -103,7 +125,7 @@ int main(const int argc, char *argv[]) {
     // 打包模式
     if (VFS::IsBundled) {
         try {
-            RunFile("src/index.bx");
+            RunFile(ReadIndexFile());
         } catch (std::exception &e) {
             std::string msg = "包加载失败: ";
             msg += e.what();

@@ -37,7 +37,7 @@ class ScreenModule {
 #endif
                 return std::shared_ptr<NumberValue>(0);
             });
-        o->Set("width", heightFn);
+        o->Set("height", heightFn);
     }
 
     static void InitWorkArea(const std::shared_ptr<ObjectValue> &o) {

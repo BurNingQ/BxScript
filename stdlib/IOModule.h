@@ -21,51 +21,6 @@
 namespace fs = std::filesystem;
 
 class IOModule {
-    static void InitPrintln(std::shared_ptr<ObjectValue> &o) {
-        auto const fn = std::make_shared<NativeFunctionValue>(
-            [](const std::vector<ValuePtr> &args)-> ValuePtr {
-                std::string output;
-                for (const auto &v: args) {
-                    if (!output.empty()) {
-                        output += ", ";
-                    }
-                    output += v->ToString();
-                }
-                std::cout << output << std::endl;
-                return std::make_shared<NullValue>();
-            });
-        o->Set("println", fn);
-    }
-
-    static void InitPrint(std::shared_ptr<ObjectValue> &o) {
-        auto const fn = std::make_shared<NativeFunctionValue>(
-            [](const std::vector<ValuePtr> &args)-> ValuePtr {
-                std::string output;
-                for (const auto &v: args) {
-                    if (!output.empty()) {
-                        output += ", ";
-                    }
-                    output += v->ToString();
-                }
-                std::cout << output;
-                return std::make_shared<NullValue>();
-            });
-        o->Set("print", fn);
-    }
-
-    static void InitInput(std::shared_ptr<ObjectValue> &o) {
-        auto const fn = std::make_shared<NativeFunctionValue>(
-            [](const std::vector<ValuePtr> &args)-> ValuePtr {
-                if (!args.empty()) {
-                    std::cout << args[0]->ToString();
-                }
-                std::string input;
-                std::getline(std::cin, input);
-                return std::make_shared<StringValue>(input);
-            });
-        o->Set("input", fn);
-    }
-
     static void InitExist(std::shared_ptr<ObjectValue> &o) {
         auto const fn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &args)-> ValuePtr {
@@ -260,9 +215,6 @@ class IOModule {
 public:
     static ValuePtr CreateIOModule() {
         auto module = std::make_shared<ObjectValue>();
-        InitPrintln(module);
-        InitPrint(module);
-        InitInput(module);
         InitExist(module);
         InitIsFile(module);
         InitIsDir(module);

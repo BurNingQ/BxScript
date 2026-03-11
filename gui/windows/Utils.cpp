@@ -220,3 +220,20 @@ void removeTray(void *hwnd, void *&trayIconHandle, bool &hasTray) {
         trayIconHandle = nullptr;
     }
 }
+
+void showConsole() {
+    if (AllocConsole()) {
+        freopen("CONOUT$", "w", stdout);
+        freopen("CONIN$", "r", stdin);
+    }
+    if (const HWND hwnd = GetConsoleWindow()) ShowWindow(hwnd, SW_SHOW);
+}
+
+void hideConsole() {
+    if (const HWND hwnd = GetConsoleWindow()) ShowWindow(hwnd, SW_HIDE);
+    FreeConsole();
+}
+
+void setConsoleTitle(const std::wstring &title) {
+    SetConsoleTitleW(title.c_str());
+}

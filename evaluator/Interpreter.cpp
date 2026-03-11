@@ -16,11 +16,14 @@
 #include <cmath>
 
 #include "error/RuntimeError.h"
+#include "stdlib/ConsoleModule.h"
 #include "stdlib/CryptModule.h"
 #include "stdlib/DlgModule.h"
 #include "stdlib/GuiModule.h"
 #include "stdlib/IOModule.h"
 #include "stdlib/JsonModule.h"
+#include "stdlib/KeyBoardModule.h"
+#include "stdlib/MathModule.h"
 #include "stdlib/MouseModule.h"
 #include "stdlib/NetModule.h"
 #include "stdlib/OsModule.h"
@@ -96,6 +99,9 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_
                 else if (moduleName == "Dlg") module = DlgModule::CreateDlgModule();
                 else if (moduleName == "Screen") module = ScreenModule::CreateScreenModule();
                 else if (moduleName == "Mouse") module = MouseModule::CreateMouseModule();
+                else if (moduleName == "Console") module = ConsoleModule::CreateConsoleModule();
+                else if (moduleName == "Math") module = MathModule::CreateMathModule();
+                else if (moduleName == "KeyBoard") module = KeyBoardModule::CreateKeyBoardModule();
                 if (module) {
                     CppStdCache[moduleName] = module;
                     env->DeclareVar(importStmt->AliasName, module);

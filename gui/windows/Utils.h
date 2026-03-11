@@ -95,4 +95,10 @@ struct Mouse {
     }
 };
 
+void showConsole();
+
+void hideConsole();
+
+void setConsoleTitle(const std::wstring &title);
+
 #endif

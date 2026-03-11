@@ -214,19 +214,33 @@ set(SOURCE_FILES
         stdlib/KeyBoardModule.h
         common/VFS.cpp
         common/VFS.h
+        stdlib/ConsoleModule.h
 )
 
 # ==========================================
 # 主程序 BxScript
 # ==========================================
 # 在这里就把 PLATFORM_SOURCES (app.rc) 加进去
-add_executable(BxScript ${SOURCE_FILES} ${PLATFORM_SOURCES})
+# Console版本
+add_executable(BxScript_Console ${SOURCE_FILES} ${PLATFORM_SOURCES})
+target_include_directories(BxScript_Console PRIVATE ${PROJECT_SOURCE_DIR})
 
-target_include_directories(BxScript PRIVATE ${PROJECT_SOURCE_DIR})
+# 2. GUI 版本 (隐藏控制台)
+add_executable(BxScript_GUI ${SOURCE_FILES} ${PLATFORM_SOURCES})
+target_include_directories(BxScript_GUI PRIVATE ${PROJECT_SOURCE_DIR})
+
+if (WIN32)
+    set_target_properties(BxScript_GUI PROPERTIES WIN32_EXECUTABLE TRUE)
+    if (MINGW)
+        target_link_options(BxScript_GUI PRIVATE -mwindows)
+        target_link_options(BxScript_Console PRIVATE -mconsole)
+    endif()
+endif()
 
 # 链接库 (使用上面根据平台计算好的 PLATFORM_LIBS)
 if (PLATFORM_LIBS)
-    target_link_libraries(BxScript PRIVATE ${PLATFORM_LIBS})
+    target_link_libraries(BxScript_Console PRIVATE ${PLATFORM_LIBS})
+    target_link_libraries(BxScript_GUI PRIVATE ${PLATFORM_LIBS})
 endif ()
 
 # ==========================================
@@ -249,7 +263,8 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/webview/webview
         GIT_TAG 0.12.0)
 FetchContent_MakeAvailable(webview)
-target_link_libraries(BxScript PRIVATE webview::core)
+target_link_libraries(BxScript_Console PRIVATE webview::core)
+target_link_libraries(BxScript_GUI PRIVATE webview::core)
 
 # ==========================================
 # 6. 测试程序 test_parser

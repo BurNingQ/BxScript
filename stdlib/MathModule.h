@@ -352,7 +352,7 @@ class MathModule {
     }
 
 public:
-    static ValuePtr CreateNetModule() {
+    static ValuePtr CreateMathModule() {
         auto module = std::make_shared<ObjectValue>();
         InitPI(module);
         InitRound(module);
