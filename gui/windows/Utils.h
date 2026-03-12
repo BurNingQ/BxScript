@@ -79,7 +79,7 @@ struct Mouse {
     }
 
     static void down(int x, int y, const std::string &tag) {
-        DWORD flag = MOUSEEVENTF_RIGHTDOWN;
+        DWORD flag = MOUSEEVENTF_LEFTDOWN;
         if (tag == "right") flag = MOUSEEVENTF_RIGHTDOWN;
         else if (tag == "middle") flag = MOUSEEVENTF_MIDDLEDOWN;
         User32::W32_SendMouseEvent(x, y, flag);
