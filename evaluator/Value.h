@@ -32,16 +32,6 @@ enum class ValueType {
     NULL_TYPE, NUMBER, STRING, BOOL, OBJECT, FUNCTION, NATIVE_FUNCTION, ARRAY, RETURN, BREAK, CONTINUE, BUFFER
 };
 
-class BxScriptException : public std::exception {
-public:
-    ValuePtr ErrorValue;
-
-    explicit BxScriptException(ValuePtr v) : ErrorValue(std::move(v)) {
-    }
-
-    const char *what() const noexcept override { return "BxScript Runtime Exception"; }
-};
-
 // 基类
 class RuntimeValue : public std::enable_shared_from_this<RuntimeValue> {
 public:
@@ -59,6 +49,22 @@ public:
     virtual void Set(const std::string &key, ValuePtr value);
 
     virtual bool Equal(ValuePtr v);
+};
+
+class BxScriptException : public std::exception {
+    std::string errorMsg;
+public:
+    ValuePtr ErrorValue;
+
+    explicit BxScriptException(ValuePtr v) : ErrorValue(std::move(v)) {
+        if (ErrorValue) {
+            errorMsg = "BxScript Runtime Exception: " + ErrorValue->ToString();
+        } else {
+            errorMsg = "BxScript Runtime Exception: Unknown Error";
+        }
+    }
+
+    [[nodiscard]] const char *what() const noexcept override { return errorMsg.c_str(); }
 };
 
 class BufferValue : public RuntimeValue {
