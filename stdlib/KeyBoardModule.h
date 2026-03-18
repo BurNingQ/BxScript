@@ -26,6 +26,7 @@
 #include "../evaluator/Value.h"
 #include "../common/StringKit.h"
 #include "../error/RuntimeError.h"
+#include "evaluator/EventLoop.h"
 
 class KeyBoardModule {
 #if defined(_WIN32)
@@ -288,6 +289,72 @@ class KeyBoardModule {
                    }));
     }
 
+#if defined(_WIN32)
+    // 存储 热键ID -> BxScript闭包函数 的映射
+    inline static std::map<int, ValuePtr> GlobalHotkeys;
+    inline static int HotkeyIdCounter = 0xA000;
+
+    // 解析 "CTRL+SHIFT+H" 这种字符串
+    static std::pair<UINT, UINT> ParseHotkeyStr(const std::string &keys) {
+        UINT mod = MOD_NOREPEAT; // 防止按住不放疯狂触发
+        const std::string upperKeys = StringKit::ToUpperCase(keys);
+        if (upperKeys.find("CTRL") != std::string::npos) mod |= 0x0002;
+        if (upperKeys.find("ALT") != std::string::npos) mod |= 0x0001;
+        if (upperKeys.find("SHIFT") != std::string::npos) mod |= 0x0004;
+        if (upperKeys.find("WIN") != std::string::npos) mod |= 0x0008;
+        const size_t lastPlus = upperKeys.find_last_of('+');
+        std::string keyStr = (lastPlus != std::string::npos) ? upperKeys.substr(lastPlus + 1) : upperKeys;
+        // 去除空格
+        keyStr.erase(0, keyStr.find_first_not_of(" \t"));
+        keyStr.erase(keyStr.find_last_not_of(" \t") + 1);
+
+        UINT vk = GetKeyCode(std::make_shared<StringValue>(keyStr));
+        return {mod, vk};
+    }
+
+    // 接收底层 App 传来的事件，塞入 BxScript 的事件循环
+    static void HandleGlobalHotkey(const int id) {
+        if (GlobalHotkeys.find(id) != GlobalHotkeys.end()) {
+            EventLoop::Enqueue(GlobalHotkeys[id], {});
+        }
+    }
+#endif
+
+    static void InitHotkey(std::shared_ptr<ObjectValue> &o) {
+#if defined(_WIN32)
+        // 绑定底层回调
+        App::OnGlobalHotkey = HandleGlobalHotkey;
+
+        o->Set("hotkey", std::make_shared<NativeFunctionValue>([](const std::vector<ValuePtr> &args) -> ValuePtr {
+            if (args.size() < 2 || args[0]->type != ValueType::STRING || args[1]->type != ValueType::FUNCTION) {
+                throw RuntimeError("参数错误: Key.hotkey('CTRL+H', function)");
+            }
+            auto [mod, vk] = ParseHotkeyStr(args[0]->ToString());
+            if (vk == 0) throw RuntimeError("未知的按键: " + args[0]->ToString());
+
+            int id = ++HotkeyIdCounter;
+            GlobalHotkeys[id] = args[1];
+
+            // hWnd 传 NULL，代表该热键绑定到当前线程
+            if (!RegisterHotKey(nullptr, id, mod, vk)) {
+                throw RuntimeError("热键注册失败，可能被其他程序占用: " + args[0]->ToString());
+            }
+            return std::make_shared<NumberValue>(id);
+        }));
+
+        o->Set("unhotkey", std::make_shared<NativeFunctionValue>([](const std::vector<ValuePtr> &args) -> ValuePtr {
+            if (!args.empty() && args[0]->type == ValueType::NUMBER) {
+                const int id = static_cast<int>(std::static_pointer_cast<NumberValue>(args[0])->Value);
+                UnregisterHotKey(nullptr, id);
+                GlobalHotkeys.erase(id);
+                App::OnGlobalHotkey = nullptr;
+                return std::make_shared<BoolValue>(true);
+            }
+            return std::make_shared<BoolValue>(false);
+        }));
+#endif
+    }
+
 public:
     static ValuePtr CreateKeyBoardModule() {
         auto m = std::make_shared<ObjectValue>();
@@ -299,6 +366,7 @@ public:
         InitState(m);
         InitWait(m);
         InitBlock(m);
+        InitHotkey(m);
         return m;
     }
 };

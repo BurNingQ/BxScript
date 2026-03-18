@@ -405,6 +405,19 @@ class GuiModule {
                     });
                 ow->Set("debug", debugFn);
 
+                auto const showFn = std::make_shared<NativeFunctionValue>(
+                    [ow](const std::vector<ValuePtr> &) -> ValuePtr {
+                        ow->Set("_visible", std::make_shared<BoolValue>(true));
+                        return ow;
+                    });
+                ow->Set("show", showFn);
+                auto const hideFn = std::make_shared<NativeFunctionValue>(
+                    [ow](const std::vector<ValuePtr> &) -> ValuePtr {
+                        ow->Set("_visible", std::make_shared<BoolValue>(false));
+                        return ow;
+                    });
+                ow->Set("hide", hideFn);
+
                 auto const trayFn = std::make_shared<NativeFunctionValue>(
                     [ow](const std::vector<ValuePtr> &args) -> ValuePtr {
                         if (args.empty()) return ow;

@@ -101,4 +101,8 @@ void hideConsole();
 
 void setConsoleTitle(const std::wstring &title);
 
+void showWinForm(void *hwnd);
+
+void hideWinForm(void *hwnd);
+
 #endif

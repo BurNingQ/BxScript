@@ -20,10 +20,15 @@
 #include "windows.h"
 #include <dwmapi.h>
 
+#include "common/JsonKit.h"
+#include "libs/json.hpp"
 #include "windows/Utils.h"
 
 
 class WebViewRenderer {
+    using PropSetter = std::function<void(webview::webview *, ValuePtr)>;
+    using PropGetter = std::function<ValuePtr(webview::webview *)>;
+
     inline static std::unique_ptr<webview::webview> instance = nullptr;
     inline static void *trayHandle = nullptr;
     inline static bool hasTray = false;
@@ -50,8 +55,31 @@ class WebViewRenderer {
         }));
     }
 
+    static void Bind(webview::webview *ctrl, const std::shared_ptr<ObjectValue> &obj, const std::string &key,
+                     const PropSetter &setter,
+                     const PropGetter &getter = nullptr) {
+        if (const auto v = obj->Get(key); v && v->type != ValueType::NULL_TYPE) {
+            setter(ctrl, v);
+        }
+        const auto hookGetter = getter ? [ctrl, getter] { return getter(ctrl); } : ObjectValue::NativeGetter(nullptr);
+        auto hookSetter = [ctrl, setter](ValuePtr v) { setter(ctrl, std::move(v)); };
+        obj->RegisterHooks(key, hookGetter, hookSetter);
+    }
+
+    static void ShowWin(const HWND hwnd) {
+#if defined(_WIN32)
+        showWinForm(hwnd);
+#endif
+    }
+
+    static void HideWin(const HWND hwnd) {
+#if defined(_WIN32)
+        hideWinForm(hwnd);
+#endif
+    }
+
 public:
-    static void Run(const std::shared_ptr<ObjectValue>& o) {
+    static void Run(const std::shared_ptr<ObjectValue> &o) {
         const std::string title = o->Get("_title") && o->Get("_title")->type != ValueType::NULL_TYPE
                                       ? o->Get("_title")->ToString()
                                       : "BxScriptWebView";
@@ -78,8 +106,20 @@ public:
             for (const auto &[k,v]: objMethods->Properties) {
                 if (v->type == ValueType::FUNCTION) {
                     instance->bind(k, [v](const std::string &arg)-> std::string {
-                        const auto r = Interpreter::CallFunction(v, {std::make_shared<StringValue>(arg)});
-                        return r->ToString();
+                        try {
+                            auto jsonArgs = nlohmann::json::parse(arg);
+                            std::vector<ValuePtr> bxArgs;
+                            if (jsonArgs.is_array()) {
+                                for (const auto &item: jsonArgs) {
+                                    bxArgs.push_back(JsonKit::JsonToValue(item));
+                                }
+                            }
+                            const auto r = Interpreter::CallFunction(v, bxArgs);
+                            return JsonKit::ValueToJson(r).dump();
+                        } catch (const std::exception &e) {
+                            std::cerr << "WebView参数绑定错误: " << e.what() << std::endl;
+                            return "null";
+                        }
                     });
                 }
             }
@@ -93,6 +133,11 @@ public:
         setTray(o, hwnd);
         setCenter(hwnd);
         ReMountNativeFn(o, hwnd);
+        Bind(instance.get(), o, "_visible", [hwnd](webview::webview *ctrl, ValuePtr v) {
+            if (v->type == ValueType::BOOL) {
+                std::static_pointer_cast<BoolValue>(v)->Value ? ShowWin(hwnd) : HideWin(hwnd);
+            }
+        }, nullptr);
     }
 
     static void setTray(const std::shared_ptr<ObjectValue> o, const HWND hwnd) {

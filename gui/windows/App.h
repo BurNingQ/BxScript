@@ -39,6 +39,8 @@ public:
      */
     static void Exit(int exitCode = 0);
 
+    static void (*OnGlobalHotkey)(int id);
+
     static bool PollEvents();
 
     static void WaitEvents(int timeoutMs);

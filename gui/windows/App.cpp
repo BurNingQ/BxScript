@@ -29,6 +29,8 @@
 #define HINSTANCE_CAST(ptr) static_cast<HINSTANCE>(ptr)
 #define MSG_CAST(ptr) static_cast<MSG*>(ptr)
 
+void (*App::OnGlobalHotkey)(int) = nullptr;
+
 void App::Init() {
     if (ShCore::IsAvailable()) {
         ShCore::W32_SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
@@ -78,6 +80,12 @@ bool App::PollEvents() {
         if (msg.message == WM_QUIT) {
             return false;
         }
+        if (msg.message == WM_HOTKEY) {
+            if (OnGlobalHotkey) {
+                OnGlobalHotkey(static_cast<int>(msg.wParam));
+            }
+            continue;
+        }
         if (!PreTranslateMessage(&msg)) {
             User32::W32_TranslateMessage(&msg);
             User32::W32_DispatchMessage(&msg);
@@ -122,7 +130,7 @@ bool App::PreTranslateMessage(void *msgVoid) {
             ctrl->OnKeyDown().Fire(Event(ctrl, keyData));
         }
 
-        for (ControlBase *p = ctrl; p != nullptr; p = dynamic_cast<ControlBase*>(p->Parent())) {
+        for (ControlBase *p = ctrl; p != nullptr; p = dynamic_cast<ControlBase *>(p->Parent())) {
             if (p->PreTranslateMessage(msg)) {
                 processed = true;
                 break;

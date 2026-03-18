@@ -237,3 +237,11 @@ void hideConsole() {
 void setConsoleTitle(const std::wstring &title) {
     SetConsoleTitleW(title.c_str());
 }
+
+void showWinForm(void *hwnd) {
+    User32::W32_ShowWindow(static_cast<HWND>(hwnd), SW_SHOW);
+}
+
+void hideWinForm(void *hwnd) {
+    User32::W32_ShowWindow(static_cast<HWND>(hwnd), SW_HIDE);
+}
