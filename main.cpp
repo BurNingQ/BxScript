@@ -99,8 +99,8 @@ std::string ReadIndexFile() {
     try {
         const std::string source = VFS::ReadFile("config.json");
         if (auto j = nlohmann::json::parse(source); j.is_object()) {
-            if (const auto type = j.find("project_main"); type != j.end() && j.is_string()) {
-                return j.get<std::string>();
+            if (j.contains("project_main") && j["project_main"].is_string()) {
+                return j["project_main"].get<std::string>();
             }
         } else {
 #ifdef _WIN32
