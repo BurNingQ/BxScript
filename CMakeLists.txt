@@ -215,6 +215,7 @@ set(SOURCE_FILES
         common/VFS.cpp
         common/VFS.h
         stdlib/ConsoleModule.h
+        stdlib/TypeModule.h
 )
 
 # ==========================================

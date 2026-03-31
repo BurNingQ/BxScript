@@ -31,6 +31,7 @@
 #include "stdlib/ScreenModule.h"
 #include "stdlib/ThreadModule.h"
 #include "stdlib/TimerModule.h"
+#include "stdlib/TypeModule.h"
 
 std::unordered_map<std::string, ValuePtr> Interpreter::ModuleCache;
 std::unordered_map<std::string, std::shared_ptr<Program> > Interpreter::ModuleAST;
@@ -102,6 +103,7 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_
                 else if (moduleName == "Console") module = ConsoleModule::CreateConsoleModule();
                 else if (moduleName == "Math") module = MathModule::CreateMathModule();
                 else if (moduleName == "KeyBoard") module = KeyBoardModule::CreateKeyBoardModule();
+                else if (moduleName == "Type") module = TypeModule::CreateTypeModule();
                 if (module) {
                     CppStdCache[moduleName] = module;
                     env->DeclareVar(importStmt->AliasName, module);

@@ -94,10 +94,18 @@ Token Lexer::NextToken() {
                     throw std::runtime_error("字符串未闭合");
                 }
                 if (isEscape) {
-                    if (chaz == R"(")") {
-                        token.TokenValue += R"(")";
+                    if (chaz == "n") {
+                        token.TokenValue += '\n'; // 换行符 (0x0A)
+                    } else if (chaz == "r") {
+                        token.TokenValue += '\r'; // 回车符 (0x0D)
+                    } else if (chaz == "t") {
+                        token.TokenValue += '\t'; // 制表符 (0x09)
+                    } else if (chaz == "\\") {
+                        token.TokenValue += '\\'; // 反斜杠
+                    } else if (chaz == "\"") {
+                        token.TokenValue += '"'; // 双引号
                     } else {
-                        token.TokenValue += R"(\)" + chaz;
+                        token.TokenValue += "\\" + chaz;
                     }
                     isEscape = false;
                 } else if (chaz == "\\") {
