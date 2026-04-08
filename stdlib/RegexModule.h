@@ -20,7 +20,7 @@
 
 
 class RegexModule {
-    static void InitMatch(std::shared_ptr<ObjectValue> &o) {
+    static void InitMatch(const std::shared_ptr<ObjectValue> &o) {
         const auto fn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &args) -> ValuePtr {
                 if (args.size() < 2) return std::make_shared<BoolValue>(false);
@@ -38,7 +38,47 @@ class RegexModule {
         o->Set("match", fn);
     }
 
-    static void InitReplace(std::shared_ptr<ObjectValue> &o) {
+    static void InitFind(const std::shared_ptr<ObjectValue> &o) {
+        const auto fn = std::make_shared<NativeFunctionValue>(
+            [](const std::vector<ValuePtr> &args) -> ValuePtr {
+                if (args.size() < 2) return std::make_shared<ArrayValue>(std::vector<ValuePtr>());
+                const std::string text = args[0]->ToString();
+                const std::string pattern = args[1]->ToString();
+                const auto resultArr = std::make_shared<ArrayValue>(std::vector<ValuePtr>{});
+                try {
+                    const std::regex re(pattern);
+                    const auto begin = std::sregex_iterator(text.begin(), text.end(), re);
+                    const auto end = std::sregex_iterator();
+                    for (std::sregex_iterator i = begin; i != end; ++i) {
+                        resultArr->Elements.push_back(std::make_shared<StringValue>(i->str()));
+                    }
+                } catch (const std::regex_error &e) {
+                    throw RuntimeError("正则表达式错误: " + std::string(e.what()));
+                }
+                return resultArr;
+            }
+        );
+        o->Set("find", fn);
+    }
+
+    static void Initvalid(std::shared_ptr<ObjectValue> &o) {
+        const auto fn = std::make_shared<NativeFunctionValue>([](const std::vector<ValuePtr> &args) -> ValuePtr {
+                if (args.empty() || args[0]->type != ValueType::STRING) {
+                    return std::make_shared<BoolValue>(false);
+                }
+                const std::string pattern = std::static_pointer_cast<StringValue>(args[0])->Value;
+                try {
+                    const std::regex re(pattern);
+                    return std::make_shared<BoolValue>(true);
+                } catch (const std::regex_error &) {
+                    return std::make_shared<BoolValue>(false);
+                }
+            }
+        );
+        o->Set("valid", fn);
+    }
+
+    static void InitReplace(const std::shared_ptr<ObjectValue> &o) {
         auto const fn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &args) -> ValuePtr {
                 // 格式Regex.replace(source, pattern, target)
@@ -62,6 +102,8 @@ public:
     static ValuePtr CreateRegexModule() {
         auto module = std::make_shared<ObjectValue>();
         InitMatch(module);
+        InitFind(module);
+        Initvalid(module);
         InitReplace(module);
         return module;
     }

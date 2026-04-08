@@ -1,0 +1,29 @@
+import std.Win as win;
+import std.Regex as reg;
+import std.Console as c;
+
+let f = win.form("reg_tester").text("BxScript 本地正则工具").size(600, 500).center().add([
+	win.label("lbl1").text("正则表达式:").pos(10, 10).size(100, 20),
+	win.input("inp_reg").pos(10, 35).size(560, 30).on("change", doMatch),
+	win.label("lbl2").text("测试文本:").pos(10, 80).size(100, 20),
+	win.multiline("inp_text").pos(10, 105).size(560, 150).on("change", doMatch),
+	win.label("lbl3").text("匹配结果:").pos(10, 270).size(100, 20),
+	win.multiline("out_res").pos(10, 295).size(560, 150)
+]);
+
+function doMatch() {
+    try {
+        let pattern = f.refs.inp_reg.text();
+        let content = f.refs.inp_text.text();
+        if (pattern == "") { return; }
+		if (reg.valid(pattern)) {
+			let matches = reg.find(content, pattern);
+			c.println(matches);
+	        f.refs.out_res.text("找到 " + matches.length + " 个结果：\r\n" + matches.join("\r\n"));
+		}
+    } catch (e) {
+        f.refs.out_res.text("正则语法错误...");
+    }
+}
+
+win.loop();
