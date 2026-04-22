@@ -1,0 +1,80 @@
+import std.Win as win;
+import std.KeyBoard as key;
+import std.IO as io;
+import std.JSON as json;
+import std.Dlg as dlg;
+import std.Clipboard as clip;
+
+let snippets = "";
+
+function loadData() {
+	let str = io.read("snippets.json", "utf8");
+	if (str == null) {
+		str = "[]";
+	}
+	snippets = json.parse(str);
+	f.refs.list_items.heads(["名称"]);
+	f.refs.list_items.items(snippets);
+}
+
+let f = win.form("snippet_mgr").text("BxScript Snippets").size(420, 500).center().hide().add([
+	win.input("inp_search").pos(10, 10).size(330, 30),
+	win.list("list_items").pos(10, 50).size(380, 400),
+	win.button("search_btn").pos(280, 10).text("新增").size(40, 30).on("click", function(){
+		let fAdd = win.form("add_form").text("新增片段").size(400, 350).center().add([
+			win.input("new_t").pos(10, 10).size(360, 30),
+			win.multiline("new_c").pos(10, 50).size(360, 200),
+			win.button("save").text("保存片段").pos(110, 260).size(100, 40).on("click", function(){
+				let t = fAdd.refs.new_t.text();
+			    let c = fAdd.refs.new_c.text();
+			    if (t == "" || c == "") { return dlg.alert("不能为空！"); }
+			    snippets.push([t, c]);
+			    let jsonStr = json.stringify(snippets);
+			    io.write("snippets.json", jsonStr);
+			    fAdd.hide();
+			    dlg.alert("保存成功！");
+			    loadData();
+			})
+		]);
+		win.render(fAdd);
+	})
+]);
+
+loadData();
+
+f.refs.inp_search.on("change", function() {
+    let kw = f.refs.inp_search.text();
+	if (!kw || kw.length <= 0) {
+		f.refs.list_items.items(snippets);
+	}
+    f.refs.list_items.items([]);
+	let searchItem = [];
+    for (let i = 0; i < snippets.length; i++) {
+		let item = snippets[i];
+        if (item[0].indexOf(kw) != -1) {
+			searchItem.push(item);
+        }
+    }
+	f.refs.list_items.items(searchItem);
+});
+
+f.refs.list_items.on("click", function() {
+	let index = f.refs.list_items.getSelectedIndex();
+    let cols = f.refs.list_items.getSelectedItem(index);
+	clip.setText(cols[1]);
+	isShow = false;
+	f.hide();
+});
+
+let isShow = true;
+key.hotkey("CTRL + K", function(){
+	if (isShow) {
+		isShow = false;
+		f.hide();
+		return;
+	}
+	isShow = true;
+	f.show();
+});
+
+win.loop();

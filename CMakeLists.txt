@@ -216,6 +216,7 @@ set(SOURCE_FILES
         common/VFS.h
         stdlib/ConsoleModule.h
         stdlib/TypeModule.h
+        stdlib/ClipboardModule.h
 )
 
 # ==========================================

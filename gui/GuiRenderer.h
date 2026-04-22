@@ -276,6 +276,8 @@ private:
             Bind("click", btn->OnClick);
         } else if (const auto lbl = dynamic_cast<Label *>(ctrl)) {
             Bind("click", lbl->OnClick());
+        } else if (const auto listView = dynamic_cast<ListView *>(ctrl)) {
+            Bind("click", listView->OnClick());
         }
         if (const auto edit = dynamic_cast<Edit *>(ctrl)) {
             Bind("change", edit->OnChange());
@@ -323,12 +325,47 @@ private:
             return std::make_shared<NumberValue>(c->Height());
         });
 
-        if (dynamic_cast<ListView *>(ctrl)) {
+        if (auto listView = dynamic_cast<ListView *>(ctrl)) {
             Sync::Bind(ctrl, obj, "_heads", Sync::ListHeads);
+            auto getSelectedIndexFn = std::make_shared<NativeFunctionValue>(
+                [listView](const std::vector<ValuePtr> &) -> ValuePtr {
+                    const int idx = listView->SelectedIndex();
+                    return std::make_shared<NumberValue>(idx);
+                }
+            );
+            obj->Set("getSelectedIndex", getSelectedIndexFn);
+
+            auto setSelectedIndexFn = std::make_shared<NativeFunctionValue>([listView](const std::vector<ValuePtr> &args) -> ValuePtr {
+                    if (!args.empty() && args[0]->type == ValueType::NUMBER) {
+                        const int idx = static_cast<int>(std::static_pointer_cast<NumberValue>(args[0])->Value);
+                        listView->SetSelectedIndex(idx);
+                    }
+                    return std::make_shared<NullValue>();
+                }
+            );
+            obj->Set("setSelectedIndex", setSelectedIndexFn);
+
+            auto getItemFn = std::make_shared<NativeFunctionValue>(
+                [obj](const std::vector<ValuePtr> &args) -> ValuePtr {
+                    if (!args.empty() && args[0]->type == ValueType::NUMBER) {
+                        int const idx = static_cast<int>(std::static_pointer_cast<NumberValue>(args[0])->Value);
+                        auto const itemsVal = obj->Get("_items");
+                        if (itemsVal && itemsVal->type == ValueType::ARRAY) {
+                            auto const arr = std::static_pointer_cast<ArrayValue>(itemsVal);
+                            if (idx >= 0 && idx < arr->Elements.size()) {
+                                return arr->Elements[idx];
+                            }
+                        }
+                    }
+                    return std::make_shared<NullValue>();
+                }
+            );
+            obj->Set("getSelectedItem", getItemFn);
         }
         if (dynamic_cast<ListView *>(ctrl) || dynamic_cast<ComboBox *>(ctrl)) {
             Sync::Bind(ctrl, obj, "_items", Sync::ListItems);
         }
+
         if (dynamic_cast<ImageView *>(ctrl)) {
             Sync::Bind(ctrl, obj, "_src", Sync::ImageSrc);
         }

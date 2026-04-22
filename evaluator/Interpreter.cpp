@@ -16,6 +16,7 @@
 #include <cmath>
 
 #include "error/RuntimeError.h"
+#include "stdlib/ClipboardModule.h"
 #include "stdlib/ConsoleModule.h"
 #include "stdlib/CryptModule.h"
 #include "stdlib/DlgModule.h"
@@ -104,6 +105,7 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_
                 else if (moduleName == "Math") module = MathModule::CreateMathModule();
                 else if (moduleName == "KeyBoard") module = KeyBoardModule::CreateKeyBoardModule();
                 else if (moduleName == "Type") module = TypeModule::CreateTypeModule();
+                else if (moduleName == "Clipboard") module = ClipboardModule::CreateClipboardModule();
                 if (module) {
                     CppStdCache[moduleName] = module;
                     env->DeclareVar(importStmt->AliasName, module);
@@ -243,6 +245,14 @@ ValuePtr Interpreter::Execute(Statement *stmt, const std::shared_ptr<Environment
             if (tryStmt->Catch) {
                 auto catchEnv = std::make_shared<Environment>(env);
                 catchEnv->DeclareVar(tryStmt->Catch->Parameter->Name, e.ErrorValue);
+                Execute(tryStmt->Catch->Body.get(), catchEnv);
+            }
+        } catch (const RuntimeError &re) {
+            if (tryStmt->Catch) {
+                auto const catchEnv = std::make_shared<Environment>(env);
+                std::string errMsg = FormatRuntimeError(re);
+                auto const errVal = std::make_shared<StringValue>(errMsg);
+                catchEnv->DeclareVar(tryStmt->Catch->Parameter->Name, errVal);
                 Execute(tryStmt->Catch->Body.get(), catchEnv);
             }
         }

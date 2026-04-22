@@ -15,12 +15,20 @@
 #include "WebViewRenderer.h"
 #include "windows/App.h"
 
-void GuiRuntime::Run(const std::vector<ValuePtr> &rootValues) {
+void GuiRuntime::RunWithoutMessageLoop(const std::vector<ValuePtr> &rootValues) {
     if (rootValues.empty()) return;
-    App::Init();
+    static bool isAppInitialized = false;
+    if (!isAppInitialized) {
+        App::Init();
+        isAppInitialized = true;
+    }
     for (const auto &val: rootValues) {
         GuiRenderer::Render(val);
     }
+}
+
+void GuiRuntime::Run(const std::vector<ValuePtr> &rootValues) {
+    RunWithoutMessageLoop(rootValues);
     MainLoop();
 }
 

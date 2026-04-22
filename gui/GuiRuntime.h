@@ -18,6 +18,7 @@
 
 class GuiRuntime {
 public:
+    static void RunWithoutMessageLoop(const std::vector<ValuePtr> &rootValues);
     /**
      * 启动 GUI 应用程序
      * @param rootValues 脚本中定义的窗口数据对象列表 (通常由 win.form 创建)

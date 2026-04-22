@@ -50,8 +50,28 @@ ValuePtr StringValue::Get(const std::string &key) {
     if (key == "length") {
         return std::make_shared<NumberValue>(this->U32Value.length());
     }
+    if (key == "indexOf") {
+        auto self = std::static_pointer_cast<StringValue>(shared_from_this());
+        auto fn = [self](const std::vector<ValuePtr> &args) -> ValuePtr {
+            std::u32string target{};
+            if (args.empty()) {
+                return std::make_shared<NumberValue>(-1);
+            }
+            if (args[0]->type == ValueType::STRING) {
+                auto const arg1 = std::static_pointer_cast<StringValue>(args[0]);
+                target = StringKit::Utf8ToU32(arg1->Value);
+            }
+            std::u32string::size_type pos = self->U32Value.find(target);
+            if (pos != std::u32string::npos) {
+                return std::make_shared<NumberValue>(pos);
+            }
+            return std::make_shared<NumberValue>(-1);
+        };
+        return std::make_shared<NativeFunctionValue>(fn);
+    }
     if (key == "charCodeAt") {
-        auto fn = [self = std::static_pointer_cast<StringValue>(shared_from_this())](
+        auto self = std::static_pointer_cast<StringValue>(shared_from_this());
+        auto fn = [self](
             const std::vector<ValuePtr> &args) -> ValuePtr {
             if (args.empty() || args[0]->type != ValueType::NUMBER) {
                 return std::make_shared<NumberValue>(NAN);

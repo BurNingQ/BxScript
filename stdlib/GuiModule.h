@@ -479,12 +479,28 @@ class GuiModule {
         o->Set("panel", makeFactory("panel"));
     }
 
+    static void InitRender(std::shared_ptr<ObjectValue> &o) {
+        const auto renderFn = std::make_shared<NativeFunctionValue>([](const std::vector<ValuePtr> &args) -> ValuePtr {
+                if (args.empty()) return std::make_shared<NullValue>();
+                const std::vector formsToRender = {args[0]};
+                GuiRuntime::RunWithoutMessageLoop(formsToRender);
+                auto const it = std::find(GlobalForms.begin(), GlobalForms.end(), args[0]);
+                if (it != GlobalForms.end()) {
+                    GlobalForms.erase(it);
+                }
+                return args[0];
+            }
+        );
+        o->Set("render", renderFn);
+    }
+
     static void InitMessageLoop(std::shared_ptr<ObjectValue> &o) {
         const auto loopFn = std::make_shared<NativeFunctionValue>(
             [](const std::vector<ValuePtr> &) -> ValuePtr {
                 if (!WebViewConfig && GlobalForms.size() > 0) {
-                    GuiRuntime::Run(GlobalForms);
+                    const std::vector<ValuePtr> cloneFormCfg = GlobalForms;
                     GlobalForms.clear();
+                    GuiRuntime::Run(cloneFormCfg);
                 } else {
                     GuiRuntime::RunWebView(WebViewConfig);
                 }
@@ -523,6 +539,7 @@ public:
         InitItem(win);
         InitControls(win);
         InitMessageLoop(win);
+        InitRender(win);
         InitExit(win);
         return win;
     }
