@@ -50,6 +50,37 @@ ValuePtr StringValue::Get(const std::string &key) {
     if (key == "length") {
         return std::make_shared<NumberValue>(this->U32Value.length());
     }
+    if (key == "split") {
+        auto self = std::static_pointer_cast<StringValue>(shared_from_this());
+        auto fn = [self](const std::vector<ValuePtr> &args) -> ValuePtr {
+            std::vector<ValuePtr> elements{};
+            if (args.empty()) {
+                elements.push_back(self);
+                return std::make_shared<ArrayValue>(std::move(elements));
+            }
+            const std::u32string separator = StringKit::Utf8ToU32(args[0]->ToString());
+            const std::u32string &target = self->U32Value;
+            if (separator.empty()) {
+                for (char32_t c : target) {
+                    elements.push_back(std::make_shared<StringValue>(c));
+                }
+                return std::make_shared<ArrayValue>(std::move(elements));
+            }
+            size_t start = 0;
+            size_t end = target.find(separator);
+
+            while (end != std::u32string::npos) {
+                std::u32string sub = target.substr(start, end - start);
+                elements.push_back(std::make_shared<StringValue>(StringKit::U32ToUtf8(sub)));
+                start = end + separator.length();
+                end = target.find(separator, start);
+            }
+            std::u32string const lastSub = target.substr(start);
+            elements.push_back(std::make_shared<StringValue>(StringKit::U32ToUtf8(lastSub)));
+            return std::make_shared<ArrayValue>(std::move(elements));
+        };
+        return std::make_shared<NativeFunctionValue>(fn);
+    }
     if (key == "indexOf") {
         auto self = std::static_pointer_cast<StringValue>(shared_from_this());
         auto fn = [self](const std::vector<ValuePtr> &args) -> ValuePtr {
