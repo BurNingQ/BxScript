@@ -895,7 +895,7 @@ std::unique_ptr<Expression> Parser::ParseConditionExpression() {
     if (IsSymbol(tk, "?")) {
         auto ok = this->ParseAssignmentExpression();
         tk = this->NextToken();
-        if (IsSymbol(tk, ":")) {
+        if (!IsSymbol(tk, ":")) {
             Error(tk, "此处期望: :");
         }
         return make_unique<ConditionalExpression>(std::move(left), std::move(ok), std::move(this->ParseAssignmentExpression()));

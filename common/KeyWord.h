@@ -29,7 +29,7 @@ private:
 const inline std::unordered_set<std::string> KeyWord::KeyWords{
     "function","let","true","false","this","if","else",
     "return","null","for","break","continue","while",
-    "import","as","try","catch","finally", "defer","throw"
+    "import","as","try","catch","finally","defer","throw","in"
 };
 
 #endif //BXSCRIPT_KEYWORD_H

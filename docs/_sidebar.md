@@ -3,6 +3,11 @@
 * [🔧 其他介绍](other.md)
 * [📌 内置说明](builtins.md)
 * [📦 标准库 (Standard Library)]
+  * [String (字符串)](stdlib/string.md)
+  * [Number (数值)](stdlib/number.md)
+  * [Array (数组)](stdlib/array.md)
+  * [Object (对象)](stdlib/object.md)
+  * [Buffer (缓冲区)](stdlib/buffer.md)
   * [IO (输入输出)](stdlib/io.md)
   * [Math (数学)](stdlib/math.md)
   * [Net (网络)](stdlib/net.md)
@@ -13,7 +18,13 @@
   * [Thread (多线程)](stdlib/thread.md)
   * [Timer (定时器)](stdlib/timer.md)
   * [Regex (正则表达式)](stdlib/regex.md)
-  * [System (屏幕/鼠标)](stdlib/system.md)
+  * [Console (控制台)](stdlib/console.md)
+  * [Type (类型检查)](stdlib/type.md)
+* [🖥️ GUI 与系统]
   * [UI (界面与弹窗)](stdlib/ui.md)
+  * [Screen (屏幕信息)](stdlib/screen.md)
+  * [Mouse (鼠标模拟)](stdlib/mouse.md)
+  * [KeyBoard (键盘模拟)](stdlib/keyboard.md)
+  * [Clipboard (剪贴板)](stdlib/clipboard.md)
 * [🛠️ 高级话题]
   * [C++ 集成指南](embedding.md)

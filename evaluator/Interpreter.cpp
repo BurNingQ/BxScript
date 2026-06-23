@@ -172,14 +172,6 @@ ValuePtr Interpreter::Execute(Statement *stmt, const std::shared_ptr<Environment
         }
         return std::make_shared<NullValue>();
     }
-    // 三目
-    if (const auto *condExpr = dynamic_cast<ConditionalExpression *>(stmt)) {
-        ValuePtr testRes = Evaluate(condExpr->Test.get(), env);
-        if (IsTruthy(testRes)) {
-            return Evaluate(condExpr->Ok.get(), env);
-        }
-        return Evaluate(condExpr->Else.get(), env);
-    }
     // 代码块 { ... }
     if (const auto *block = dynamic_cast<BlockStatement *>(stmt)) {
         const auto blockEnv = std::make_shared<Environment>(env);
@@ -348,6 +340,14 @@ ValuePtr Interpreter::Evaluate(Expression *expr, std::shared_ptr<Environment> en
             elements.push_back(Evaluate(elemExpr.get(), env));
         }
         return std::make_shared<ArrayValue>(elements);
+    }
+    // 三目运算 (condition ? ok : else)
+    if (const auto *condExpr = dynamic_cast<ConditionalExpression *>(expr)) {
+        ValuePtr testRes = Evaluate(condExpr->Test.get(), env);
+        if (IsTruthy(testRes)) {
+            return Evaluate(condExpr->Ok.get(), env);
+        }
+        return Evaluate(condExpr->Else.get(), env);
     }
     // 二元运算 (1 + 1)
     if (const auto *bin = dynamic_cast<BinaryExpression *>(expr)) {
@@ -567,12 +567,27 @@ void Interpreter::LoadModule(const ImportStatement *stmt, std::shared_ptr<Enviro
     Parser parser(code);
     const auto programPtr = std::make_shared<Program>(parser.ParseProgram());
     ModuleAST[filePath] = programPtr;
+
+    // 先创建空壳 moduleObj 并注册到缓存，再执行模块代码。
+    // 这样循环 import 时（A import B，B import A），B 能命中 A 的缓存，
+    // 拿到同一个 shared_ptr 对象——A 执行完后填充的属性对 B 自动可见（CommonJS 方案）。
+    const auto moduleObj = std::make_shared<ObjectValue>();
+    ModuleCache[filePath] = moduleObj;
+
     const auto moduleEnv = std::make_shared<Environment>(env);
     EvaluateProgram(*programPtr, moduleEnv);
-    const auto moduleObj = std::make_shared<ObjectValue>();
     for (const auto &pair: moduleEnv->variables) {
         moduleObj->Set(pair.first, pair.second);
     }
-    ModuleCache[filePath] = moduleObj;
     env->DeclareVar(stmt->AliasName, moduleObj);
+
+    // --- 原始代码（存在循环 import 栈溢出问题）---
+    // const auto moduleEnv = std::make_shared<Environment>(env);
+    // EvaluateProgram(*programPtr, moduleEnv);
+    // const auto moduleObj = std::make_shared<ObjectValue>();
+    // for (const auto &pair: moduleEnv->variables) {
+    //     moduleObj->Set(pair.first, pair.second);
+    // }
+    // ModuleCache[filePath] = moduleObj;
+    // env->DeclareVar(stmt->AliasName, moduleObj);
 }

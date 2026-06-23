@@ -100,6 +100,34 @@ ValuePtr StringValue::Get(const std::string &key) {
         };
         return std::make_shared<NativeFunctionValue>(fn);
     }
+    if (key == "lastIndexOf") {
+        auto self = std::static_pointer_cast<StringValue>(shared_from_this());
+        auto fn = [self](const std::vector<ValuePtr> &args) -> ValuePtr {
+            std::u32string target{};
+            if (args.empty()) {
+                return std::make_shared<NumberValue>(-1);
+            }
+            if (args[0]->type == ValueType::STRING) {
+                auto const arg1 = std::static_pointer_cast<StringValue>(args[0]);
+                target = StringKit::Utf8ToU32(arg1->Value);
+            }
+            // 可选的 fromIndex 参数
+            std::u32string::size_type startPos = std::u32string::npos;
+            if (args.size() > 1 && args[1]->type == ValueType::NUMBER) {
+                auto const idx = static_cast<long long>(std::static_pointer_cast<NumberValue>(args[1])->Value);
+                if (idx < 0) {
+                    return std::make_shared<NumberValue>(-1);
+                }
+                startPos = static_cast<std::u32string::size_type>(idx);
+            }
+            std::u32string::size_type pos = self->U32Value.rfind(target, startPos);
+            if (pos != std::u32string::npos) {
+                return std::make_shared<NumberValue>(pos);
+            }
+            return std::make_shared<NumberValue>(-1);
+        };
+        return std::make_shared<NativeFunctionValue>(fn);
+    }
     if (key == "charCodeAt") {
         auto self = std::static_pointer_cast<StringValue>(shared_from_this());
         auto fn = [self](
@@ -112,6 +140,125 @@ ValuePtr StringValue::Get(const std::string &key) {
                 return std::make_shared<NumberValue>(NAN);
             }
             return std::make_shared<NumberValue>(self->U32Value[index]);
+        };
+        return std::make_shared<NativeFunctionValue>(fn);
+    }
+    if (key == "endsWith") {
+        auto self = std::static_pointer_cast<StringValue>(shared_from_this());
+        auto fn = [self](const std::vector<ValuePtr> &args) -> ValuePtr {
+            if (args.empty() || args[0]->type != ValueType::STRING) {
+                return std::make_shared<BoolValue>(false);
+            }
+            auto const target = StringKit::Utf8ToU32(std::static_pointer_cast<StringValue>(args[0])->Value);
+            if (target.size() > self->U32Value.size()) {
+                return std::make_shared<BoolValue>(false);
+            }
+            size_t start = self->U32Value.size() - target.size();
+            bool result = (self->U32Value.compare(start, target.size(), target) == 0);
+            return std::make_shared<BoolValue>(result);
+        };
+        return std::make_shared<NativeFunctionValue>(fn);
+    }
+    if (key == "startsWith") {
+        auto self = std::static_pointer_cast<StringValue>(shared_from_this());
+        auto fn = [self](const std::vector<ValuePtr> &args) -> ValuePtr {
+            if (args.empty() || args[0]->type != ValueType::STRING) {
+                return std::make_shared<BoolValue>(false);
+            }
+            auto const target = StringKit::Utf8ToU32(std::static_pointer_cast<StringValue>(args[0])->Value);
+            if (target.size() > self->U32Value.size()) {
+                return std::make_shared<BoolValue>(false);
+            }
+            bool result = (self->U32Value.compare(0, target.size(), target) == 0);
+            return std::make_shared<BoolValue>(result);
+        };
+        return std::make_shared<NativeFunctionValue>(fn);
+    }
+    if (key == "replace") {
+        auto self = std::static_pointer_cast<StringValue>(shared_from_this());
+        auto fn = [self](const std::vector<ValuePtr> &args) -> ValuePtr {
+            if (args.size() < 2) {
+                return self;
+            }
+            std::u32string search = StringKit::Utf8ToU32(args[0]->ToString());
+            std::u32string replacement = StringKit::Utf8ToU32(args[1]->ToString());
+            if (search.empty()) {
+                return self;
+            }
+            std::u32string result = self->U32Value;
+            size_t pos = 0;
+            while ((pos = result.find(search, pos)) != std::u32string::npos) {
+                result.replace(pos, search.size(), replacement);
+                pos += replacement.size();
+            }
+            return std::make_shared<StringValue>(StringKit::U32ToUtf8(result));
+        };
+        return std::make_shared<NativeFunctionValue>(fn);
+    }
+    if (key == "toLower") {
+        auto self = std::static_pointer_cast<StringValue>(shared_from_this());
+        auto fn = [self](const std::vector<ValuePtr> &args) -> ValuePtr {
+            std::u32string result = self->U32Value;
+            for (auto &c : result) {
+                if (c >= 'A' && c <= 'Z') {
+                    c = c + ('a' - 'A');
+                }
+            }
+            return std::make_shared<StringValue>(StringKit::U32ToUtf8(result));
+        };
+        return std::make_shared<NativeFunctionValue>(fn);
+    }
+    if (key == "toUpper") {
+        auto self = std::static_pointer_cast<StringValue>(shared_from_this());
+        auto fn = [self](const std::vector<ValuePtr> &args) -> ValuePtr {
+            std::u32string result = self->U32Value;
+            for (auto &c : result) {
+                if (c >= 'a' && c <= 'z') {
+                    c = c - ('a' - 'A');
+                }
+            }
+            return std::make_shared<StringValue>(StringKit::U32ToUtf8(result));
+        };
+        return std::make_shared<NativeFunctionValue>(fn);
+    }
+    if (key == "trim") {
+        auto self = std::static_pointer_cast<StringValue>(shared_from_this());
+        auto fn = [self](const std::vector<ValuePtr> &args) -> ValuePtr {
+            const std::u32string &s = self->U32Value;
+            size_t start = 0;
+            while (start < s.size()) {
+                char32_t c = s[start];
+                if (c == ' ' || c == '\t' || c == '\n' || c == '\r' ||
+                    c == '\f' || c == '\v' || c == 0x00A0 || c == 0x1680 ||
+                    c == 0x2000 || c == 0x2001 || c == 0x2002 || c == 0x2003 ||
+                    c == 0x2004 || c == 0x2005 || c == 0x2006 || c == 0x2007 ||
+                    c == 0x2008 || c == 0x2009 || c == 0x200A || c == 0x2028 ||
+                    c == 0x2029 || c == 0x202F || c == 0x205F || c == 0x3000 ||
+                    c == 0xFEFF) {
+                    start++;
+                } else {
+                    break;
+                }
+            }
+            size_t end = s.size();
+            while (end > start) {
+                char32_t c = s[end - 1];
+                if (c == ' ' || c == '\t' || c == '\n' || c == '\r' ||
+                    c == '\f' || c == '\v' || c == 0x00A0 || c == 0x1680 ||
+                    c == 0x2000 || c == 0x2001 || c == 0x2002 || c == 0x2003 ||
+                    c == 0x2004 || c == 0x2005 || c == 0x2006 || c == 0x2007 ||
+                    c == 0x2008 || c == 0x2009 || c == 0x200A || c == 0x2028 ||
+                    c == 0x2029 || c == 0x202F || c == 0x205F || c == 0x3000 ||
+                    c == 0xFEFF) {
+                    end--;
+                } else {
+                    break;
+                }
+            }
+            if (start >= end) {
+                return std::make_shared<StringValue>("");
+            }
+            return std::make_shared<StringValue>(StringKit::U32ToUtf8(s.substr(start, end - start)));
         };
         return std::make_shared<NativeFunctionValue>(fn);
     }

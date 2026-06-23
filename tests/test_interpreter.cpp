@@ -114,6 +114,8 @@ TEST_F(InterpreterTest, VariableDeclarationAndAssignment) {
     ASSERT_IS_NUMBER(Eval("let a = 5; let b = a * 2; b;"), 10.0);
     // 重新赋值
     ASSERT_IS_NUMBER(Eval("let a = 1; a = 5; a;"), 5.0);
+
+    ASSERT_IS_NUMBER(Eval("let a, b; a = 3;a"), 3.0);
 }
 
 // ==========================================
@@ -123,6 +125,7 @@ TEST_F(InterpreterTest, VariableDeclarationAndAssignment) {
 TEST_F(InterpreterTest, IfElseStatement) {
     ASSERT_IS_NUMBER(Eval("let a = 10; if (a > 5) { a = 1; } else { a = 0; } a;"), 1.0);
     ASSERT_IS_NUMBER(Eval("let a = 2; if (a > 5) { a = 1; } else { a = 0; } a;"), 0.0);
+    ASSERT_IS_NUMBER(Eval("let a; a = 6 > 5 ? 1 : 2; a;"), 1.0);
 }
 
 // ==========================================
@@ -397,17 +400,73 @@ TEST_F(InterpreterTest, CompoundAssignment) {
 }
 
 TEST_F(InterpreterTest, StringFunc) {
+    // indexOf
     auto res = Eval(R"("HELLO".indexOf("E"))");
     ASSERT_IS_NUMBER(res, 1);
+    res = Eval(R"("HELLO".indexOf("X"))");
+    ASSERT_IS_NUMBER(res, -1);
 
-    res = Eval(R"("HELLO".endsWith("O"))");
-    ASSERT_IS_BOOL(res, true);
-
-    res = Eval(R"("HELLO".startsWith("H"))");
-    ASSERT_IS_BOOL(res, true);
-
+    // lastIndexOf
     res = Eval(R"("HELLO".lastIndexOf("L"))");
     ASSERT_IS_NUMBER(res, 3);
+    res = Eval(R"("HELLO".lastIndexOf("L", 2))");
+    ASSERT_IS_NUMBER(res, 2);
+    res = Eval(R"("HELLO".lastIndexOf("X"))");
+    ASSERT_IS_NUMBER(res, -1);
+
+    // endsWith
+    res = Eval(R"("HELLO".endsWith("O"))");
+    ASSERT_IS_BOOL(res, true);
+    res = Eval(R"("HELLO".endsWith("LO"))");
+    ASSERT_IS_BOOL(res, true);
+    res = Eval(R"("HELLO".endsWith("X"))");
+    ASSERT_IS_BOOL(res, false);
+    res = Eval(R"("HELLO".endsWith("HELLOO"))");
+    ASSERT_IS_BOOL(res, false);
+
+    // startsWith
+    res = Eval(R"("HELLO".startsWith("H"))");
+    ASSERT_IS_BOOL(res, true);
+    res = Eval(R"("HELLO".startsWith("HE"))");
+    ASSERT_IS_BOOL(res, true);
+    res = Eval(R"("HELLO".startsWith("X"))");
+    ASSERT_IS_BOOL(res, false);
+    res = Eval(R"("HELLO".startsWith("HHELLO"))");
+    ASSERT_IS_BOOL(res, false);
+
+    // replace
+    res = Eval(R"("HELLO".replace("L", "X"))");
+    ASSERT_IS_STRING(res, "HEXXO");
+    res = Eval(R"("HELLO".replace("LL", "X"))");
+    ASSERT_IS_STRING(res, "HEXO");
+    res = Eval(R"("HELLO".replace("Z", "X"))");
+    ASSERT_IS_STRING(res, "HELLO");
+
+    // toLower
+    res = Eval(R"("HELLO".toLower())");
+    ASSERT_IS_STRING(res, "hello");
+    res = Eval(R"("Hello World".toLower())");
+    ASSERT_IS_STRING(res, "hello world");
+    res = Eval(R"("123".toLower())");
+    ASSERT_IS_STRING(res, "123");
+
+    // toUpper
+    res = Eval(R"("hello".toUpper())");
+    ASSERT_IS_STRING(res, "HELLO");
+    res = Eval(R"("Hello World".toUpper())");
+    ASSERT_IS_STRING(res, "HELLO WORLD");
+    res = Eval(R"("123".toUpper())");
+    ASSERT_IS_STRING(res, "123");
+
+    // trim
+    res = Eval(R"("  hello  ".trim())");
+    ASSERT_IS_STRING(res, "hello");
+    res = Eval(R"("\t\n hello \r\n".trim())");
+    ASSERT_IS_STRING(res, "hello");
+    res = Eval(R"("hello".trim())");
+    ASSERT_IS_STRING(res, "hello");
+    res = Eval(R"("   ".trim())");
+    ASSERT_IS_STRING(res, "");
 }
 
 TEST_F(InterpreterTest, ProtoTest) {
@@ -659,6 +718,7 @@ TEST_F(InterpreterTest, CryptBase64) {
 
 TEST_F(InterpreterTest, JsonParseBasic) {
     std::string code = R"(
+        import std.JSON as JSON;
         let jsonStr = "{\"name\": \"BxScript\", \"version\": 1.0, \"features\": [\"io\", \"json\"]}";
         let obj = JSON.parse(jsonStr);
         if (obj.name != "BxScript") {
@@ -677,6 +737,7 @@ TEST_F(InterpreterTest, JsonParseBasic) {
 
 TEST_F(InterpreterTest, JsonStringifyBasic) {
     std::string code = R"(
+        import std.JSON as JSON;
         let obj = {
             id: 100,
             active: true
@@ -693,6 +754,7 @@ TEST_F(InterpreterTest, JsonStringifyBasic) {
 
 TEST_F(InterpreterTest, JsonRoundTrip) {
     std::string code = R"(
+        import std.JSON as JSON;
         let original = {
             num: 123.456,
             str: "Hello World",
@@ -713,6 +775,7 @@ TEST_F(InterpreterTest, JsonRoundTrip) {
 
 TEST_F(InterpreterTest, JsonArrayOfObjects) {
     std::string code = R"(
+        import std.JSON as JSON;
         let list = [
             { id: 1 },
             { id: 2 }
@@ -726,6 +789,7 @@ TEST_F(InterpreterTest, JsonArrayOfObjects) {
 
 TEST_F(InterpreterTest, JsonParseError) {
     std::string code = R"(
+        import std.JSON as JSON;
         let badJson = "{ \"a\": 1 ";
         JSON.parse(badJson);
     )";

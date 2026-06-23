@@ -34,7 +34,7 @@ const inline std::unordered_set<std::string> Symbols::SymbolList{
     ",",
     ";",
     "+","-","*","/","%","=",
-    "&","|","!","<",">",":"
+    "&","|","!","<",">",":","?"
 };
 
 #endif //BXSCRIPT_SYMBOLS_H
