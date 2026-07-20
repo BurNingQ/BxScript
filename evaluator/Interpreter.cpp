@@ -133,8 +133,7 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_
             e.Node = CurrentNode;
         }
         std::cerr << FormatRuntimeError(e) << std::endl;
-        // 内部错误
-        exit(1);
+        return nullptr;
     }
 }
 
