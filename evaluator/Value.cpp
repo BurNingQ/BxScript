@@ -35,3 +35,45 @@ void RuntimeValue::Set(const std::string &key, ValuePtr value) {
 bool RuntimeValue::Equal(ValuePtr v) {
     return false;
 }
+
+namespace {
+    constexpr int kMaxEqualDepth = 1000;
+
+    bool EqualImpl(const ValuePtr &a, const ValuePtr &b, const int depth) {
+        if (a.get() == b.get()) return true;
+        if (!a || !b) return false;
+        if (a->type != b->type) return false;
+
+        if (depth > kMaxEqualDepth) {
+            throw RuntimeError("比较嵌套过深（可能存在循环引用）");
+        }
+
+        if (a->type == ValueType::OBJECT) {
+            const auto x = std::static_pointer_cast<ObjectValue>(a);
+            const auto y = std::static_pointer_cast<ObjectValue>(b);
+            if (x->Properties.size() != y->Properties.size()) return false;
+            for (const auto &[key, val]: x->Properties) {
+                const auto it = y->Properties.find(key);
+                if (it == y->Properties.end()) return false;
+                if (!EqualImpl(val, it->second, depth + 1)) return false;
+            }
+            return true;
+        }
+
+        if (a->type == ValueType::ARRAY) {
+            const auto x = std::static_pointer_cast<ArrayValue>(a);
+            const auto y = std::static_pointer_cast<ArrayValue>(b);
+            if (x->Elements.size() != y->Elements.size()) return false;
+            for (size_t i = 0; i < x->Elements.size(); ++i) {
+                if (!EqualImpl(x->Elements[i], y->Elements[i], depth + 1)) return false;
+            }
+            return true;
+        }
+
+        return a->Equal(b);
+    }
+}
+
+bool ValueEqual(const ValuePtr &a, const ValuePtr &b) {
+    return EqualImpl(a, b, 0);
+}

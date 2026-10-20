@@ -1,5 +1,6 @@
 * [首页](/)
 * [💥 快速开始](guide.md)
+* [🖥️ GUI 开发指南](gui.md)
 * [🔧 其他介绍](other.md)
 * [📌 内置说明](builtins.md)
 * [📦 标准库 (Standard Library)]

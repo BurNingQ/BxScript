@@ -15,11 +15,11 @@ import std.Net as Net;
 发送 GET 请求。
 
 ```javascript
-import std.IO as IO;
+import std.Console as Console;
 import std.Net as Net;
 Net.get("https://api.github.com", function(res) {
     if (res.status == 200) {
-        IO.print(res.body);
+        Console.print(res.body);
     }
 });
 ```
@@ -28,11 +28,11 @@ Net.get("https://api.github.com", function(res) {
 发送 POST 请求。`data` 可以是字符串、Buffer 或 对象（自动识别 Content-Type）。
 
 ```javascript
-import std.IO as IO;
+import std.Console as Console;
 import std.Net as Net;
 let data = { username: "admin", password: "123" };
 Net.post("http://localhost/login", data, function(res) {
-    IO.print("Login status: " + res.status);
+    Console.print("Login status: " + res.status);
 });
 ```
 

@@ -44,8 +44,8 @@ BxScript v1.0.0
 
 ```javascript
 // hello.bx
-import std.IO as IO;
-IO.println("Hello, BxScript!");
+import std.Console as Console;
+Console.println("Hello, BxScript!");
 ```
 
 通过命令行运行：
@@ -67,17 +67,76 @@ let obj = { x: 1, y: 2 };
 let arr = [1, 2, 3];
 ```
 
+语句可以用 `;` 结束，也可以直接**换行**结束（`}` 和文件结束同样终止语句）。但同一行内不能省略分隔符：`let a = 1 a += 1`、`1 2;`、`def a = 1;` 都会报语法错误。
+
+### 字符串
+
+字符串**只能用双引号**（不支持单引号）。
+
+```javascript
+let s = "hello";
+```
+
+**支持跨行**，行尾换行会原样保留，写起来适合内联 HTML 这类多行内容：
+
+```javascript
+let page = "
+<div class=\"box\">
+    <h1>标题</h1>
+</div>
+";
+```
+
+**转义序列**：`\n`（换行）、`\r`（回车）、`\t`（制表符）、`\\`（反斜杠）、`\"`（双引号）。
+
+```javascript
+let s = "第一行\n第二行";   // 与写成两行等价
+```
+
+> 📌 跨行写法里的换行是**真实换行字符**，和 `\n` 产生的完全一样。所以内联 `<script>` 时不会被拼成一行。
+
+### 数字
+
+十进制整数和小数直接用字面量写：
+
+```javascript
+let a = 42;
+let b = 3.14;
+```
+
+**支持三种进制前缀**（大小写都行）：
+
+| 写法 | 进制 | 例 | 值 |
+|:-----|:-----|:---|:---|
+| `0x` / `0X` | 十六进制 | `0xFF` | 255 |
+| `0b` / `0B` | 二进制 | `0b1010` | 10 |
+| `0o` / `0O` | 八进制 | `0o17` | 15 |
+
+进制字面量就是普通数字，可以正常参与运算：
+
+```javascript
+0x41 + 1;          // 66
+0xFF - 0x0F;       // 240
+0b1 + 0o7 + 0x10;  // 24（可以混用）
+
+// 二进制数据操作里最好用（Buffer 的字节值）
+Buffer.from([0x41, 0x42]);   // 两个字节：'A' 'B'
+```
+
+> ⚠️ **不支持科学计数法和下划线分隔**。`1e3` 会**静默变成 `1`**（不是 1000），`1_000` 会变成 `1`——写的时候避开。
+> 前缀后面没有合法数字（如 `0x`、`0b2`）会直接报错。
+
 ### 控制流
 
 #### if / else
 ```javascript
 let score = 85;
 if (score >= 90) {
-    IO.print("优秀");
+    Console.print("优秀");
 } else if (score >= 60) {
-    IO.print("及格");
+    Console.print("及格");
 } else {
-    IO.print("不及格");
+    Console.print("不及格");
 }
 ```
 
@@ -91,21 +150,46 @@ let max = a > b ? a : b;
 ```javascript
 // C 风格 for
 for (let i = 0; i < 5; i++) {
-    IO.print(i);
+    Console.print(i);
 }
 
 // for...in 遍历
 let obj = { a: 1, b: 2, c: 3 };
 for (let key in obj) {
-    IO.print(key + ": " + obj[key]);
+    Console.print(key + ": " + obj[key]);
 }
 ```
+
+`for...in` 支持三种可遍历值：
+
+| 遍历对象 | 每轮得到 | 例 |
+|:---------|:---------|:---|
+| 对象 `{a:1,b:2}` | **键名**（String） | `"a"`, `"b"` |
+| 数组 `[7,8,9]` | **下标**（Number） | `0`, `1`, `2` |
+| 字符串 `"abc"` | **下标**（Number） | `0`, `1`, `2` |
+
+```javascript
+let arr = [7, 8, 9];
+for (let i in arr) {
+    Console.print(i + " -> " + arr[i]);   // 0 -> 7, 1 -> 8, 2 -> 9
+}
+
+// 字符串按 Unicode 码点索引，中文也算一个字符
+for (let i in "中文") {
+    Console.print(i + "=" + "中文"[i]);    // 0=中, 1=文
+}
+```
+
+循环体里可以用 `break` / `continue` / `return`（`return` 会直接结束所在函数）。
+
+> ⚠️ 遍历**对象**时键的顺序是**不确定的**（底层是哈希表，不是 JS 那样的插入序）。需要固定顺序就改用数组。
+> ⚠️ 遍历其他类型（数字、`null` 等）会抛运行时错误：`for-in 只能遍历对象、数组或字符串`。
 
 #### while 循环
 ```javascript
 let i = 0;
 while (i < 5) {
-    IO.print(i);
+    Console.print(i);
     i++;
 }
 ```
@@ -131,6 +215,9 @@ while (i < 5) {
 | `<=` | 小于等于 |
 | `>=` | 大于等于 |
 
+> ⚠️ 本语言**只有 `==` / `!=`，没有 `===` / `!==`**。写 `===` 会直接报语法错误
+> （`不支持的运算符: '==='`），不会静默失效。
+> 另外 `==` 不做隐式类型转换，`"1" == 1` 是 `false`。
 #### 逻辑运算符
 | 运算符 | 描述 |
 |:-------|:-----|
@@ -163,9 +250,9 @@ x %= 4;   // x = 2
 try {
     throw "something wrong";
 } catch (e) {
-    IO.print("捕获异常: " + e);
+    Console.print("捕获异常: " + e);
 } finally {
-    IO.print("清理工作");
+    Console.print("清理工作");
 }
 ```
 
@@ -179,7 +266,7 @@ function test() {
     str += "2";
     defer (function() {
         str += "3";
-        IO.print(str);  // 最后执行
+        Console.print(str);  // 最后执行
     })();
     defer (function() {
         str += "4";     // 倒数第二执行
@@ -211,6 +298,10 @@ c();  // 1
 c();  // 2
 ```
 
+`function` 声明会**提升**：顶层和每个 `{}` 块都会先绑定块内声明，所以任何作用域都能先调用后定义。同名重复声明一律后者生效。
+
+变量这边则是**宽松**的：同一作用域重复 `let` 不报错（后者覆盖）；读取未声明的变量返回 `null`，给未声明的变量赋值会在全局作用域创建它 —— 拼错变量名不会报错。
+
 ### 高阶函数
 
 函数可以作为参数传递和返回值：
@@ -226,7 +317,7 @@ apply(function(x, y) { return x + y; }, 3, 4);  // 7
 
 ```javascript
 (function() {
-    IO.print("立即执行");
+    Console.print("立即执行");
 })();
 ```
 
@@ -256,7 +347,7 @@ import ./utils as utils;
 
 | 模块 | 用途 | 导入 |
 |:-----|:-----|:-----|
-| IO | 文件读写、控制台 | `import std.IO as IO` |
+| IO | 文件读写 | `import std.IO as IO` |
 | Math | 数学运算 | `import std.Math as Math` |
 | Net | HTTP 网络请求 | `import std.Net as Net` |
 | JSON | JSON 解析 | `import std.JSON as JSON` |

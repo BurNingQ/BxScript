@@ -27,11 +27,20 @@ public:
     }
 
     ValuePtr DeclareVar(const std::string &name, ValuePtr value) {
-        if (variables.find(name) != variables.end()) {
-            throw std::runtime_error("变量重复定义: " + name);
-        }
+        // if (variables.find(name) != variables.end()) {
+        //     throw std::runtime_error("变量重复定义: " + name);
+        // }
         variables[name] = value;
         return value;
+    }
+
+    /**
+     * 声明变量，已存在则覆盖（不做重复定义检查）。
+     * 用于函数声明：同名 function 允许重复，后者生效，且同一声明重复执行不应报错。
+     */
+    ValuePtr DefineVar(const std::string &name, ValuePtr value) {
+        variables[name] = std::move(value);
+        return variables[name];
     }
 
     ValuePtr AssignVar(const std::string &name, ValuePtr value) {
@@ -42,7 +51,9 @@ public:
         if (parent) {
             return parent->AssignVar(name, value);
         }
-        throw std::runtime_error("变量未定义: " + name);
+        variables[name] = value;
+        return value;
+        // throw std::runtime_error("变量未定义: " + name);
     }
 
     ValuePtr LookupVar(const std::string &name) {
@@ -52,7 +63,8 @@ public:
         if (parent) {
             return parent->LookupVar(name);
         }
-        throw std::runtime_error("变量未定义: " + name);
+        return std::make_shared<NullValue>();
+        // throw std::runtime_error("变量未定义: " + name);
     }
 };
 

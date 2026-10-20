@@ -98,6 +98,18 @@ void App::WaitEvents(int timeoutMs) {
     MsgWaitForMultipleObjectsEx(0, nullptr, timeoutMs, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
 }
 
+bool App::IsAlive(void *hwnd) {
+    return User32::W32_IsWindow(static_cast<HWND>(hwnd)) != 0;
+}
+
+void App::SetEnabled(void *hwnd, bool enabled) {
+    User32::W32_EnableWindow(static_cast<HWND>(hwnd), enabled ? TRUE : FALSE);
+}
+
+void App::Activate(void *hwnd) {
+    User32::W32_SetForegroundWindow(static_cast<HWND>(hwnd));
+}
+
 int App::Run() {
     MSG msg = {nullptr};
     if (DefaultFont) {

@@ -221,6 +221,37 @@ class GuiModule {
                 throw RuntimeError("函数还未挂载或挂载失败");
             });
         widget->Set("doCap", doCapFn);
+
+        // close()：占位，渲染时由 GuiRenderer::Sync::ReMountFormNativeFn 替换成真实实现
+        // （和上面 doMin / doMax / doCap 同一套机制）。渲染前调用会抛异常。
+        auto const closeFn = std::make_shared<NativeFunctionValue>(
+            [](const std::vector<ValuePtr> &) -> ValuePtr {
+                throw RuntimeError("函数还未挂载或挂载失败");
+            });
+        widget->Set("close", closeFn);
+
+        // owner(form)：指定所有者窗体。决定层级关系、是否占任务栏、是否跟随最小化。
+        // 这里只存脚本对象，不立刻解析——父窗体的原生窗口要到它自己渲染时才创建。
+        auto const ownerFn = std::make_shared<NativeFunctionValue>(
+            [widget](const std::vector<ValuePtr> &args) -> ValuePtr {
+                if (!args.empty() && args[0]->type == ValueType::OBJECT) {
+                    widget->Set("_owner", args[0]);
+                }
+                return widget;
+            });
+        widget->Set("owner", ownerFn);
+
+        // modal([bool])：标记为模态窗体（默认 true）。配合 win.render() 使用时生效。
+        auto const modalFn = std::make_shared<NativeFunctionValue>(
+            [widget](const std::vector<ValuePtr> &args) -> ValuePtr {
+                bool m = true;
+                if (!args.empty() && args[0]->type == ValueType::BOOL) {
+                    m = std::static_pointer_cast<BoolValue>(args[0])->Value;
+                }
+                widget->Set("_modal", std::make_shared<BoolValue>(m));
+                return widget;
+            });
+        widget->Set("modal", modalFn);
     }
 
     static void InjectContainerMethods(std::shared_ptr<ObjectValue> &widget) {
@@ -280,7 +311,17 @@ class GuiModule {
         widget->Set("_bgColor", std::make_shared<NullValue>());
 
         GuiModuleKit::AddAccessor(widget, "text", "_text");
-        GuiModuleKit::AddAccessor(widget, "bgColor", "_bgColor");
+        // bgColor 单独处理：AddAccessor 会把"单个对象入参"当作属性包，
+        // 按去掉下划线的属性名去找键（找 "bgColor"），而 {R,G,B} 里并没有这个键，
+        // 结果永远静默失效。这里统一走 ArgsColorToObject，
+        // 同时支持 {R,G,B[,A]} 对象与 "#RRGGBB" / 0xRRGGBB 字符串。
+        auto const bgColorFn = std::make_shared<NativeFunctionValue>(
+            [widget](const std::vector<ValuePtr> &args) -> ValuePtr {
+                if (args.empty()) return widget->Get("_bgColor");
+                widget->Set("_bgColor", GuiModuleKit::ArgsColorToObject(args));
+                return widget;
+            });
+        widget->Set("bgColor", bgColorFn);
         GuiModuleKit::AddAccessor(widget, "visible", "_visible");
         GuiModuleKit::AddAccessor(widget, "disable", "_disable");
         GuiModuleKit::AddAccessor(widget, "align", "_align");
@@ -482,8 +523,18 @@ class GuiModule {
     static void InitRender(std::shared_ptr<ObjectValue> &o) {
         const auto renderFn = std::make_shared<NativeFunctionValue>([](const std::vector<ValuePtr> &args) -> ValuePtr {
                 if (args.empty()) return std::make_shared<NullValue>();
+
+                bool isModal = false;
+                if (const auto mv = args[0]->Get("_modal"); mv && mv->type == ValueType::BOOL) {
+                    isModal = std::static_pointer_cast<BoolValue>(mv)->Value;
+                }
+
                 const std::vector formsToRender = {args[0]};
                 GuiRuntime::RunWithoutMessageLoop(formsToRender);
+
+                // 模态窗体：阻塞到它被关闭，之后脚本继续执行（可读子窗结果）
+                if (isModal) GuiRuntime::RunModal(args[0]);
+
                 auto const it = std::find(GlobalForms.begin(), GlobalForms.end(), args[0]);
                 if (it != GlobalForms.end()) {
                     GlobalForms.erase(it);

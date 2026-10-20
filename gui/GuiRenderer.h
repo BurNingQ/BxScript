@@ -31,6 +31,7 @@
 #include "windows/ProgressBar.h"
 #include "windows/Slider.h"
 #include "windows/Menu.h"
+#include "windows/WindowRegistry.h"
 #include "common/EventKit.h"
 
 using PropSetter = std::function<void(ControlBase *, ValuePtr)>;
@@ -58,6 +59,12 @@ public:
         }
     }
 
+    // 按脚本层的 id 反查原生控件（供 GuiRuntime 的模态循环等外部使用）
+    static ControlBase *FindControl(const std::string &id) {
+        const auto it = ControlMap.find(id);
+        return (it != ControlMap.end()) ? it->second : nullptr;
+    }
+
 private:
     struct Sync {
         static void ReMountFormNativeFn(ControlBase *ctrl, std::shared_ptr<ObjectValue> obj) {
@@ -72,6 +79,10 @@ private:
             }));
             obj->Set("doCap", std::make_shared<NativeFunctionValue>([obj, form](...) {
                 doCap(form->Handle());
+                return obj;
+            }));
+            obj->Set("close", std::make_shared<NativeFunctionValue>([obj, form](...) {
+                form->Close();
                 return obj;
             }));
         }
@@ -449,6 +460,24 @@ private:
         BindEvents(ctrl, obj);
     }
 
+    // 把脚本层的父窗体对象解析成原生 Form*（仅在渲染时调用）
+    static Form *ResolveOwner(const std::shared_ptr<ObjectValue> &ownerObj) {
+        const auto idVal = ownerObj->Get("id");
+        if (!idVal || idVal->type != ValueType::STRING) return nullptr;
+
+        const auto it = ControlMap.find(idVal->ToString());
+        if (it == ControlMap.end()) return nullptr;
+
+        auto *f = dynamic_cast<Form *>(it->second);
+        if (f == nullptr) return nullptr;
+
+        // 存活校验：窗口销毁后条目已从 WindowRegistry 注销（见 Form::WndProc 的 WM_DESTROY），
+        // 查不到就说明父窗已死 → 退化为"无 owner"，绝不把死句柄传给 CreateWindowEx。
+        if (WindowRegistry::Get(f->Handle()) == nullptr) return nullptr;
+
+        return f;
+    }
+
     static ControlBase *BuildRecursive(const ValuePtr &node, ControlBase *parent) {
         if (node->type != ValueType::OBJECT) return nullptr;
         const auto obj = std::static_pointer_cast<ObjectValue>(node);
@@ -461,7 +490,13 @@ private:
         if (idVal->type == ValueType::STRING) id = idVal->ToString();
 
         ControlBase *ctrl = nullptr;
-        if (type == "form") ctrl = Form::New(nullptr);
+        if (type == "form") {
+            Form *owner = nullptr;
+            if (auto ov = obj->Get("_owner"); ov && ov->type == ValueType::OBJECT) {
+                owner = ResolveOwner(std::static_pointer_cast<ObjectValue>(ov));
+            }
+            ctrl = Form::New(owner);
+        }
         else if (type == "button") ctrl = static_cast<ControlBase *>(PushButton::Create(parent));
         else if (type == "label") ctrl = Label::Create(parent);
         else if (type == "input") ctrl = Edit::Create(parent);

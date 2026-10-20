@@ -45,6 +45,21 @@ public:
 
     static void WaitEvents(int timeoutMs);
 
+    /**
+     * 窗口是否仍然存在（对应的原生窗口尚未销毁）。
+     */
+    static bool IsAlive(void *hwnd);
+
+    /**
+     * 启用/禁用一个窗口。模态对话框用它锁住父窗。
+     */
+    static void SetEnabled(void *hwnd, bool enabled);
+
+    /**
+     * 把一个窗口带到前台。
+     */
+    static void Activate(void *hwnd);
+
 private:
     static void Shutdown();
 

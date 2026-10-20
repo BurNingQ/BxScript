@@ -131,35 +131,29 @@ class NetModule {
         DWORD length = sizeof(DWORD);
         HttpQueryInfoW(hr, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &statusCode, &length, nullptr);
         result->Set("status", std::make_shared<NumberValue>(statusCode));
-        // 返回类型
-        char contentTypeBuf[256];
+        // 返回类型。HttpQueryInfoW 是宽字符版，缓冲区必须是 wchar_t：
+        // 用 char 缓冲会拿到 "t\0e\0x\0t\0..." 这种夹 NUL 的串，导致类型判断全部失败。
+        wchar_t contentTypeBuf[256] = {0};
         DWORD ctLen = sizeof(contentTypeBuf);
         std::string contentType{};
         if (HttpQueryInfoW(hr, HTTP_QUERY_CONTENT_TYPE, contentTypeBuf, &ctLen, nullptr)) {
-            contentType = std::string(contentTypeBuf, ctLen);
-        }
-        std::vector<unsigned char> bodyBytes;
-        bool isText = false;
-        if (!contentType.empty()) {
-            if (IsTextContentType(contentType)) {
-                isText = true;
-            }
-        } else {
-            if (!IsBinaryContent(bodyBytes)) {
-                isText = true;
-            }
+            // 缓冲区已清零，按 NUL 结尾取串，不依赖 ctLen 的字节/字符语义
+            contentType = StringKit::U16ToU8(contentTypeBuf);
         }
         constexpr int bufferSize = 4096;
         char buffer[bufferSize];
         DWORD bytesRead = 0;
+        std::vector<unsigned char> bodyBytes;
         while (InternetReadFile(hr, buffer, bufferSize, &bytesRead) && bytesRead > 0) {
             bodyBytes.insert(bodyBytes.end(), buffer, buffer + bytesRead);
         }
+        // 有 Content-Type 就按它判断，没有才嗅探字节（嗅探必须发生在读完 body 之后）
+        const bool isText = contentType.empty() ? !IsBinaryContent(bodyBytes) : IsTextContentType(contentType);
         if (isText) {
-            result->Set("body", std::make_shared<BufferValue>(std::move(bodyBytes)));
-        } else {
             std::string strBody(bodyBytes.begin(), bodyBytes.end());
             result->Set("body", std::make_shared<StringValue>(std::move(strBody)));
+        } else {
+            result->Set("body", std::make_shared<BufferValue>(std::move(bodyBytes)));
         }
         InternetCloseHandle(hr);
         InternetCloseHandle(hc);

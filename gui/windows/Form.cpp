@@ -40,6 +40,7 @@ Form *Form::NewCustom(Controller *parent, int exStyle, unsigned int dwStyle) {
     WindowRegistry::Register(fm->Handle(), fm);
     fm->SetFont(DefaultFont);
     fm->SetText(L"Form");
+    if (parent == nullptr) ++TopLevelCount;
     return fm;
 }
 
@@ -48,7 +49,12 @@ Form *Form::New(Controller *parent) {
     RegClassOnlyOnce(L"BxForm");
     fm->SetIsForm(true);
 
-    constexpr DWORD exStyle = WS_EX_CONTROLPARENT | WS_EX_APPWINDOW | WS_EX_CLIENTEDGE;
+    // 有 owner 的窗口不占任务栏、不进 Alt-Tab（WS_EX_TOOLWINDOW）；
+    // WS_EX_APPWINDOW 会强制它出现，两者互斥，不能同时有。
+    constexpr DWORD baseExStyle = WS_EX_CONTROLPARENT | WS_EX_CLIENTEDGE;
+    const DWORD exStyle = (parent != nullptr)
+                              ? (baseExStyle | WS_EX_TOOLWINDOW)
+                              : (baseExStyle | WS_EX_APPWINDOW);
     constexpr DWORD dwStyle = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
 
     const HWND parentHwnd = parent ? static_cast<HWND>(parent->Handle()) : nullptr;
@@ -67,6 +73,7 @@ Form *Form::New(Controller *parent) {
 
     fm->SetFont(DefaultFont);
     fm->SetText(L"Form");
+    if (parent == nullptr) ++TopLevelCount;
     return fm;
 }
 
@@ -105,6 +112,11 @@ void Form::DisableIcon() const {
 
 void Form::Maximise() const { ShowWindow(static_cast<HWND>(m_hwnd), SW_MAXIMIZE); }
 void Form::Minimise() const { ShowWindow(static_cast<HWND>(m_hwnd), SW_MINIMIZE); }
+
+// 走 WM_CLOSE 而不是直接 DestroyWindow：
+// close 事件（OnClose）挂在 WM_CLOSE 上，直接 DestroyWindow 会跳过它。
+// WM_CLOSE 由 DefWindowProc 接手后完成销毁并发出 WM_DESTROY。
+void Form::Close() const { User32::W32_SendMessage(static_cast<HWND>(m_hwnd), WM_CLOSE, 0, 0); }
 
 void Form::Restore() const {
     User32::W32_SendMessage(static_cast<HWND>(m_hwnd), WM_SYSCOMMAND, 0xF120, 0);
@@ -247,7 +259,13 @@ uintptr_t Form::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
             break;
         case WM_DESTROY:
             RemoveTrayIcon();
-            App::Exit(0);
+            // 注销窗口注册表：~ControlBase 里本有这一步，但 Form 对象永不 delete，
+            // 等于从未执行；HWND 被系统复用时按句柄查表会命中错误的控件。
+            WindowRegistry::Unregister(m_hwnd);
+            // 只销毁自己；最后一个顶层窗体关闭时才退出进程。
+            if (parentHwnd == nullptr && --TopLevelCount <= 0) {
+                App::Exit(0);
+            }
             return 0;
         case WM_SIZE:
         case WM_PAINT:
@@ -290,7 +308,7 @@ uintptr_t Form::WndProc(unsigned int msg, uintptr_t wparam, uintptr_t lparam) {
                 HDC hdc = reinterpret_cast<HDC>(wparam);
                 RECT rc;
                 GetClientRect(static_cast<HWND>(m_hwnd), &rc);
-                FillRect(hdc, &rc, static_cast<HBRUSH>(this->formBrush));
+                FillRect(hdc, &rc, static_cast<HBRUSH>(this->formBrush->GetHandle()));
                 return 1;
             }
             break;

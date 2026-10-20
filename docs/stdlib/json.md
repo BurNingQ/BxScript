@@ -14,10 +14,10 @@ import std.JSON as JSON;
 
 ```javascript
 import std.JSON as JSON;
-import std.IO as IO;
-let str = '{"a": 1, "b": [1, 2]}';
+import std.Console as Console;
+let str = "{\"a\": 1, \"b\": [1, 2]}";
 let obj = JSON.parse(str);
-IO.print(obj.a); // 1
+Console.print(obj.a); // 1
 ```
 
 ### `stringify(value)`
@@ -25,8 +25,8 @@ IO.print(obj.a); // 1
 
 ```javascript
 import std.JSON as JSON;
-import std.IO as IO;
+import std.Console as Console;
 let obj = { x: 100, y: 200 };
 let str = JSON.stringify(obj);
-IO.print(str); // {"x":100,"y":200}
+Console.print(str); // {"x":100,"y":200}
 ```

@@ -85,6 +85,11 @@ public:
     ValuePtr Get(const std::string &key) override;
 
     void Set(const std::string &key, ValuePtr value) override;
+
+    bool Equal(ValuePtr v) override;
+
+    // 构造 Buffer 这个内建"构造函数对象"（挂 alloc / from 两个静态方法）
+    static ValuePtr InitBuiltins();
 };
 
 // 原生函数
@@ -271,5 +276,8 @@ public:
 
     [[nodiscard]] std::string ToString() const override { return "[function]"; }
 };
+
+// 深比较入口：指针快速路径 + 深度上限。== / != / indexOf 都走这里。
+bool ValueEqual(const ValuePtr &a, const ValuePtr &b);
 
 #endif //BXSCRIPT_VALUE_H

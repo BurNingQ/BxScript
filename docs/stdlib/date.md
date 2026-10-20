@@ -13,9 +13,9 @@ import std.Date;
 获取当前时间对象。
 
 ```javascript
-import std.IO as IO;
+import std.Console as Console;
 let d = Date.now();
-IO.print(d.year + "-" + d.month + "-" + d.day);
+Console.print(d.year + "-" + d.month + "-" + d.day);
 ```
 
 ### `from(timestamp | dateString)`
@@ -28,7 +28,7 @@ IO.print(d.year + "-" + d.month + "-" + d.day);
 
 ```javascript
 let d = Date.now();
-IO.print(d.format("yyyy年MM月dd日 HH:mm:ss"));
+Console.print(d.format("yyyy年MM月dd日 HH:mm:ss"));
 ```
 
 ## Date 对象属性

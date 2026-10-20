@@ -54,12 +54,16 @@ Token Lexer::NextToken() {
         }
         if (std::isalpha(chaz[0]) || chaz[0] == '_' || chaz[0] == '$') {
             Token token{TokenKind(TokenKind::IDENTITY), chaz, Lexer::RowNum, RowPos};
-            chaz = this->NextChar();
-            while (!chaz.empty() && (std::isalnum(chaz[0]) || chaz[0] == '_' || chaz[0] == '$')) {
-                token.TokenValue += chaz;
+            // 标识符不跨行：行尾即结束，否则 `foo` 换行 `bar` 会被拼成 `foobar`
+            while (!this->AtLineEnd()) {
                 chaz = this->NextChar();
+                if (chaz.empty() ||
+                    !(std::isalnum(chaz[0]) || chaz[0] == '_' || chaz[0] == '$')) {
+                    this->RollBack();
+                    break;
+                }
+                token.TokenValue += chaz;
             }
-            this->RollBack();
             if (KeyWord::isKeyword(token.TokenValue)) {
                 token._TokenType = TokenKind(TokenKind::KEYWORD);
             }
@@ -67,28 +71,71 @@ Token Lexer::NextToken() {
         }
         if (std::isdigit(chaz[0])) {
             Token token{TokenKind(TokenKind::INT), chaz, Lexer::RowNum, RowPos};
+            // 数字不跨行：行尾即结束，否则 `1` 换行 `2` 会被拼成 `12`
+            if (this->AtLineEnd()) {
+                return token;
+            }
             chaz = this->NextChar();
+
+            // 0x / 0b / 0o 前缀（不处理的话 "0x41" 会被切成 "0" + 标识符 "x41"）
+            if (token.TokenValue == "0" && !chaz.empty()) {
+                const char p = static_cast<char>(std::tolower(static_cast<unsigned char>(chaz[0])));
+                if (p == 'x' || p == 'b' || p == 'o') {
+                    token.TokenValue += chaz; // 变成 "0x" / "0b" / "0o"
+                    const auto isDigitOfBase = [p](const char c) {
+                        if (p == 'x') return std::isxdigit(static_cast<unsigned char>(c)) != 0;
+                        if (p == 'b') return c == '0' || c == '1';
+                        return c >= '0' && c <= '7'; // 0o
+                    };
+                    bool hasDigit = false;
+                    while (!this->AtLineEnd()) {
+                        chaz = this->NextChar();
+                        if (chaz.empty() || !isDigitOfBase(chaz[0])) {
+                            this->RollBack();
+                            break;
+                        }
+                        token.TokenValue += chaz;
+                        hasDigit = true;
+                    }
+                    if (!hasDigit) {
+                        throw std::runtime_error("非法的数字字面量: '" + token.TokenValue
+                                                 + "',行: " + std::to_string(RowNum) + ",列: " + std::to_string(
+                                                     RowPos));
+                    }
+                    return token;
+                }
+            }
+
             while (true) {
                 if (!chaz.empty() && std::isdigit(chaz[0])) {
                     token.TokenValue += chaz;
-                    chaz = this->NextChar();
-                    continue;
-                }
-                if (chaz == ".") {
+                } else if (chaz == ".") {
                     token.TokenValue += ".";
                     token._TokenType = TokenKind(TokenKind::FLOAT);
-                    chaz = this->NextChar();
-                    continue;
+                } else {
+                    this->RollBack();
+                    break;
                 }
-                break;
+                if (this->AtLineEnd()) {
+                    break; // 行尾结束，不需要回退
+                }
+                chaz = this->NextChar();
             }
-            this->RollBack();
             return token;
         }
         if (chaz == R"(")") {
             Token token{TokenKind(TokenKind::STRING), "", Lexer::RowNum, RowPos};
-            chaz = this->NextChar();
             bool isEscape = false;
+
+            // 保留\n
+            const auto nextInString = [&]() -> std::string {
+                const int rowBefore = RowNum;
+                std::string c = this->NextChar();
+                token.TokenValue.append(static_cast<size_t>(RowNum - rowBefore), '\n');
+                return c;
+            };
+
+            chaz = nextInString();
             while (true) {
                 if (chaz.empty()) {
                     throw std::runtime_error("字符串未闭合");
@@ -115,20 +162,32 @@ Token Lexer::NextToken() {
                 } else {
                     token.TokenValue += chaz;
                 }
-                chaz = this->NextChar();
+                chaz = nextInString();
             }
             return token;
         }
         if (Symbols::isSymbols(chaz)) {
             Token token{TokenKind(TokenKind::SYMBOL), chaz, Lexer::RowNum, RowPos};
+            // 符号不跨行：每次多字符前瞻前，若已在行尾就直接结束当前符号。
             if (chaz == "=" || chaz == ">" || chaz == "<" || chaz == "!") {
+                if (this->AtLineEnd()) return token;
                 chaz = this->NextChar();
                 if (chaz == "=") {
                     token.TokenValue += "=";
+                    // 拦截 ===
+                    if (token.TokenValue == "==" || token.TokenValue == "!=") {
+                        if (this->AtLineEnd()) return token;
+                        chaz = this->NextChar();
+                        if (chaz == "=") {
+                            throw std::runtime_error("不支持的运算符: '" + token.TokenValue + "=',行: " + std::to_string(RowNum) + ",列: " + std::to_string(RowPos));
+                        }
+                        this->RollBack();
+                    }
                 } else {
                     this->RollBack();
                 }
             } else if (chaz == "&") {
+                if (this->AtLineEnd()) return token;
                 chaz = this->NextChar();
                 if (chaz == "&") {
                     token.TokenValue += "&";
@@ -136,6 +195,7 @@ Token Lexer::NextToken() {
                     this->RollBack();
                 }
             } else if (chaz == "|") {
+                if (this->AtLineEnd()) return token;
                 chaz = this->NextChar();
                 if (chaz == "|") {
                     token.TokenValue += "|";
@@ -143,6 +203,7 @@ Token Lexer::NextToken() {
                     this->RollBack();
                 }
             } else if (chaz == "/") {
+                if (this->AtLineEnd()) return token;
                 chaz = this->NextChar();
                 if (chaz == "/") {
                     this->RowPos = 999999999;
@@ -151,6 +212,7 @@ Token Lexer::NextToken() {
                 }
                 this->RollBack();
             } else if (chaz == "+") {
+                if (this->AtLineEnd()) return token;
                 chaz = this->NextChar();
                 if (chaz == "+") {
                     token.TokenValue += "+";
@@ -160,6 +222,7 @@ Token Lexer::NextToken() {
                     this->RollBack();
                 }
             } else if (chaz == "-") {
+                if (this->AtLineEnd()) return token;
                 chaz = this->NextChar();
                 if (chaz == "-") {
                     token.TokenValue += "-";
@@ -169,6 +232,7 @@ Token Lexer::NextToken() {
                     this->RollBack();
                 }
             } else if (chaz == "*") {
+                if (this->AtLineEnd()) return token;
                 chaz = this->NextChar();
                 if (chaz == "=") {
                     token.TokenValue += "=";
@@ -176,6 +240,7 @@ Token Lexer::NextToken() {
                     this->RollBack();
                 }
             } else if (chaz == "%") {
+                if (this->AtLineEnd()) return token;
                 chaz = this->NextChar();
                 if (chaz == "=") {
                     token.TokenValue += "=";

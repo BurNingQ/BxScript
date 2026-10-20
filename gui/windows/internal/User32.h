@@ -197,6 +197,10 @@ public:
         return IsWindowEnabled(hWnd);
     }
 
+    static BOOL W32_IsWindow(HWND hWnd) {
+        return IsWindow(hWnd);
+    }
+
     static BOOL W32_IsWindowVisible(HWND hWnd) {
         return IsWindowVisible(hWnd);
     }

@@ -266,3 +266,74 @@ TEST(ParserTest, ParseImportStatement) {
     // 验证别名
     EXPECT_EQ(importStmt->AliasName, "io");
 }
+
+// ==========================================
+// 3. 分号 / 换行（Go / JS ASI 风格）
+// ==========================================
+
+TEST(ParserTest, SameLineStatementsRequireSemicolon) {
+    EXPECT_THROW((Parser("let a = 1 let b = 2").ParseProgram()), std::runtime_error);
+    EXPECT_THROW((Parser("let a = 1 a += 1").ParseProgram()), std::runtime_error);
+    EXPECT_THROW((Parser("a = 1 a += 1").ParseProgram()), std::runtime_error);
+    EXPECT_THROW((Parser("1 2;").ParseProgram()), std::runtime_error);
+    EXPECT_THROW((Parser("foo() bar();").ParseProgram()), std::runtime_error);
+    EXPECT_THROW((Parser("if (x) foo() else bar()").ParseProgram()), std::runtime_error);
+}
+
+TEST(ParserTest, NewlineTerminatesStatements) {
+    EXPECT_EQ(Parser("let a = 1\nlet b = 2").ParseProgram().Body.size(), 2);
+    EXPECT_EQ(Parser("a = 1\na += 1").ParseProgram().Body.size(), 2);
+    EXPECT_EQ(Parser("1\n2;").ParseProgram().Body.size(), 2);
+    EXPECT_EQ(Parser("let a = 1; let b = 2").ParseProgram().Body.size(), 2);
+    EXPECT_EQ(Parser("let a = 1").ParseProgram().Body.size(), 1); // 文件末尾无分号
+}
+
+TEST(ParserTest, MultilineExpressionsStillSingleStatement) {
+    // 行首点号链式调用必须仍是一条语句
+    EXPECT_EQ(Parser("let x = foo()\n    .bar()\n    .baz();").ParseProgram().Body.size(), 1);
+    EXPECT_EQ(Parser("let a = [\n1,\n2\n];\nlet b = 2").ParseProgram().Body.size(), 2);
+    EXPECT_EQ(Parser("let o = {\na: 1,\nb: 2\n};\nlet b = 2").ParseProgram().Body.size(), 2);
+    EXPECT_EQ(Parser("foo(\n1,\n2\n);\nbar();").ParseProgram().Body.size(), 2);
+
+    auto prog = Parser("if (x) foo()\nelse bar();").ParseProgram();
+    ASSERT_EQ(prog.Body.size(), 1);
+    auto *ifStmt = dynamic_cast<IfStatement *>(prog.Body[0].get());
+    ASSERT_NE(ifStmt, nullptr);
+    EXPECT_NE(ifStmt->Else, nullptr);
+}
+
+// ==========================================
+// 4. 词法行边界（token 不跨行合并）
+// ==========================================
+
+TEST(LexerTest, TokensDoNotMergeAcrossLines) {
+    {
+        Lexer lexer("1\n2;");
+        EXPECT_EQ(lexer.NextToken().TokenValue, "1");
+        EXPECT_EQ(lexer.NextToken().TokenValue, "2");
+        EXPECT_EQ(lexer.NextToken().TokenValue, ";");
+    }
+    {
+        Lexer lexer("foo\nbar;");
+        EXPECT_EQ(lexer.NextToken().TokenValue, "foo");
+        EXPECT_EQ(lexer.NextToken().TokenValue, "bar");
+    }
+    {
+        // '=' 换行 '=' 不应拼成 '=='
+        Lexer lexer("=\n=");
+        EXPECT_EQ(lexer.NextToken().TokenValue, "=");
+        EXPECT_EQ(lexer.NextToken().TokenValue, "=");
+    }
+    {
+        // '+' 换行 '+' 不应拼成 '++'
+        Lexer lexer("+\n+");
+        EXPECT_EQ(lexer.NextToken().TokenValue, "+");
+        EXPECT_EQ(lexer.NextToken().TokenValue, "+");
+    }
+}
+
+TEST(ParserTest, ChainedCallsAcrossLines) {
+    EXPECT_EQ(Parser("bar()\n    .baz();").ParseProgram().Body.size(), 1);
+    EXPECT_EQ(Parser("let x = foo()\n    .bar()\n    .baz();").ParseProgram().Body.size(), 1);
+    EXPECT_EQ(Parser("let a = 1 +\n    2").ParseProgram().Body.size(), 1);
+}

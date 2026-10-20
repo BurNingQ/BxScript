@@ -16,10 +16,10 @@ import std.Thread as Thread;
 启动一个新的线程执行函数。
 
 ```javascript
-import std.IO as IO;
+import std.Console as Console;
 import std.Thread as Thread;
 Thread.invoke(function(name) {
-    IO.print("Hello from thread: " + name);
+    Console.print("Hello from thread: " + name);
 }, "Worker-1");
 ```
 
@@ -30,7 +30,7 @@ Thread.invoke(function(name) {
 ```javascript
 // 在主线程
 Thread.onMessage(function(msg) {
-    IO.print("收到子线程消息: " + msg);
+    Console.print("收到子线程消息: " + msg);
 });
 
 Thread.invoke(function() {

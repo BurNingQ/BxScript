@@ -14,9 +14,9 @@ import std.OS as OS;
 
 ```javascript
 import std.OS as OS;
-import std.IO as IO;
+import std.Console as Console;
 let output = OS.exec("ipconfig");
-IO.print(output);
+Console.print(output);
 ```
 
 ### `getEnv(name)`

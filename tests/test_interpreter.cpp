@@ -46,6 +46,9 @@ protected:
 
     void RestTest() {
         EventLoop::Reset();
+        // GUI 模块的静态状态会跨用例残留，这里一并清理
+        GuiModule::GlobalForms.clear();
+        GuiModule::WebViewConfig = nullptr;
         globalEnv = std::make_shared<Environment>();
         Interpreter::ModuleCache.clear();
         Interpreter::ModuleAST.clear();
@@ -268,6 +271,20 @@ TEST_F(InterpreterTest, FunctionCall) {
     ASSERT_IS_NUMBER(Eval(code), 30.0);
 }
 
+TEST_F(InterpreterTest, FunctionInnerCall) {
+    std::string code = R"(
+        function outer(){
+            let a = inner();
+            function inner(){
+                return 11;
+            }
+            return a;
+        }
+        outer();
+    )";
+    ASSERT_IS_NUMBER(Eval(code), 11.0);
+}
+
 TEST_F(InterpreterTest, Recursion) {
     std::string code = R"(
         function fib(n) {
@@ -296,7 +313,7 @@ TEST_F(InterpreterTest, Closure) {
 TEST_F(InterpreterTest, IIFEFunc) {
     // 闭包测试
     std::string code = R"(
-        import std.IO as IO;
+        import std.Console as IO;
         let a = 0;
         (function(){
             IO.println("running");
@@ -345,19 +362,29 @@ TEST_F(InterpreterTest, ToFixed_Padding) {
     ASSERT_IS_STRING(Eval(code), "10.000");
 }
 
+// 内建函数的参数错误是 RuntimeError，脚本 try/catch 能接住；
+// 顶层错误则被 EvaluateProgram 吞掉并返回 nullptr，所以不能 EXPECT_THROW。
 TEST_F(InterpreterTest, ToFixed_Error_ArgsCount) {
-    std::string code = "let a = 1; a.toFixed();";
-    EXPECT_THROW({
-                 Eval(code);
-                 }, std::runtime_error);
+    std::string code = R"(
+        let err = "";
+        try { let a = 1; a.toFixed(); } catch (e) { err = e; }
+        err;
+    )";
+    auto res = Eval(code);
+    ASSERT_EQ(res->type, ValueType::STRING);
+    EXPECT_NE(std::static_pointer_cast<StringValue>(res)->Value.find("toFixed"), std::string::npos);
 }
 
 // toFixed
 TEST_F(InterpreterTest, ToFixed_Error_ArgType) {
-    std::string code = "let a = 1; a.toFixed(\"2\");";
-    EXPECT_THROW({
-                 Eval(code);
-                 }, std::runtime_error);
+    std::string code = R"(
+        let err = "";
+        try { let a = 1; a.toFixed("2"); } catch (e) { err = e; }
+        err;
+    )";
+    auto res = Eval(code);
+    ASSERT_EQ(res->type, ValueType::STRING);
+    EXPECT_NE(std::static_pointer_cast<StringValue>(res)->Value.find("toFixed"), std::string::npos);
 }
 
 namespace fs = std::filesystem;
@@ -382,7 +409,7 @@ TEST_F(InterpreterTest, ImportSystem) {
 TEST_F(InterpreterTest, ImportSystemO) {
     fs::create_directories("lib");
     std::ofstream out("lib/math.bx");
-    out << "String.Go = function(){return this;}";
+    out << "String.prototype.Go = function(){return this;}";
     out.close();
     std::string code = R"(
         // 会去读取 ./lib/math.bx
@@ -490,7 +517,7 @@ TEST_F(InterpreterTest, StringPrototype) {
     auto res = Eval(R"(
            String.prototype.padWidthZero = function(){
 	            let a = this;
-	            while(this.length < 10){
+	            while(a.length < 10){
 		            a = "0" + a;
 	            }
 	            return a+"";
@@ -503,8 +530,8 @@ TEST_F(InterpreterTest, StringPrototype) {
 TEST_F(InterpreterTest, StringStatic) {
     auto res = Eval(R"(
            String.hello = function(){
-                return "33"
-           }
+                return "33";
+           };
            String.hello();
     )");
     ASSERT_IS_STRING(res, "33");
@@ -572,46 +599,30 @@ TEST_F(InterpreterTest, ArrayForEachScript) {
 }
 
 TEST_F(InterpreterTest, ThreadDispatchNonBlocking) {
+    // 子线程 postMessage → 主线程 onMessage 回调，由事件循环派发。
+    // 脚本侧没有 await，不能自己"等"，所以交给 EvalAsync 驱动 EventLoop。
+    // 注意：Thread 模块的真实 API 是 sleep / invoke / onMessage / postMessage，
+    // 没有 start / dispatchMessage。
     std::string code = R"(
-        // 模拟 UI 状态
+        import std.Thread as Thread;
         let ui_state = 0;
         Thread.onMessage(function(data) {
-            // 收到子线程的数据，更新 UI
             ui_state = ui_state + data;
         });
-
-        // 启动子线程
-        Thread.start(function() {
-            // 模拟耗时
+        Thread.invoke(function() {
             Thread.sleep(50);
-            // 发送结果 10
             Thread.postMessage(10);
-
-            // 模拟耗时
             Thread.sleep(50);
-            // 发送结果 20
             Thread.postMessage(20);
         });
-
-        // 模拟 GUI 主循环
-        let frameCount = 0;
-
-        while (ui_state < 30) {
-            let processed = Thread.dispatchMessage();
-            // 模拟渲染界面 (这里只是计数)
-            frameCount++;
-            // 超时保护 (防止测试代码写挂了死循环)
-            if (frameCount > 10000000) {
-                break;
-            }
-        }
-        ui_state;
     )";
-    ASSERT_IS_NUMBER(Eval(code), 30.0);
+    EvalAsync(code);
+    ASSERT_IS_NUMBER(GetGlobalVar("ui_state"), 30.0);
 }
 
 TEST_F(InterpreterTest, DateNowStructure) {
     std::string code = R"(
+        import std.Date as Date;
         let d = Date.now();
         if (d.timestamp <= 0) { throw "timestamp error"; }
         if (d.year < 2024) { throw "year error"; }
@@ -624,6 +635,7 @@ TEST_F(InterpreterTest, DateNowStructure) {
 TEST_F(InterpreterTest, DateFromTimestamp) {
     std::string code = R"(
         let t = 1698381001000;
+        import std.Date as Date;
         let d = Date.from(t);
         d.format("yyyy-MM-dd");
     )";
@@ -634,6 +646,7 @@ TEST_F(InterpreterTest, DateFromTimestamp) {
 
 TEST_F(InterpreterTest, DateFromStringStandard) {
     std::string code = R"(
+        import std.Date as Date;
         let d = Date.from("2025-12-09 10:20:30");
         d.format("HH:mm:ss");
     )";
@@ -642,6 +655,7 @@ TEST_F(InterpreterTest, DateFromStringStandard) {
 
 TEST_F(InterpreterTest, DateFromStringChinese) {
     std::string code = R"(
+        import std.Date as Date;
         let d = Date.from("2025年12月09日 10时20分30秒");
         d.format("yyyy/MM/dd");
     )";
@@ -650,6 +664,7 @@ TEST_F(InterpreterTest, DateFromStringChinese) {
 
 TEST_F(InterpreterTest, DateChaining) {
     std::string code = R"(
+        import std.Date as Date;
         let y = Date.from("2022-01-01 00:00:00").year;
         y;
     )";
@@ -658,6 +673,7 @@ TEST_F(InterpreterTest, DateChaining) {
 
 TEST_F(InterpreterTest, DateMutability) {
     std::string code = R"(
+        import std.Date as Date;
         let d = Date.from("2020-01-01 00:00:00");
         d.timestamp = d.timestamp + 31536000000; // 加一年 (粗略)
         d.timestamp = 0; // 回到 1970
@@ -709,6 +725,7 @@ TEST_F(InterpreterTest, ObjectKeysEmpty) {
 
 TEST_F(InterpreterTest, CryptBase64) {
     std::string code = R"(
+        import std.Crypt as Crypt;
         let a = "你好ABC123";
         let c = Crypt.encode(a);
         Crypt.decode(c)
@@ -788,18 +805,22 @@ TEST_F(InterpreterTest, JsonArrayOfObjects) {
 }
 
 TEST_F(InterpreterTest, JsonParseError) {
+    // 顶层错误被 EvaluateProgram 吞掉并返回 nullptr，所以改成脚本内 try/catch 断言错误文本
     std::string code = R"(
         import std.JSON as JSON;
+        let err = "";
         let badJson = "{ \"a\": 1 ";
-        JSON.parse(badJson);
+        try { JSON.parse(badJson); } catch (e) { err = e; }
+        err;
     )";
-    EXPECT_THROW({
-                 Eval(code);
-                 }, std::runtime_error);
+    auto res = Eval(code);
+    ASSERT_EQ(res->type, ValueType::STRING);
+    EXPECT_NE(std::static_pointer_cast<StringValue>(res)->Value.find("JSON"), std::string::npos);
 }
 
 TEST_F(InterpreterTest, JsonIgnoreFunction) {
     std::string code = R"(
+        import std.JSON as JSON;
         let obj = {
             data: 1,
             func: function() { return 1; }
@@ -813,6 +834,8 @@ TEST_F(InterpreterTest, JsonIgnoreFunction) {
 
 TEST_F(InterpreterTest, MD5) {
     std::string code = R"(
+        import std.Crypt as Crypt;
+        import std.Console as IO;
         let c = "你好123kld87384&*^%";
         let a = Crypt.md5(c);
         IO.println(a);
@@ -824,6 +847,7 @@ TEST_F(InterpreterTest, MD5) {
 
 TEST_F(InterpreterTest, SHA256) {
     std::string code = R"(
+        import std.Crypt as Crypt;
         let c = "hello";
         let a = Crypt.sha256(c);
         a;
@@ -835,6 +859,7 @@ TEST_F(InterpreterTest, SHA256) {
 TEST_F(InterpreterTest, CryptHMAC) {
     std::string code = R"(
         let msg = "The quick brown fox jumps over the lazy dog";
+        import std.Crypt as Crypt;
         let key = "key";
         let sign = Crypt.hmac("sha256", key, msg);
         sign;
@@ -845,6 +870,7 @@ TEST_F(InterpreterTest, CryptHMAC) {
 TEST_F(InterpreterTest, CryptCRC32) {
     std::string code = R"(
         let msg = "The quick brown fox jumps over the lazy dog";
+        import std.Crypt as Crypt;
         let sign = Crypt.crc32(msg);
         sign;
     )";
@@ -871,6 +897,7 @@ protected:
 
 TEST_F(IOTest, ExistAndTypeCheck) {
     std::string code = R"(
+        import std.IO as IO;
         let dir = "io_sandbox";
         let file = "io_sandbox/dummy.txt";
         if (!IO.exist(dir)) {
@@ -898,6 +925,7 @@ TEST_F(IOTest, ExistAndTypeCheck) {
 
 TEST_F(IOTest, CopyAndRename) {
     std::string code = R"(
+        import std.IO as IO;
         let src = "io_sandbox/dummy.txt";
         let dst = "io_sandbox/copy.txt";
         let moved = "io_sandbox/moved.txt";
@@ -921,6 +949,7 @@ TEST_F(IOTest, CopyAndRename) {
 
 TEST_F(IOTest, MkdirAndRemove) {
     std::string code = R"(
+        import std.IO as IO;
         let deepDir = "io_sandbox/a/b/c";
         if (!IO.mkdir(deepDir)) {
             throw "mkdir failed";
@@ -942,6 +971,7 @@ TEST_F(IOTest, ListDirectory) {
     fs::create_directory(sandboxDir + "/sub");
 
     std::string code = R"(
+        import std.IO as IO;
         let list = IO.list("io_sandbox");
         if (list.length != 4) {
             throw "list length error: " + list.length;
@@ -961,6 +991,7 @@ TEST_F(IOTest, ListDirectory) {
 TEST_F(IOTest, FileAttributes) {
     std::string code = R"(
         let path = "io_sandbox/dummy.txt";
+        import std.IO as IO;
         let info = IO.attr(path);
         if (info.name != "dummy.txt") {
             throw "attr name error";
@@ -979,12 +1010,14 @@ TEST_F(IOTest, FileAttributes) {
 
 TEST_F(IOTest, AbsolutePath) {
     std::string code = R"(
+        import std.Console as Console;
         let path = "io_sandbox/dummy.txt";
+        import std.IO as IO;
         let abs = IO.abs(path);
         if (abs.length <= path.length) {
             throw "abs path too short";
         }
-        IO.println(abs);
+        Console.println(abs);
         true;
     )";
     ASSERT_IS_BOOL(Eval(code), true);
@@ -993,6 +1026,7 @@ TEST_F(IOTest, AbsolutePath) {
 TEST_F(IOTest, ReadWriteText) {
     std::string code = R"(
         let path = "io_sandbox/text.txt";
+        import std.IO as IO;
         let content = "Hello BxScript IO";
         if (!IO.write(path, content)) {
             throw "write text failed";
@@ -1008,6 +1042,7 @@ TEST_F(IOTest, ReadWriteText) {
 
 TEST_F(IOTest, ReadBuffer) {
     std::string code = R"(
+        import std.IO as IO;
         let path = "io_sandbox/binary.bin";
         IO.write(path, "ABC");
         let buf = IO.read(path);
@@ -1029,6 +1064,7 @@ TEST_F(IOTest, WriteBuffer) {
     std::string code = R"(
         let path = "io_sandbox/buffer_out.bin";
         // 1. 读取一个现有的文件拿到 Buffer (复用 dummy.txt "Hello IO")
+        import std.IO as IO;
         let rawBuf = IO.read("io_sandbox/dummy.txt");
         // 2. 把这个 Buffer 写入新文件
         if (!IO.write(path, rawBuf)) {throw "write buffer failed";}
@@ -1042,6 +1078,7 @@ TEST_F(IOTest, WriteBuffer) {
 
 TEST_F(IOTest, Overwrite) {
     std::string code = R"(
+        import std.IO as IO;
         let path = "io_sandbox/overwrite.txt";
         IO.write(path, "First");
         IO.write(path, "Second");
@@ -1054,6 +1091,7 @@ TEST_F(IOTest, Overwrite) {
 
 TEST_F(InterpreterTest, NetGetHttpsBasic) {
     std::string code = R"(
+        import std.Console as Console;
         import std.Net as Net;
         import std.IO as IO;
         let global_status = 0;
@@ -1061,7 +1099,7 @@ TEST_F(InterpreterTest, NetGetHttpsBasic) {
         Net.get("https://www.baidu.com", function(res) {
             global_status = res.status;
             global_body = res.body;
-            IO.println("Callback finished!");
+            Console.println("Callback finished!");
         });
     )";
     EvalAsync(code);
@@ -1074,6 +1112,8 @@ TEST_F(InterpreterTest, NetGetHttpsBasic) {
 
 TEST_F(InterpreterTest, NetGetJsonApi) {
     std::string code = R"(
+        import std.Net as Net;
+        import std.JSON as JSON;
         let resultId = -1;
         Net.get("https://jsonplaceholder.typicode.com/todos/1", function(res) {
             if (res.status == 200) {
@@ -1089,6 +1129,7 @@ TEST_F(InterpreterTest, NetGetJsonApi) {
 
 TEST_F(InterpreterTest, NetInvalidUrl) {
     std::string code = R"(
+        import std.Net as Net;
         let errStatus = 0;
         Net.get("https://this-domain-does-not-exist-123456.com", function(res) {
             errStatus = res.status;
@@ -1177,6 +1218,7 @@ TEST_F(InterpreterTest, MultipleTimers) {
 
 TEST_F(InterpreterTest, StringAttTest) {
     std::string code = R"bx(
+        import std.Console as Console;
             import std.IO as IO;
             let if_str = "if";
             let while_str = "while";
@@ -1195,13 +1237,13 @@ TEST_F(InterpreterTest, StringAttTest) {
 
             // 4. 这里的 if 是关键字，条件里的 if_str 是变量，"if" 是字符串
             if (if_str == "if") {
-                IO.println("1. Keyword check PASS");
+                Console.println("1. Keyword check PASS");
             }
 
             // 5. 这里的 [ "]" ] 如果没判断类型，会被解析成空数组
             let arr = [ "]" ];
             if (arr.length == 1) {
-                IO.println("2. Symbol check PASS");
+                Console.println("2. Symbol check PASS");
             }
 
             // 6. 这里的 { key: "}" } 如果没判断类型，会被提前结束对象解析
@@ -1210,21 +1252,22 @@ TEST_F(InterpreterTest, StringAttTest) {
                 val: 123
             };
             if (obj.val == 123) {
-                IO.println("3. Object check PASS");
+                Console.println("3. Object check PASS");
             }
             // 7. 函数调用里传右括号字符串
             let res = test(")");
             if (res == ") ok") {
-                IO.println("4. Call check PASS");
+                Console.println("4. Call check PASS");
             }
 
-            IO.println("🎉 Congratulations! Parser Refactoring Complete!");
+            Console.println("🎉 Congratulations! Parser Refactoring Complete!");
     )bx";
     Eval(code);
 }
 
 TEST_F(InterpreterTest, GuiBuildStructure) {
     const std::string code = R"(
+        import std.Console as Console;
         import std.Win as win;
         import std.IO as IO;
         import std.JSON as json;
@@ -1241,7 +1284,7 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
             win.label("l2").text("密码: ").pos(10, 150).size(40, 40),
             win.password("password").pos(60, 155).size(200, 30),
             win.button("btn1").size(120, 40).pos(60, 195).text("点击我试试").on("click", function(){
-                IO.println("event came from button click");
+                Console.println("event came from button click");
                 f.refs.mylist.items([["行1列1", "行1列2", "行1列3"],["行2列1", "行2列2", "行2列3"],["行3列1", "行3列2", "行3列3"]]);
                 Dlg.alert("测试点击");
                 f.refs.btn1.text("代理Setter测试");
@@ -1252,18 +1295,18 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
                 let s = f.refs.i1.size();
                 if(e.wheel > 0) {
                     f.refs.i1.size(s.width + 1, s.height + 1);
-                    IO.println("Image Bigger");
+                    Console.println("Image Bigger");
                 } else {
                     f.refs.i1.size(s.width - 1, s.height - 1);
-                    IO.println("Image Smaller");
+                    Console.println("Image Smaller");
                 }
-                IO.println(json.stringify(e));
+                Console.println(json.stringify(e));
             }),
             win.list("mylist").size(400, 300).pos(280, 100)
                 .heads([{text: "ID", width: 100},{text: "姓名", width: 120},"备注"])
                 .items(["Apple", "Banana", "Orange"])
         ]).icon("C:\\Users\\Administrator\\Desktop\\logo.ico").on("resize", function(){
-            IO.println("resizing");
+            Console.println("resizing");
         }).menu([
             win.item("文件", [
                 win.item("打开", function() {
@@ -1282,10 +1325,12 @@ TEST_F(InterpreterTest, GuiBuildStructure) {
                  Dlg.alert("About v1.0");
             })
         ]);
-        win.loop();
     )";
     Eval(code);
-    ASSERT_EQ(GuiModule::GlobalForms.size(), 0);
+    // 无头测试里没有消息循环可跑，只验证结构能构建出来。
+    // （原先调用 win.loop() 会进入 GuiRuntime::MainLoop 且没人关窗，测试必挂。）
+    ASSERT_EQ(GuiModule::GlobalForms.size(), 1);
+    GuiModule::GlobalForms.clear();
 }
 
 TEST_F(InterpreterTest, WebViewBuildStructure) {
@@ -1345,9 +1390,9 @@ TEST_F(InterpreterTest, WebViewBuildStructure) {
         }).bind("BxScriptExit", function(){
             wb.doExit();
         }).doTray("C:\\Users\\Administrator\\Desktop\\logo.ico", "测试气泡");
-        win.loop();
     )";
     Eval(code);
+    // 同上：不跑 win.loop()。webview 配置不进 GlobalForms，这里断言没有被顺带创建窗体。
     ASSERT_EQ(GuiModule::GlobalForms.size(), 0);
 }
 
@@ -1356,8 +1401,9 @@ TEST_F(InterpreterTest, DeferExecutionOrder) {
         let result = "";
         function runTest() {
             result = result + "1";
-            defer result = result + "4";
-            defer result = result + "3";
+            // defer 后面必须是函数调用（语言规则），这里用 IIFE 包一层
+            defer (function(){ result = result + "4"; })();
+            defer (function(){ result = result + "3"; })();
             result = result + "2";
             return;
         }
@@ -1372,10 +1418,8 @@ TEST_F(InterpreterTest, DeferExecutionOrder) {
 TEST_F(InterpreterTest, DeferOnThrow) {
     std::string code = R"(
         let flag = 0;
-        import std.IO as io;
         function riskyTask() {
             defer (function(){
-                io.println("defer run")
                 flag = 1;
             })();
             throw "Oops";
@@ -1397,4 +1441,58 @@ TEST_F(InterpreterTest, IoZip) {
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
+}
+
+// ==========================================
+// 深比较的环处理
+// ==========================================
+
+TEST_F(InterpreterTest, DeepEqualSelfCycle) {
+    // 自引用对象：同一个指针，直接相等，不递归
+    std::string code = R"(
+        let s = {};
+        s.me = s;
+        s == s;
+    )";
+    ASSERT_IS_BOOL(Eval(code), true);
+}
+
+TEST_F(InterpreterTest, DeepEqualDistinctCyclesThrows) {
+    // 两个不同的环：达到深度上限，抛可被脚本捕获的错误
+    std::string code = R"(
+        let a = {};
+        let b = {};
+        a.me = a;
+        b.me = b;
+        let err = "";
+        try { let r = a == b; } catch (e) { err = e; }
+        err;
+    )";
+    auto res = Eval(code);
+    ASSERT_EQ(res->type, ValueType::STRING);
+    EXPECT_NE(std::static_pointer_cast<StringValue>(res)->Value.find("循环引用"),
+              std::string::npos);
+}
+
+TEST_F(InterpreterTest, DeepEqualArrayCycle) {
+    std::string code = R"(
+        let a = [];
+        a.push(a);
+        a == a;
+    )";
+    ASSERT_IS_BOOL(Eval(code), true);
+}
+
+TEST_F(InterpreterTest, BufferEquality) {
+    // Buffer 按内容相等
+    std::string code = R"(
+        let a = Buffer.from("abc");
+        let b = Buffer.from("abc");
+        let c = Buffer.from("abd");
+        let same = a == b;
+        let diff = a == c;
+        let self = a == a;
+        same && !diff && self;
+    )";
+    ASSERT_IS_BOOL(Eval(code), true);
 }

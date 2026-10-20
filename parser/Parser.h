@@ -17,6 +17,7 @@
 #include <memory>
 #include <queue>
 #include <sstream>
+#include <vector>
 
 #include "Expression.h"
 #include "ParserVM.h"
@@ -33,6 +34,10 @@ inline std::unique_ptr<T> make_unique(Args &&... args) {
 // C++14+
 using std::make_unique;
 #endif
+
+inline bool IsSymbol(const Token &tk, const std::string &symbol) {
+    return tk._TokenType.GetEnum() == TokenKind::SYMBOL && tk.TokenValue == symbol;
+}
 
 class Parser {
 public:
@@ -187,16 +192,33 @@ public:
 
     std::unique_ptr<Expression> ParseAssignmentExpression();
 
+    /**
+     * 语句结束。合法结尾：;、}、文件结束，或换行（下一个 token 在更靠后的行）。
+     * 分号会被消费；其余 token 原样放回，交给外层（块结束、if/else、下一条语句）。
+     */
     void Semicolon() {
+        const int prevLine = LastConsumedLine(); // 必须在 NextToken 之前取
         const auto tk = this->NextToken();
-        if (tk.TokenValue == ";" || tk._TokenType.GetEnum() == TokenKind::END_OF_FILE) {
-        } else {
-            this->BackToken(tk);
+        if (IsSymbol(tk, ";")) {
+            return; // 消费分号
         }
+        if (IsSymbol(tk, "}") ||
+            tk._TokenType.GetEnum() == TokenKind::END_OF_FILE ||
+            (prevLine >= 0 && tk.LineNum > prevLine)) {
+            this->BackToken(tk); // } / EOF / 下一行的 token 交还外层
+            return;
+        }
+        Error(tk, "此处期望: ; 或换行");
     }
 
 private:
     std::deque<Token> TokenQueue{};
+    // NextToken 压栈、BackToken 弹栈；栈顶 = 最近一次真正保留的 token 所在行。
+    // 不变量：所有 BackToken 都是对最近一次 NextToken 的 LIFO 回退。
+    std::vector<int> ConsumedLines{};
+    int LastConsumedLine() const {
+        return ConsumedLines.empty() ? -1 : ConsumedLines.back();
+    }
     Lexer lexer;
 };
 

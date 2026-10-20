@@ -14,6 +14,8 @@
 #define BXSCRIPT_EVENTLOOP_H
 
 #include <atomic>
+#include <functional>
+#include <iostream>
 #include <vector>
 #include <queue>
 #include <mutex>
@@ -35,6 +37,14 @@ class EventLoop {
     inline static std::atomic<int> activeTasks{0};
 
 public:
+    /**
+     * 回调里逃逸出来的异常的报告出口。默认打到 stderr；main.cpp 会覆盖成
+     * "打 stderr + 弹错误框"，见下面对 Dispatch 的说明。
+     */
+    inline static std::function<void(const std::string &)> ErrorHandler = [](const std::string &msg) {
+        std::cerr << msg << std::endl;
+    };
+
     static void AddActiveTask() { ++activeTasks; }
 
     static void RemoveActiveTask() { --activeTasks; }
@@ -76,10 +86,14 @@ public:
             }
         }
         for (size_t i = 0; i < localQueue.size(); ++i) {
+            // 回调里没被脚本自己 try/catch 住的异常只汇报、不往外抛：
+            // 抛出去会穿过消息循环（GuiRuntime::MainLoop / RunLoop）直到 main，
             try {
                 Interpreter::CallFunction(localQueue[i].callback, localQueue[i].args);
+            } catch (const RuntimeError &e) {
+                ErrorHandler(FormatRuntimeError(e));
             } catch (const std::exception &e) {
-                throw RuntimeError(std::string("事件循环错误: ") + e.what());
+                ErrorHandler(std::string("[运行错误] 事件循环: ") + e.what());
             }
             if (maxDurationMs > 0) {
                 auto now = steady_clock::now();

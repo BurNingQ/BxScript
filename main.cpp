@@ -41,6 +41,8 @@ void PrintPrompt() {
 
 // 打印结果 (绿色)
 void PrintResult(const ValuePtr &res) {
+    // EvaluateProgram 捕获运行错误后会返回 nullptr，这里不能直接解引用
+    if (!res) return;
     if (res->type != ValueType::NULL_TYPE) {
         std::cout << "\033[32m=> " << res->ToString() << "\033[0m" << std::endl;
     }
@@ -121,6 +123,14 @@ std::string ReadIndexFile() {
 // ==========================================
 int main(const int argc, char *argv[]) {
     SetupConsole();
+#ifdef _WIN32
+    // 异步回调里未捕获的异常：默认只打 stderr，GUI 版(-mwindows)看不见，
+    // 这里补一个错误框，让脚本 bug 至少有个提示。
+    EventLoop::ErrorHandler = [](const std::string &msg) {
+        std::cerr << msg << std::endl;
+        CommonDlgs::MsgBoxError(nullptr, StringKit::U8ToU16(msg), L"BxScript Runtime");
+    };
+#endif
     VFS::Mount(argv[0]);
     // 打包模式
     if (VFS::IsBundled) {

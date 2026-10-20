@@ -158,7 +158,7 @@ x == null;  // true
 | `[N]` | 索引读写（0-255） |
 
 ```javascript
-let buf = new Buffer(8);
+let buf = Buffer.alloc(8);
 buf[0] = 65;   // 'A'
 buf.length;    // 8
 ```

@@ -30,11 +30,9 @@ ControlBase::~ControlBase() {
     if (m_hwnd) {
         WindowRegistry::Unregister(m_hwnd);
     }
-    // 清理画刷
-    if (formBrush) {
-        DeleteObject(formBrush);
-        formBrush = nullptr;
-    }
+    // 清理画刷（Brush 析构会释放真实的 HBRUSH）
+    delete formBrush;
+    formBrush = nullptr;
 }
 
 void ControlBase::InitControl(const std::wstring &className, Controller *parent, unsigned int exstyle, unsigned int style) {
@@ -158,7 +156,7 @@ ControlBase *ControlBase::SetTextColor(Color c) {
 ControlBase *ControlBase::SetBackgroundColor(Color c) {
     this->bgColor = c;
     this->defineBackgroundColor = true;
-    if (formBrush) DeleteObject(formBrush);
+    delete formBrush;
     formBrush = Brush::NewSolid(c);
     Invalidate(true);
     return this;
@@ -183,7 +181,7 @@ void *ControlBase::HandleCtlColor(void *hdc, unsigned int uMsg) const {
         Gdi32::W32_SetBkMode(hDC, TRANSPARENT);
     }
     if (defineBackgroundColor) {
-        return formBrush;
+        return formBrush ? formBrush->GetHandle() : nullptr;
     }
     return nullptr;
 }

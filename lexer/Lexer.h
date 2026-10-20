@@ -59,6 +59,11 @@ public:
         return EndOfFile;
     }
 
+    /// 当前行是否已读到行尾（不跨行）。标识符/数字扫描用它在行尾停止。
+    [[nodiscard]] bool AtLineEnd() const {
+        return RowPos >= static_cast<int>(mRowBuffer.size());
+    }
+
     Token NextToken();
 
 private:

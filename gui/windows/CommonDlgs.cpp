@@ -94,6 +94,25 @@ std::wstring CommonDlgs::ShowBrowseFolderDlg(ControlBase *parent, const std::wst
     return L"";
 }
 
+// Windows 消息框的文本硬上限：65535 个字符。刚好 65535 能弹，65536 就静默返回 0，
+// 窗口根本不创建，GetLastError 也是 0 —— 外部表现就是"alert 没反应"。
+static constexpr size_t kMsgBoxTextLimit = 65535;
+// 留一点余量给截断提示本身，避免拼接后又踩到上限。
+static constexpr size_t kMsgBoxKeepChars = 60000;
+
+std::wstring CommonDlgs::TruncateMsgBoxText(const std::wstring &text) {
+    if (text.size() <= kMsgBoxTextLimit) return text;
+
+    size_t keep = kMsgBoxKeepChars;
+    // 不要从代理对中间切断，否则尾部会留半个字符（显示成方块）
+    if (const wchar_t last = text[keep - 1]; last >= 0xD800 && last <= 0xDBFF) {
+        --keep;
+    }
+    std::wstring result = text.substr(0, keep);
+    result += L"\r\n\r\n……（内容过长，已截断；原始长度 " + std::to_wstring(text.size()) + L" 字符）";
+    return result;
+}
+
 int CommonDlgs::MsgBox(ControlBase *parent, const std::wstring &text, const std::wstring &title, unsigned int flags) {
     HWND hwnd = nullptr;
     if (parent) {
@@ -101,7 +120,8 @@ int CommonDlgs::MsgBox(ControlBase *parent, const std::wstring &text, const std:
     } else {
         hwnd = ::GetActiveWindow();
     }
-    return User32::W32_MessageBox(hwnd, text.c_str(), title.c_str(), flags);
+    const std::wstring safeText = TruncateMsgBoxText(text);
+    return User32::W32_MessageBox(hwnd, safeText.c_str(), title.c_str(), flags);
 }
 
 bool CommonDlgs::MsgBoxConfirm(ControlBase *parent, const std::wstring &text, const std::wstring &title) {

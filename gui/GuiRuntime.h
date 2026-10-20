@@ -26,6 +26,12 @@ public:
     static void Run(const std::vector<ValuePtr> &rootValues);
 
     static void RunWebView(const std::shared_ptr<ObjectValue> &cfg);
+
+    /**
+     * 模态运行一个窗体：禁用其 owner，阻塞到该窗体被销毁，再恢复 owner。
+     * 供 win.render() 在窗体带 modal 标记时调用。
+     */
+    static void RunModal(const ValuePtr &formValue);
 private:
     /**
      * 混合消息循环 (Hybrid Message Loop)

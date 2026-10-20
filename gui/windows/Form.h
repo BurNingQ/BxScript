@@ -39,6 +39,9 @@ class Form final : public ControlBase {
     EventManager onTrayClick;
 
 public:
+    // 存活的顶层（无 owner）窗体数。归零时才允许退出进程。
+    inline static int TopLevelCount = 0;
+
     Form() = default;
 
     ~Form() override = default;
@@ -61,6 +64,9 @@ public:
     void Minimise() const;
 
     void Restore() const;
+
+    // 关闭（销毁）本窗口。模态对话框用它结束 win.render() 的阻塞。
+    void Close() const;
 
     void Center() const;
 

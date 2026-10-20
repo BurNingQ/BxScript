@@ -1,0 +1,381 @@
+// ============================================================
+//  回归测试
+//  覆盖：for...in / Buffer / 进制字面量 / 跨行字符串 / bgColor / 关闭窗口行为 / owner / modal / close
+//
+//  运行：BxScript_GUI.exe regression.bx
+//  全程约 12 秒，自动关窗退出，不需要人工操作。
+//
+//  另有几项需要 Win32 层才能断言（owner 归属、样式位、模态禁用），
+//  由配套的 gui_regression_check.ps1 覆盖。
+// ============================================================
+
+import std.Win as win;
+import std.Dlg as dlg;
+import std.Console as Console;
+import std.Timer as Timer;
+
+// ---------------- 迷你断言框架 ----------------
+let gPassed = 0;
+let gFailed = 0;
+
+function check(name, ok) {
+    if (ok) {
+        gPassed++;
+        Console.println("  [PASS] " + name);
+    } else {
+        gFailed++;
+        Console.println("  [FAIL] " + name);
+    }
+}
+
+function section(title) {
+    Console.println("");
+    Console.println("── " + title + " " + "────────────────────────");
+}
+
+// ============================================================
+//  阶段 0：for...in（对象 → 键 / 数组 → 下标 / 字符串 → 下标）
+//  注意：遍历对象时键序不确定（底层是哈希表），所以只断言个数和总和
+// ============================================================
+section("阶段 0: for...in");
+
+let objKeyCount = 0;
+for (let k in {a: 1, b: 2, c: 3}) {
+    objKeyCount++;
+}
+check("对象遍历：拿到 3 个键", objKeyCount == 3);
+
+let o = {x: 10, y: 20};
+let objSum = 0;
+for (let k in o) {
+    objSum += o[k];
+}
+check("对象遍历：用键取到值 (10+20=30)", objSum == 30);
+
+let idxSum = 0;
+for (let i in [7, 8, 9]) {
+    idxSum += i;
+}
+check("数组遍历：得到下标 0+1+2=3", idxSum == 3);
+
+let arr = [7, 8, 9];
+let valSum = 0;
+for (let i in arr) {
+    valSum += arr[i];
+}
+check("数组遍历：用下标取到值 (7+8+9=24)", valSum == 24);
+
+// 字符串按 Unicode 码点算长度 —— "中文" 是 2 个字符，不是 6 个 UTF-8 字节
+let cnCount = 0;
+for (let i in "中文") {
+    cnCount++;
+}
+check("字符串遍历：中文按码点算长度 (2 而非 6)", cnCount == 2);
+
+let letters = "";
+let s = "abc";
+for (let i in s) {
+    letters += s[i];
+}
+check("字符串遍历：逐字取值", letters == "abc");
+
+let brk = 0;
+for (let k in {a: 1, b: 2, c: 3}) {
+    brk++;
+    break;
+}
+check("for...in 里 break 生效", brk == 1);
+
+let skipped = 0;
+for (let i in [1, 2, 3]) {
+    if (i == 0) {
+        continue;
+    }
+    skipped++;
+}
+check("for...in 里 continue 生效", skipped == 2);
+
+let emptyRan = 0;
+for (let k in {}) {
+    emptyRan++;
+}
+check("遍历空对象：循环体不执行", emptyRan == 0);
+
+let nonIterableCaught = false;
+try {
+    for (let k in 5) {
+    }
+} catch (e) {
+    nonIterableCaught = true;
+}
+check("遍历非可遍历值：抛运行时错误", nonIterableCaught);
+
+// ============================================================
+//  阶段 0b：Buffer 构造（本语言没有 new 关键字）
+//  走 Buffer.alloc(size) / Buffer.from(str | number[])
+// ============================================================
+section("阶段 0b: Buffer");
+
+check("Buffer.alloc(10).length == 10", Buffer.alloc(10).length == 10);
+check("Buffer.alloc(4) 初始全 0", Buffer.alloc(4)[0] == 0);
+check("Buffer.alloc(0) 可用", Buffer.alloc(0).length == 0);
+
+let bufFromStr = Buffer.from("abc");
+check("Buffer.from(字符串)：3 字节", bufFromStr.length == 3);
+check("Buffer.from(字符串)：首字节 'a' = 97", bufFromStr[0] == 97);
+check("Buffer.from(\"中文\")：UTF-8 为 6 字节", Buffer.from("中文").length == 6);
+
+let bufFromArr = Buffer.from([1, 2, 255]);
+check("Buffer.from(数组)：3 字节", bufFromArr.length == 3);
+check("Buffer.from(数组)：字节值保留", bufFromArr[0] == 1 && bufFromArr[2] == 255);
+
+let bufWrite = Buffer.alloc(2);
+bufWrite[0] = 65;
+check("Buffer 支持下标写入", bufWrite[0] == 65);
+
+let bufAllocNegCaught = false;
+try {
+    Buffer.alloc(-1);
+} catch (e) {
+    bufAllocNegCaught = true;
+}
+check("Buffer.alloc(-1)：抛运行时错误", bufAllocNegCaught);
+
+let bufFromBadCaught = false;
+try {
+    Buffer.from(5);
+} catch (e) {
+    bufFromBadCaught = true;
+}
+check("Buffer.from(数字)：抛运行时错误", bufFromBadCaught);
+
+// ============================================================
+//  阶段 0c：跨行字符串保留换行
+//  修复前：跨行写法能通过，但行尾换行被静默丢掉（"a<换行>b" 长度是 2）
+// ============================================================
+section("阶段 0c: 跨行字符串");
+
+let mlTwo = "a
+b";
+check("跨行两行：保留换行 (长度 3)", mlTwo.length == 3);
+
+let mlBlank = "x
+
+y";
+check("跨行含空行：空行也保留 (长度 4)", mlBlank.length == 4);
+
+let mlEscaped = "a\nb";
+check("转义 \\n 不受影响 (长度 3)", mlEscaped.length == 3);
+
+let mlTab = "a\tb";
+check("转义 \\t 不受影响 (长度 3)", mlTab.length == 3);
+
+// ============================================================
+//  阶段 0d：进制字面量 0x / 0b / 0o
+//  识别和求值是两处独立的改动，所以这里既断言"读对"也断言"算对"
+//  （只识别不参与运算等于没做）
+// ============================================================
+section("阶段 0d: 进制字面量");
+
+check("0x41 == 65", 0x41 == 65);
+check("0xff == 255", 0xff == 255);
+check("0XFF 大写 == 255", 0XFF == 255);
+check("0b1010 == 10", 0b1010 == 10);
+check("0o17 == 15", 0o17 == 15);
+
+check("0x41 + 1 == 66", 0x41 + 1 == 66);
+check("0x10 * 2 == 32", 0x10 * 2 == 32);
+check("0xFF - 0x0F == 240", 0xFF - 0x0F == 240);
+check("混合进制 0b1 + 0o7 + 0x10 == 24", 0b1 + 0o7 + 0x10 == 24);
+check("0x41 == 65 比较", 0x41 == 65);
+
+let hexLoopSum = 0;
+for (let i = 0x10; i < 0x13; i++) {
+    hexLoopSum += i;
+}
+check("for 循环里用进制字面量 (16+17+18=51)", hexLoopSum == 51);
+
+check("Buffer.from([0x41,0x42])[0] == 65", Buffer.from([0x41, 0x42])[0] == 65);
+
+// ============================================================
+//  阶段 1：bgColor（渲染前即可断言，测的是"设置侧"）
+//  注：绘制侧（真的画出颜色）无法在脚本内断言，见末尾说明
+// ============================================================
+section("阶段 1: bgColor 设置 / 读取");
+
+let p = win.label("probe");
+
+p.bgColor({R: 255, G: 0, B: 0});
+let c1 = p.bgColor();
+check("对象 {R,G,B} 写入", c1.R == 255 && c1.G == 0 && c1.B == 0);
+check("省略 A 时自动补 255", c1.A == 255);
+
+p.bgColor({R: 10, G: 20, B: 30, A: 128});
+let c2 = p.bgColor();
+check("显式 A 被保留", c2.R == 10 && c2.A == 128);
+
+p.bgColor("#00FF00");
+let c3 = p.bgColor();
+check("hex \"#00FF00\"", c3.R == 0 && c3.G == 255 && c3.B == 0 && c3.A == 255);
+
+p.bgColor("0x0000FF");
+let c4 = p.bgColor();
+check("hex \"0x0000FF\"", c4.R == 0 && c4.G == 0 && c4.B == 255);
+
+p.bgColor("#11223344");
+let c5 = p.bgColor();
+check("8 位 hex \"#11223344\"", c5.R == 17 && c5.G == 34 && c5.B == 51 && c5.A == 68);
+
+let fresh = win.label("freshLabel");
+check("未设置时读回 null", fresh.bgColor() == null);
+
+check("链式返回控件自身", p.bgColor("#123456").text("x").text() == "x");
+
+// --- 回归：其他 accessor 不受影响 ---
+section("阶段 1b: 其他 accessor 回归");
+
+let l = win.label("lbl");
+l.pos({x: 20, y: 30});
+check("pos({x,y})", l.pos().x == 20 && l.pos().y == 30);
+
+l.size(400, 300);
+check("size(w,h)", l.size().width == 400 && l.size().height == 300);
+
+l.text("你好");
+check("text() 读写", l.text() == "你好");
+
+l.font({fontSize: 16, fontColor: {R: 1, G: 2, B: 3}});
+check("font({fontSize})", l.font().fontSize == 16);
+check("font({fontColor})", l.font().fontColor.R == 1);
+
+l.visible(false);
+check("visible()", l.visible() == false);
+l.disable(true);
+check("disable()", l.disable() == true);
+
+// ============================================================
+//  阶段 2：搭好窗口，准备跑运行时测试
+// ============================================================
+section("阶段 2: 建立窗口");
+
+// 主窗口（模态的 owner）
+let main = win.form("main")
+    .text("TESTWIN_MAIN")
+    .size(520, 380)
+    .pos(60, 60)
+    .add([
+        win.label("info").text("回归测试运行中，约 12 秒后自动退出").pos(20, 20).size(470, 24)
+    ]);
+
+// A / B 两个普通窗口，用来测"关一个不杀进程"
+let closeEventFired = false;
+
+let winA = win.form("winA").text("TESTWIN_A").size(320, 200).pos(60, 60)
+    .on("close", function() {
+        closeEventFired = true;
+    });
+
+let winB = win.form("winB").text("TESTWIN_B").size(320, 200).pos(450, 60);
+
+check("win.form() 返回对象", main != null);
+check("on(\"close\") 注册不报错", true);
+
+// ============================================================
+//  阶段 3：运行时（关窗行为 + 模态）
+// ============================================================
+let reachedStage3 = false;
+let modalValue = "";
+let modalClosed = false;
+let modalRendered = false;
+
+function runModalTest() {
+    section("阶段 4: 模态对话框");
+
+    let fAdd = win.form("dlg")
+        .owner(main)                    // ← owner
+        .modal(true)                    // ← modal
+        .text("TESTWIN_MODAL")
+        .size(420, 220)
+        .pos(300, 250)
+        .add([
+            win.input("inpName").pos(20, 40).size(360, 30).text("模态里的内容"),
+            win.button("btnOk").text("确定").pos(310, 140).size(80, 34)
+        ]);
+
+    check("owner() + modal() 链式可用", fAdd != null);
+
+    // 模拟"点确定"：定时器会在模态循环里触发
+    // （RunModal 的循环里照常调 EventLoop::Dispatch，所以定时器有效）
+    Timer.setTimeout(function() {
+        Console.println("  [模拟点确定] 取值 + close()");
+        modalValue = fAdd.refs.inpName.text();   // ① 先取值
+        fAdd.close();                            // ② 再关闭
+        modalClosed = true;
+    }, 1500);
+
+    Console.println("  win.render(模态) 即将阻塞 ...");
+    modalRendered = true;
+    win.render(fAdd);                            // ③ 阻塞，直到上面 close()
+    Console.println("  win.render 已返回");
+
+    check("模态 render 阻塞后能返回", true);
+    check("模态期间取值正确", modalValue == "模态里的内容");
+    check("close() 让模态循环退出", modalClosed);
+}
+
+// ---- 定时器驱动整个流程 ----
+
+// t=2000: 关掉 B（不是最后一个窗口）—— 如果这条老逻辑还在，整个程序会在这里死掉
+Timer.setTimeout(function() {
+    Console.println("  → 关闭窗口 B（非最后一个）");
+    winB.close();
+}, 2000);
+
+// t=3500: 能走到这里，就证明"关非最后窗口 ≠ 退出程序"
+Timer.setTimeout(function() {
+    reachedStage3 = true;
+    section("阶段 3: 关闭窗口行为");
+    check("关闭非最后一个窗口后，程序仍存活", true);
+    Console.println("  （窗口 A 仍在，任务栏/屏幕可确认）");
+
+    runModalTest();
+}, 3500);
+
+// t=9000: 关闭窗口 A
+Timer.setTimeout(function() {
+    section("阶段 5: 关闭最后一个窗口");
+    Console.println("  → 关闭窗口 A");
+    winA.close();
+    check("close() 触发了 on(\"close\") 事件", closeEventFired);
+    Console.println("  （主窗口还在，程序不应退出）");
+}, 9000);
+
+// t=11000: 关闭主窗口 —— 这才是最后一个顶层窗口，程序应在此退出
+Timer.setTimeout(function() {
+    Console.println("  → 关闭主窗口（最后一个顶层窗口）");
+    main.close();
+    Console.println("  → 程序应在此退出");
+}, 11000);
+
+// ============================================================
+//  启动
+// ============================================================
+Console.println("主窗口已打开，回归测试开始 ...");
+win.loop();
+
+// 只有"最后一个窗口关闭"才会走到这里
+Console.println("");
+Console.println("─── win.loop() 已返回 ────────────────────");
+check("关闭最后一个窗口后 win.loop() 正常返回", true);
+
+// ---------------- 汇总 ----------------
+Console.println("");
+Console.println("============================================");
+Console.println("  通过 " + gPassed + " 项，失败 " + gFailed + " 项");
+Console.println("============================================");
+Console.println("");
+Console.println("脚本内无法断言、需外部确认的两项：");
+Console.println("  1. owner 的 Win32 归属（GetWindow(GW_OWNER) == 主窗）");
+Console.println("     与子窗样式（有 WS_EX_TOOLWINDOW、无 WS_EX_APPWINDOW）");
+Console.println("  2. bgColor 是否真的画出来了（需要看窗口或做像素比对）");
+Console.println("  → 这两项由配套的 PowerShell 检查脚本覆盖");

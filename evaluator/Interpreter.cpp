@@ -50,6 +50,7 @@ void Interpreter::SetupEnvironment(const std::shared_ptr<Environment> &env) {
     env->DeclareVar("Function", FunctionValue::InitBuiltins());
     env->DeclareVar("Object", ObjectValue::InitBuiltins());
     env->DeclareVar("Boolean", BoolValue::InitBuiltins());
+    env->DeclareVar("Buffer", BufferValue::InitBuiltins());
 }
 
 ValuePtr Interpreter::CallFunction(const ValuePtr &callee, const std::vector<ValuePtr> &args) {
@@ -114,12 +115,12 @@ ValuePtr Interpreter::EvaluateProgram(const Program &program, const std::shared_
             }
             LoadModule(importStmt.get(), env);
         }
-        // 函数提升
+        // 函数提升（同名重复声明按后者覆盖，与 Execute 里的处理保持一致）
         for (const auto &stmt: program.Body) {
             if (const auto *funcStmt = dynamic_cast<FunctionStatement *>(stmt.get())) {
                 FunctionLiteral *funcLit = funcStmt->Function.get();
                 auto funcValue = std::make_shared<FunctionValue>(funcLit, env);
-                env->DeclareVar(funcLit->Name->Name, funcValue);
+                env->DefineVar(funcLit->Name->Name, funcValue);
             }
         }
         // 执行流程
@@ -174,6 +175,15 @@ ValuePtr Interpreter::Execute(Statement *stmt, const std::shared_ptr<Environment
     // 代码块 { ... }
     if (const auto *block = dynamic_cast<BlockStatement *>(stmt)) {
         const auto blockEnv = std::make_shared<Environment>(env);
+        // 块级函数提升：先把本块内的 function 声明整体绑定，块内也能"先调用后定义"。
+        // （顶层由 EvaluateProgram 负责；函数体本身也是一个 BlockStatement，走这里。）
+        for (const auto &s: block->StatementList) {
+            if (const auto *fn = dynamic_cast<FunctionStatement *>(s.get())) {
+                FunctionLiteral *funcLit = fn->Function.get();
+                blockEnv->DefineVar(funcLit->Name->Name,
+                                    std::make_shared<FunctionValue>(funcLit, blockEnv));
+            }
+        }
         ValuePtr result = std::make_shared<NullValue>();
         for (const auto &s: block->StatementList) {
             result = Execute(s.get(), blockEnv);
@@ -188,6 +198,66 @@ ValuePtr Interpreter::Execute(Statement *stmt, const std::shared_ptr<Environment
     // 表达式语句 (a = 1; 或 func();)
     if (const auto *exprStmt = dynamic_cast<ExpressionStatement *>(stmt)) {
         return Evaluate(exprStmt->Expression.get(), env);
+    }
+    // for-in 遍历 (for (let k in obj))
+    // 支持：对象 → 键名(String)；数组 → 下标(Number)；字符串 → 下标(Number，按 Unicode 码点)
+    // 注意：对象用的是 unordered_map，键的遍历顺序是不确定的（不同于 JS 的插入序）
+    if (const auto *forIn = dynamic_cast<ForInStatement *>(stmt)) {
+        const ValuePtr source = Evaluate(forIn->Source.get(), env);
+
+        std::vector<ValuePtr> keys;
+        if (source->type == ValueType::OBJECT) {
+            for (const auto &[fst, snd]: std::static_pointer_cast<ObjectValue>(source)->Properties) {
+                keys.push_back(std::make_shared<StringValue>(fst));
+            }
+        } else if (source->type == ValueType::ARRAY) {
+            const auto arr = std::static_pointer_cast<ArrayValue>(source);
+            keys.reserve(arr->Elements.size());
+            for (size_t i = 0; i < arr->Elements.size(); ++i) {
+                keys.push_back(std::make_shared<NumberValue>(static_cast<double>(i)));
+            }
+        } else if (source->type == ValueType::STRING) {
+            const auto str = std::static_pointer_cast<StringValue>(source);
+            keys.reserve(str->U32Value.size());
+            for (size_t i = 0; i < str->U32Value.size(); ++i) {
+                keys.push_back(std::make_shared<NumberValue>(static_cast<double>(i)));
+            }
+        } else if (source->type != ValueType::NULL_TYPE) {
+            throw RuntimeError("for-in 只能遍历对象、数组或字符串");
+        }
+
+        const auto loopEnv = std::make_shared<Environment>(env);
+
+        // for (let k in ...) 先声明；for (k in ...) 则赋值到已存在的变量
+        if (const auto *ve = dynamic_cast<VariableExpression *>(forIn->Into.get())) {
+            if (!ve->Name.empty()) loopEnv->DeclareVar(ve->Name, std::make_shared<NullValue>());
+        }
+
+        const auto assignKey = [&](const ValuePtr &key) {
+            if (const auto *ve = dynamic_cast<VariableExpression *>(forIn->Into.get())) {
+                if (!ve->Name.empty()) loopEnv->AssignVar(ve->Name, key);
+            } else if (const auto *id = dynamic_cast<Identifier *>(forIn->Into.get())) {
+                loopEnv->AssignVar(id->Name, key);
+            } else if (const auto *dot = dynamic_cast<DotExpression *>(forIn->Into.get())) {
+                Evaluate(dot->Left.get(), loopEnv)->Set(dot->Identifier->Name, key);
+            } else if (const auto *bra = dynamic_cast<BracketExpression *>(forIn->Into.get())) {
+                const ValuePtr target = Evaluate(bra->Left.get(), loopEnv);
+                target->Set(Evaluate(bra->Member.get(), loopEnv)->ToString(), key);
+            }
+        };
+
+        for (const auto &key: keys) {
+            assignKey(key);
+            const auto iterationEnv = std::make_shared<Environment>(loopEnv);
+            const ValuePtr bodyResult = Execute(forIn->Body.get(), iterationEnv);
+            if (bodyResult->type == ValueType::BREAK) {
+                break;
+            }
+            if (bodyResult->type == ValueType::RETURN) {
+                return bodyResult;
+            }
+        }
+        return std::make_shared<NullValue>();
     }
     // For 循环 (for (let i=0; i<10; i++))
     if (const auto *forStmt = dynamic_cast<ForStatement *>(stmt)) {
@@ -252,8 +322,11 @@ ValuePtr Interpreter::Execute(Statement *stmt, const std::shared_ptr<Environment
         }
         return std::make_shared<NullValue>();
     }
-    // function不处理
-    if (dynamic_cast<FunctionStatement *>(stmt)) {
+    // function 声明。顶层那批已经在 EvaluateProgram 里整体提升过，这里负责其余层级：
+    // 块内/函数体内的声明按到达顺序绑定到当前作用域，否则等于一行被静默丢弃的空语句。
+    if (const auto *funcStmt = dynamic_cast<FunctionStatement *>(stmt)) {
+        FunctionLiteral *funcLit = funcStmt->Function.get();
+        env->DefineVar(funcLit->Name->Name, std::make_shared<FunctionValue>(funcLit, env));
         return std::make_shared<NullValue>();
     }
     if (const auto *retStmt = dynamic_cast<ReturnStatement *>(stmt)) {
@@ -272,6 +345,19 @@ ValuePtr Interpreter::Execute(Statement *stmt, const std::shared_ptr<Environment
         return std::make_shared<ContinueValue>();
     }
     return std::make_shared<NullValue>();
+}
+
+// 解析数字字面量。
+static double ParseNumberLiteral(const std::string &literal) {
+    if (literal.size() > 2 && literal[0] == '0') {
+        switch (std::tolower(static_cast<unsigned char>(literal[1]))) {
+            case 'x': return static_cast<double>(std::stoll(literal.substr(2), nullptr, 16));
+            case 'b': return static_cast<double>(std::stoll(literal.substr(2), nullptr, 2));
+            case 'o': return static_cast<double>(std::stoll(literal.substr(2), nullptr, 8));
+            default: break;
+        }
+    }
+    return std::stod(literal);
 }
 
 ValuePtr Interpreter::Evaluate(Expression *expr, std::shared_ptr<Environment> env) {
@@ -309,7 +395,7 @@ ValuePtr Interpreter::Evaluate(Expression *expr, std::shared_ptr<Environment> en
     }
     // 数字字面量
     if (const auto *num = dynamic_cast<NumberLiteral *>(expr)) {
-        return std::make_shared<NumberValue>(std::stod(num->Literal));
+        return std::make_shared<NumberValue>(ParseNumberLiteral(num->Literal));
     }
     // 字符串字面量
     if (auto *str = dynamic_cast<StringLiteral *>(expr)) {
@@ -551,8 +637,8 @@ ValuePtr Interpreter::ApplyBinary(const Token &op, const ValuePtr &left, const V
         }
     }
     // 通用相等性检查
-    if (o == "==") return std::make_shared<BoolValue>(left->Equal(right));
-    if (o == "!=") return std::make_shared<BoolValue>(!left->Equal(right));
+    if (o == "==") return std::make_shared<BoolValue>(ValueEqual(left, right));
+    if (o == "!=") return std::make_shared<BoolValue>(!ValueEqual(left, right));
     throw RuntimeError("不支持的操作: " + left->ToString() + " " + o + " " + right->ToString());
 }
 

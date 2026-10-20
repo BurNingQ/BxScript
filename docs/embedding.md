@@ -10,8 +10,8 @@ BxScript 作为嵌入式脚本语言，可以轻松集成到 C++ 项目中。
 int main() {
     // 执行脚本字符串
     Interpreter::Run(R"(
-        import std.IO as IO;
-        IO.println("Hello from C++ embedding!");
+        import std.Console as Console;
+        Console.println("Hello from C++ embedding!");
     )");
 
     return 0;
@@ -41,8 +41,8 @@ int main() {
 
     // 在预设环境中执行
     Interpreter::Run(R"(
-        import std.IO as IO;
-        IO.println("Version: " + APP_VERSION);
+        import std.Console as Console;
+        Console.println("Version: " + APP_VERSION);
         sayHello();
     )", env);
 
@@ -122,7 +122,7 @@ try {
 Interpreter::Run("import std.Math as Math;");
 
 // 第二次执行命中缓存，直接使用
-Interpreter::Run("import std.Math as Math; IO.print(Math.PI);");
+Interpreter::Run("import std.Math as Math; Console.print(Math.PI);");
 ```
 
 如需清除缓存：

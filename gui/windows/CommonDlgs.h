@@ -49,6 +49,13 @@ public:
      */
     static int MsgBox(ControlBase *parent, const std::wstring &text, const std::wstring &title, unsigned int flags);
 
+    /**
+     * 消息框文本截断。Windows 消息框最多接受 65535 个字符，超出时 MessageBoxW
+     * 直接返回 0 且不创建窗口（也不设置 LastError），调用方只会看到"没弹出来"。
+     * 这里主动截断并注明原始长度，避免静默失败。
+     */
+    static std::wstring TruncateMsgBoxText(const std::wstring &text);
+
     static bool MsgBoxConfirm(ControlBase *parent, const std::wstring &text, const std::wstring &title = L"Confirm");
 
     static bool MsgBoxYesNo(ControlBase *parent, const std::wstring &text, const std::wstring &title = L"Question");

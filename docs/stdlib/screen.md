@@ -22,14 +22,14 @@ import std.Screen;
 
 ```javascript
 import std.Screen;
-import std.IO as IO;
+import std.Console as Console;
 
-IO.print("屏幕分辨率: " + Screen.width() + "x" + Screen.height());
-IO.print("显示器数量: " + Screen.count());
-IO.print("刷新率: " + Screen.rate() + "Hz");
+Console.print("屏幕分辨率: " + Screen.width() + "x" + Screen.height());
+Console.print("显示器数量: " + Screen.count());
+Console.print("刷新率: " + Screen.rate() + "Hz");
 
 let area = Screen.workArea();
-IO.print("工作区: " + area.width + "x" + area.height);
+Console.print("工作区: " + area.width + "x" + area.height);
 
 // 配合鼠标模块
 import std.Mouse;

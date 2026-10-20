@@ -30,11 +30,11 @@ import std.Mouse;
 ```javascript
 import std.Mouse;
 import std.Screen;
-import std.IO as IO;
+import std.Console as Console;
 
 // 获取当前位置
 let pos = Mouse.getPos();
-IO.print("当前位置: " + pos.x + ", " + pos.y);
+Console.print("当前位置: " + pos.x + ", " + pos.y);
 
 // 移动到 (100, 200) 后点击
 Mouse.move(100, 200);

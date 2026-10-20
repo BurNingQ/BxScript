@@ -238,7 +238,7 @@ ValuePtr ArrayValue::Get(const std::string &key) {
                 }
                 for (long long i = start; i < self->Elements.size(); i++) {
                     auto e = self->Elements.at(i);
-                    if (e->Equal(ele)) {
+                    if (ValueEqual(e, ele)) {
                         return std::make_shared<NumberValue>(i);
                     }
                 }
@@ -269,7 +269,7 @@ ValuePtr ArrayValue::Get(const std::string &key) {
                 }
                 for (long long i = self->Elements.size() - 1; i >= 0; i--) {
                     auto e = self->Elements.at(i);
-                    if (e->Equal(ele)) {
+                    if (ValueEqual(e, ele)) {
                         return std::make_shared<NumberValue>(i);
                     }
                 }

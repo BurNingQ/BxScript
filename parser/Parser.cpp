@@ -18,14 +18,12 @@ Token Parser::NextToken() {
     if (!this->TokenQueue.empty()) {
         auto token = this->TokenQueue.front();
         this->TokenQueue.pop_front();
+        this->ConsumedLines.push_back(token.LineNum);
         return token;
     }
     auto tk = this->lexer.NextToken();
+    this->ConsumedLines.push_back(tk.LineNum);
     return tk;
-}
-
-inline bool IsSymbol(const Token &tk, const std::string &symbol) {
-    return tk._TokenType.GetEnum() == TokenKind::SYMBOL && tk.TokenValue == symbol;
 }
 
 inline bool IsKeyword(const Token &tk, const std::string &name) {
@@ -33,6 +31,10 @@ inline bool IsKeyword(const Token &tk, const std::string &name) {
 }
 
 void Parser::BackToken(const Token &token) {
+    // 与 NextToken 的压栈成对回退
+    if (!this->ConsumedLines.empty()) {
+        this->ConsumedLines.pop_back();
+    }
     this->TokenQueue.push_front(token);
 }
 

@@ -20,6 +20,7 @@
 #include <windef.h>
 
 #include "Color.h"
+#include "Brush.h"
 
 class ControlBase : public Controller {
 protected:
@@ -63,7 +64,8 @@ protected:
     Color bgColor = Color::White();
     bool defineFontColor = false;
     bool defineBackgroundColor = false;
-    void* formBrush = nullptr;
+    // 注意：这是 Brush 包装对象（拥有真实 HBRUSH），取句柄请用 formBrush->GetHandle()
+    Brush *formBrush = nullptr;
 
 public:
     ~ControlBase() override;

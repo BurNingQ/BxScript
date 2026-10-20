@@ -51,20 +51,23 @@ BxScript 使得构建 Windows 桌面应用变得异常简单。你不再需要�
 ### 示例代码
 
 ```javascript
+import std.Win as win;
+import std.Dlg as dlg;
+
 // 1. 创建一个主窗口
 let app = win.form("apps").size(800, 600)
-    .center()         // 屏幕居中
-    .icon("app.ico"); // 设置图标
+    .center()          // 屏幕居中
+    .icon("app.ico");  // 设置图标
 
 // 2. 创建一个按钮，链式设置属性
 let btn = win.button("btn1").text("Click Me")
     .pos(220, 150)
     .size(160, 40)
-    .font({size: 14});
+    .font({fontSize: 14});
 
 // 3. 绑定点击事件 (支持闭包)
 btn.on("click", function() {
-    win.alert("你好，这是原生弹窗！");
+    dlg.alert("你好，这是原生弹窗！");
     // 动态修改控件属性
     app.refs.btn1.text("已点击");
 });
@@ -87,25 +90,29 @@ win.loop();
 BxScript 内置了对 WebView2 的支持，允许你使用 HTML/CSS/JS 编写界面，同时调用底层的系统能力。
 
 ```javascript
+import std.Win as win;
+import std.Crypt as Crypt;
+import std.Console as Console;
+
 // 创建一个 WebView 窗口
 let web = win.webview()
     .size(1024, 768)
     .title("WebView Bridge Demo")
-    .html(`
+    .html("
         <h1>Hello from WebView</h1>
-        <button onclick="callNative()">Call BxScript</button>
+        <button onclick='callNative()'>Call BxScript</button>
         <script>
             async function callNative() {
                 // 直接调用 BxScript 中绑定的函数
-                let res = await window.nativeFunc("Data from Web");
-                alert("Native response: " + res);
+                let res = await window.nativeFunc('Data from Web');
+                alert('Native response: ' + res);
             }
         </script>
-    `);
+    ");
 
 // 绑定原生函数供网页调用
 web.bind("nativeFunc", function(arg) {
-    print("网页发来数据: " + arg);
+    Console.println("网页发来数据: " + arg);
     // 执行系统级操作，例如计算文件哈希
     return Crypt.md5(arg);
 });
@@ -123,6 +130,8 @@ BxScript 非常适合编写系统自动化脚本，内置的非阻塞网络库�
 import std.Mouse as mouse;
 import std.Screen as screen;
 import std.Net as http;
+import std.JSON as JSON;
+import std.Console as Console;
 
 // 1. 模拟自动化操作
 let w = screen.width();
@@ -131,19 +140,19 @@ let h = screen.height();
 mouse.move(w / 2, h / 2);
 mouse.click();
 
-print("开始发送网络请求...");
+Console.println("开始发送网络请求...");
 
 // 2. 异步发送 GET 请求，不会卡住界面
 http.get("https://httpbin.org/get", function(res) {
     if (res.status == 200) {
         let json = JSON.parse(res.body);
-        print("IP来源: " + json.origin);
+        Console.println("IP来源: " + json.origin);
     } else {
-        print("请求失败: " + res.error);
+        Console.println("请求失败: " + res.error);
     }
 });
 
-print("请求已发送 (程序继续运行...)");
+Console.println("请求已发送 (程序继续运行...)");
 ```
 
 ---
@@ -173,7 +182,8 @@ cmake --build . --config Release
 # 进入交互式模式 (REPL)
 ./BxScript
 >> import std.Math;
->> print(Math.random());
+>> import std.Console as Console;
+>> Console.println(Math.random());
 ```
 
 ---
