@@ -231,6 +231,11 @@ target_include_directories(BxScript_Console PRIVATE ${PROJECT_SOURCE_DIR})
 add_executable(BxScript_GUI ${SOURCE_FILES} ${PLATFORM_SOURCES})
 target_include_directories(BxScript_GUI PRIVATE ${PROJECT_SOURCE_DIR})
 
+if(MINGW)
+    target_compile_options(BxScript_Console PRIVATE "-Wa,-mbig-obj")
+    target_compile_options(BxScript_GUI PRIVATE "-Wa,-mbig-obj")
+endif()
+
 if (WIN32)
     set_target_properties(BxScript_GUI PROPERTIES WIN32_EXECUTABLE TRUE)
     if (MINGW)

@@ -198,6 +198,28 @@ check("for 循环里用进制字面量 (16+17+18=51)", hexLoopSum == 51);
 check("Buffer.from([0x41,0x42])[0] == 65", Buffer.from([0x41, 0x42])[0] == 65);
 
 // ============================================================
+//  阶段 0e：反引号 RAW 字符串
+//  RAW：除 \` 外不处理任何转义；跨行保留物理换行
+// ============================================================
+section("阶段 0e: 反引号 RAW 字符串");
+
+let rawMulti = `a
+b`;
+check("RAW 跨行：保留换行 (长度 3)", rawMulti.length == 3);
+
+let rawBackslash = `C:\path\new`;
+check("RAW 反斜杠原样保留", rawBackslash == "C:\\path\\new");
+
+let rawSlashN = `a\nb`;
+check("RAW 里的 \\n 是两个字符 (长度 4)", rawSlashN.length == 4);
+
+let rawQuotes = `say "hi" and 'ok' and ${x}`;
+check("RAW 双引号/单引号/${} 原样保留", rawQuotes == "say \"hi\" and 'ok' and ${x}");
+
+let rawEscapedBacktick = `a\`b`;
+check("RAW 里的 \\` 转义为反引号", rawEscapedBacktick == "a`b");
+
+// ============================================================
 //  阶段 1：bgColor（渲染前即可断言，测的是"设置侧"）
 //  注：绘制侧（真的画出颜色）无法在脚本内断言，见末尾说明
 // ============================================================

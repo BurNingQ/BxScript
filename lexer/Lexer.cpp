@@ -98,9 +98,8 @@ Token Lexer::NextToken() {
                         hasDigit = true;
                     }
                     if (!hasDigit) {
-                        throw std::runtime_error("非法的数字字面量: '" + token.TokenValue
-                                                 + "',行: " + std::to_string(RowNum) + ",列: " + std::to_string(
-                                                     RowPos));
+                        throw std::runtime_error(
+                            "非法的数字字面量: '" + token.TokenValue + "',行: " + std::to_string(RowNum) + ",列: " + std::to_string(RowPos));
                     }
                     return token;
                 }
@@ -166,6 +165,37 @@ Token Lexer::NextToken() {
             }
             return token;
         }
+        if (chaz == "`") {
+            Token token{TokenKind(TokenKind::STRING), "", Lexer::RowNum, Lexer::RowPos};
+            const auto nextInString = [&]() -> std::string {
+                const int rowBefore = RowNum;
+                std::string c = this->NextChar();
+                token.TokenValue.append(static_cast<size_t>(RowNum - rowBefore), '\n');
+                return c;
+            };
+
+            chaz = nextInString();
+            while (true) {
+                if (chaz.empty()) {
+                    throw std::runtime_error("原始字符串未闭合,行: " + std::to_string(RowNum) + ",列: " + std::to_string(RowPos));
+                }
+                if (chaz == "`") {
+                    break;
+                }
+                if (chaz == "\\" && !this->AtLineEnd()) {
+                    std::string next = this->NextChar();
+                    if (next == "`") {
+                        token.TokenValue += "`";
+                    } else {
+                        token.TokenValue += "\\" + next;
+                    }
+                } else {
+                    token.TokenValue += chaz;
+                }
+                chaz = nextInString();
+            }
+            return token;
+        }
         if (Symbols::isSymbols(chaz)) {
             Token token{TokenKind(TokenKind::SYMBOL), chaz, Lexer::RowNum, RowPos};
             // 符号不跨行：每次多字符前瞻前，若已在行尾就直接结束当前符号。
@@ -179,7 +209,8 @@ Token Lexer::NextToken() {
                         if (this->AtLineEnd()) return token;
                         chaz = this->NextChar();
                         if (chaz == "=") {
-                            throw std::runtime_error("不支持的运算符: '" + token.TokenValue + "=',行: " + std::to_string(RowNum) + ",列: " + std::to_string(RowPos));
+                            throw std::runtime_error(
+                                "不支持的运算符: '" + token.TokenValue + "=',行: " + std::to_string(RowNum) + ",列: " + std::to_string(RowPos));
                         }
                         this->RollBack();
                     }

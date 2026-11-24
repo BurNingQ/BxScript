@@ -51,6 +51,47 @@ TEST(LexerTest, StringHandling) {
     EXPECT_EQ(strToken._TokenType.GetEnum(), TokenKind::STRING);
 }
 
+// 反引号 RAW 字符串
+TEST(LexerTest, RawStringLiteral) {
+    // 跨行：物理换行原样保留
+    {
+        Lexer lexer("let s = `a\nb`");
+        lexer.NextToken(); // let
+        lexer.NextToken(); // s
+        lexer.NextToken(); // =
+        Token t = lexer.NextToken();
+        EXPECT_EQ(t._TokenType.GetEnum(), TokenKind::STRING);
+        EXPECT_EQ(t.TokenValue, "a\nb");
+    }
+    // 跨行空行也保留
+    {
+        Lexer lexer("`x\n\ny`");
+        EXPECT_EQ(lexer.NextToken().TokenValue, "x\n\ny");
+    }
+    // RAW：反斜杠、双引号、单引号、${} 全部原样保留
+    {
+        Lexer lexer("`C:\\path\\new \"q\" 's' ${x}`");
+        EXPECT_EQ(lexer.NextToken().TokenValue, "C:\\path\\new \"q\" 's' ${x}");
+    }
+    // \\` 转义为一个反引号
+    {
+        Lexer lexer("`a\\`b`");
+        EXPECT_EQ(lexer.NextToken().TokenValue, "a`b");
+    }
+    // 空 RAW 字符串
+    {
+        Lexer lexer("``");
+        Token t = lexer.NextToken();
+        EXPECT_EQ(t._TokenType.GetEnum(), TokenKind::STRING);
+        EXPECT_EQ(t.TokenValue, "");
+    }
+    // 未闭合
+    EXPECT_THROW({
+        Lexer lexer("`abc");
+        lexer.NextToken();
+    }, std::runtime_error);
+}
+
 // ==========================================
 // 2. Parser 单元测试
 // ==========================================

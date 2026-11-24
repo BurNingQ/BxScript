@@ -106,6 +106,19 @@ TEST_F(InterpreterTest, StringConcatenation) {
     ASSERT_IS_STRING(Eval("\"Number: \" + 1;"), "Number: 1"); // 测试隐式转换
 }
 
+TEST_F(InterpreterTest, RawStringLiteral) {
+    // 跨行 RAW：换行保留，反斜杠不转义
+    ASSERT_IS_STRING(Eval("`a\nb`;"), "a\nb");
+    ASSERT_IS_STRING(Eval("`C:\\path\\new`;"), "C:\\path\\new");
+    ASSERT_IS_STRING(Eval("`say \"hi\" 'ok' ${x}`;"), "say \"hi\" 'ok' ${x}");
+    // \\` 转义为反引号
+    ASSERT_IS_STRING(Eval("`a\\`b`;"), "a`b");
+    // 与普通字符串拼接
+    ASSERT_IS_STRING(Eval("`a` + \"b\";"), "ab");
+    // 双引号字符串的转义语义不变
+    ASSERT_IS_STRING(Eval("\"a\\nb\";"), "a\nb");
+}
+
 // ==========================================
 // 变量与赋值
 // ==========================================

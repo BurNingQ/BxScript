@@ -688,16 +688,16 @@ import std.Crypt as Crypt;
 let wb = win.webview()                      // 注意：不传 id
     .title("WebView 应用")                    // 默认 "BxScriptWebView"
     .size(1024, 768)                         // 默认 800 × 600
-    .html("
+    .html(`
         <h1>Hello WebView</h1>
-        <button onclick='callNative()'>调用原生函数</button>
+        <button onclick="callNative()">调用原生函数</button>
         <script>
             async function callNative() {
                 let res = await nativeFunc('来自网页的数据');
                 alert('原生返回: ' + res);
             }
         </script>
-    ")
+    `)
     .bind("nativeFunc", function(arg) {      // 注册给 JS 调用的函数
         return Crypt.md5(arg);
     });
@@ -705,7 +705,7 @@ let wb = win.webview()                      // 注意：不传 id
 win.loop();
 ```
 
-> 📌 **内联 HTML 的小技巧**：BxScript 字符串用双引号，而 HTML 属性也常用双引号，硬碰硬就得写一堆 `\"`。HTML 允许用单引号写属性、JS 也允许用单引号写字符串字面量，所以**外层用双引号、内层用单引号**，一个转义都不用。字符串**支持跨行**，换行会原样保留。
+> 📌 **内联 HTML 的小技巧**：优先用**反引号 RAW 字符串**。属性里的双引号、Windows 路径里的反斜杠都无需转义，直接照着 HTML 抄即可（见上面的例子）。唯一要注意的是内联 JS 的模板字符串：反引号要写成 `` \` ``。两种字符串都**支持跨行**，换行会原样保留。
 
 ### 几个必须知道的点
 

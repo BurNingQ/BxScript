@@ -225,7 +225,27 @@ public:
 
     std::string Literal{};
 
-    std::string ToSource() const override { return "\"" + Literal + "\""; }
+    std::string ToSource() const override {
+        // 转义后再包双引号，避免跨行/含引号的字符串让错误信息错乱
+        std::string out = "\"";
+        for (const char c : Literal) {
+            switch (c) {
+                case '\\': out += "\\\\";
+                    break;
+                case '"': out += "\\\"";
+                    break;
+                case '\n': out += "\\n";
+                    break;
+                case '\r': out += "\\r";
+                    break;
+                case '\t': out += "\\t";
+                    break;
+                default: out += c;
+            }
+        }
+        out += '"';
+        return out;
+    }
 };
 
 class ThisExpression : public Expression {

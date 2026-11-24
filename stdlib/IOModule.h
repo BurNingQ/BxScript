@@ -129,6 +129,7 @@ class IOModule {
                         }
                         o->Set("size", std::make_shared<NumberValue>(size));
                     }
+                    o->Set("name", std::make_shared<StringValue>(f.path().filename().string()));
                     o->Set("lastModified", std::make_shared<StringValue>(TimeKit::GetFileLastTime(f)));
                     arrs->Elements.push_back(o);
                 }
